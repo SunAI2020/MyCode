@@ -1,2 +1,2 @@
 # MyCode
-This is my repository where stores my code.
+This is my repository which stores my code.
