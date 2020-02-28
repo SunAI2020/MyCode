@@ -127,12 +127,3 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
-HTML/hello_world.html
-HTML/html_test1.py
-MyCode/
-Pygame.doc
-sql_test1.py
-sql_test2.py
-test1.py
-test2.py
-test3.py
