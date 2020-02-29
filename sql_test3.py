@@ -1,7 +1,7 @@
 import pymysql
 
 #连接到 SQL datebase
-conn=pymysql.connect(host='127.0.0.1',port=3306,user='sun',passwd='sx-secsun3721',db='test_schema',charset='utf8mb4')
+conn=pymysql.connect(host='192.168.3.128',port=3306,user='sun',passwd='sx-secsun3721',db='test_schema',charset='utf8mb4')
 
 #获取游标
 cursor=conn.cursor()
@@ -73,7 +73,7 @@ for row4 in range(rows):
     print("*"*132)
 
 #更新记录内容
-db = pymysql.connect("localhost","root","sx-secsun3721","test_schema" )
+db = pymysql.connect("192.168.3.128","sun","sx-secsun3721","test_schema" )
 # prepare a cursor object using cursor() method
 
 #cursor = db.cursor()
@@ -99,7 +99,7 @@ except:
    db.rollback()
 
 #删除一条记录
-conn=pymysql.connect(host='127.0.0.1',port=3306,user='sun',passwd='sx-secsun3721',db='test_schema',charset='utf8mb4')
+conn=pymysql.connect(host='192.168.3.128',port=3306,user='sun',passwd='sx-secsun3721',db='test_schema',charset='utf8mb4')
 cursor=conn.cursor()
 cursor.execute("SELECT * FROM test_table")
 results = cursor.fetchall()
@@ -126,7 +126,7 @@ cursor.close()
 conn.close()
 
 #打印数据库列表
-conn=pymysql.connect(host='127.0.0.1',port=3306,user='sun',passwd='sx-secsun3721',db='test_schema',charset='utf8mb4')
+conn=pymysql.connect(host='192.168.3.128',port=3306,user='sun',passwd='sx-secsun3721',db='test_schema',charset='utf8mb4')
 cursor=conn.cursor()
 try:
     cursor.execute("SELECT * FROM test_table")
