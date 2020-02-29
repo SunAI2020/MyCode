@@ -73,15 +73,15 @@ for row4 in range(rows):
     print("*"*132)
 
 #更新记录内容
-db = pymysql.connect("192.168.3.128","sun","sx-secsun3721","test_schema" )
+conn = pymysql.connect("192.168.3.128","sun","sx-secsun3721","test_schema" )
 # prepare a cursor object using cursor() method
 
 #cursor = db.cursor()
 
-cursor = db.cursor(pymysql.cursors.DictCursor)
+cursor = conn.cursor(pymysql.cursors.DictCursor)
 
 # prepare a cursor object using cursor() method
-cursor = db.cursor()
+cursor = conn.cursor()
 sql = "UPDATE TEST_TABLE SET PRODUCT_LICENSE = 'hhhh' \
         WHERE PRODUCT_KIND = 'Web防火墙'"
 
@@ -92,11 +92,11 @@ try:
    cursor.execute(sql)
 
    # Commit your changes in the database
-   db.commit()
+   conn.commit()
 
 except:
    # Rollback in case there is any error
-   db.rollback()
+   conn.rollback()
 
 #删除一条记录
 conn=pymysql.connect(host='192.168.3.128',port=3306,user='sun',passwd='sx-secsun3721',db='test_schema',charset='utf8mb4')
@@ -105,20 +105,20 @@ cursor.execute("SELECT * FROM test_table")
 results = cursor.fetchall()
 # prepare a cursor object using cursor() method
 #cursor = db.cursor(pymysql.cursors.DictCursor)
-sql = "DELETE FROM TEST_TABLE WHERE PRODUCT_LICENSE='hhhh'"
+sql = "DELETE FROM TEST_TABLE WHERE PRODUCT_LICENSE>'hhhh'"
 row=0
-#try:
-for row in results:
+try:
+    for row in results:
    # Execute the SQL comman
 #    while product_license:
 #    cursor.execute(sql)
-    cursor.execute("delete from test_table where product_kind='hhhh'")
+        cursor.execute("DELETE FROM test_table WHERE product_kind='hhhh'")
       # Commit your changes in the database
-db.commit()
+    conn.commit()
 
-#except:
+except:
    # Rollback in case there is any error
-#   db.rollback()
+    conn.rollback()
 #关闭游标
 cursor.close()
 
@@ -147,6 +147,8 @@ except:
    import traceback
    traceback.print_exc()
    print ("Error: unable to fetch data")
+
+   
 #print(rows.all())
 #print(rows.first())
 #emp={
