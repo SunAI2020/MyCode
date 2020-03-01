@@ -1,6 +1,6 @@
 import pymysql
 import records
-db=records.Database("mysql+pymysql://root:sx-secsun3721@localhost:3306/test_schema?charset=utf8mb4")
+db=records.Database("mysql+pymysql://sun:123456@localhost:3306/test_schema?charset=utf8mb4")
 rows=db.query("SELECT * FROM test_table LIMIT 0,5")
 print(rows.dataset)
 print("*"*132)

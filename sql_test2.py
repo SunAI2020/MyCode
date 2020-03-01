@@ -1,7 +1,7 @@
 import pymysql
 
 #连接到 SQL datebase
-conn=pymysql.connect(host='127.0.0.1',port=3306,user='root',passwd='sx-secsun3721',db='test_schema',charset='utf8mb4')
+conn=pymysql.connect(host='127.0.0.1',port=3306,user='sun',passwd='123456',db='test_schema',charset='utf8mb4')
 
 #获取游标
 cursor=conn.cursor()

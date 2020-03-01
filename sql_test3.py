@@ -1,7 +1,7 @@
 import pymysql
 
 #连接到 SQL datebase
-conn=pymysql.connect(host='192.168.3.128',port=3306,user='sun',passwd='sx-secsun3721',db='test_schema',charset='utf8mb4')
+conn=pymysql.connect(host='192.168.3.128',port=3306,user='sun',passwd='123456',db='test_schema',charset='utf8mb4')
 
 #获取游标
 cursor=conn.cursor()
@@ -73,7 +73,7 @@ for row4 in range(rows):
     print("*"*132)
 
 #更新记录内容
-conn = pymysql.connect("192.168.3.128","sun","sx-secsun3721","test_schema" )
+conn = pymysql.connect("192.168.3.128","sun","123456","test_schema" )
 # prepare a cursor object using cursor() method
 
 #cursor = db.cursor()
@@ -99,7 +99,7 @@ except:
    conn.rollback()
 
 #删除一条记录
-conn=pymysql.connect(host='192.168.3.128',port=3306,user='sun',passwd='sx-secsun3721',db='test_schema',charset='utf8mb4')
+conn=pymysql.connect(host='192.168.3.128',port=3306,user='sun',passwd='123456',db='test_schema',charset='utf8mb4')
 cursor=conn.cursor()
 cursor.execute("SELECT * FROM test_table")
 results = cursor.fetchall()
@@ -112,7 +112,7 @@ try:
    # Execute the SQL comman
 #    while product_license:
 #    cursor.execute(sql)
-        cursor.execute("DELETE FROM test_table WHERE product_kind='hhhh'")
+        cursor.execute("DELETE FROM test_table WHERE product_license IS NULL")
       # Commit your changes in the database
     conn.commit()
 
@@ -126,7 +126,7 @@ cursor.close()
 conn.close()
 
 #打印数据库列表
-conn=pymysql.connect(host='192.168.3.128',port=3306,user='sun',passwd='sx-secsun3721',db='test_schema',charset='utf8mb4')
+conn=pymysql.connect(host='192.168.3.128',port=3306,user='sun',passwd='123456',db='test_schema',charset='utf8mb4')
 cursor=conn.cursor()
 try:
     cursor.execute("SELECT * FROM test_table")
@@ -141,7 +141,7 @@ try:
         product_license=row[4]
     # Now print fetched result
 #        print ("serial_no = %s,product_kind = %s,product_type = %s,product_name = %s,product_license = %s" % \
-        print ( "%s, %s,\t\t %s,\t\t %s,\t\t %s,\t\t %s" % \
+        print ( "%s\t\t %s\t\t %s\t\t %s\t\t %s\t\t %s" % \
              (cursor.rownumber,serial_no, product_kind, product_type, product_name, product_license ))
 except:
    import traceback
