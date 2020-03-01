@@ -1,5 +1,5 @@
 import pymysql
-
+from datetime import datetime
 #连接到 SQL datebase
 conn=pymysql.connect(host='192.168.3.128',port=3306,user='sun',passwd='123456',db='test_schema',charset='utf8mb4')
 
@@ -15,7 +15,15 @@ print("*"*132)
 cursor.execute("select * from test_table")
 
 #输入数据
-serial_no=input("please input serial NO:")
+time=datetime.now()
+year1=time.year
+month1=time.month
+day1=time.day
+hour1=time.hour
+minute1=time.minute
+second1=time.second
+print(time,year1,month1,day1,hour1,minute1,second1)
+serial_no=str(year1)+"-"+str(month1)+"-"+str(day1)+" "+str(hour1)+":"+str(minute1)+":"+str(second1)
 product_kind=input("please input product_kind:")
 product_type=input("please input product_type:")
 product_name=input("please input product_name:")
@@ -112,7 +120,7 @@ try:
    # Execute the SQL comman
 #    while product_license:
 #    cursor.execute(sql)
-        cursor.execute("DELETE FROM test_table WHERE product_license IS NULL")
+        cursor.execute("DELETE FROM test_table WHERE serial_no IS NULL")
       # Commit your changes in the database
     conn.commit()
 
