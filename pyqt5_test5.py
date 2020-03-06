@@ -1,6 +1,5 @@
 import sys
-from PyQt5.QtWidgets import QWidget, QPushButton, QApplication
-from PyQt5.QtCore import QCoreApplication
+from PyQt5.QtWidgets import QWidget, QLabel, QApplication
  
  
 class Example(QWidget):
@@ -11,15 +10,19 @@ class Example(QWidget):
         self.initUI()
         
         
-    def initUI(self):               
+    def initUI(self):
         
-        qbtn = QPushButton('Quit', self)
-        qbtn.clicked.connect(QCoreApplication.instance().quit)
-        qbtn.resize(qbtn.sizeHint())
-        qbtn.move(50, 50)       
+        lbl1 = QLabel('Zetcode', self)
+        lbl1.move(15, 10)
+ 
+        lbl2 = QLabel('tutorials', self)
+        lbl2.move(35, 40)
+        
+        lbl3 = QLabel('for programmers', self)
+        lbl3.move(55, 70)        
         
         self.setGeometry(300, 300, 250, 150)
-        self.setWindowTitle('Quit button')    
+        self.setWindowTitle('Absolute')    
         self.show()
         
         
