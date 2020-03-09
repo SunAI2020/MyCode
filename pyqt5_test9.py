@@ -1,5 +1,5 @@
 import sys
-from PyQt5.QtWidgets import QMainWindow, QAction, qApp, QApplication
+from PyQt5.QtWidgets import QMainWindow, QTextEdit, QAction, QApplication
 from PyQt5.QtGui import QIcon
  
  
@@ -13,34 +13,25 @@ class Example(QMainWindow):
         
     def initUI(self):               
         
-        exitAction = QAction(QIcon('python.ico'), '&Exit', self)        
+        textEdit = QTextEdit()
+        self.setCentralWidget(textEdit)
+ 
+        exitAction = QAction(QIcon('python.ico'), 'Exit', self)
         exitAction.setShortcut('Ctrl+Q')
         exitAction.setStatusTip('Exit application')
-        exitAction.triggered.connect(qApp.quit)
+        exitAction.triggered.connect(self.close)
  
-        self.statusBar()
+        self.statusBar().showMessage('Ready')
  
-        #创建一个菜单栏
         menubar = self.menuBar()
-        #添加菜单
         fileMenu = menubar.addMenu('&File')
-        #添加事件
         fileMenu.addAction(exitAction)
-
-        fileMenu = menubar.addMenu('&Edit')
-        fileMenu = menubar.addMenu('&Format')
-        fileMenu = menubar.addMenu('&Run')
-        fileMenu = menubar.addMenu('&Option')
-        fileMenu = menubar.addMenu('&Window')
-        fileMenu = menubar.addMenu('&Help')
+ 
+        toolbar = self.addToolBar('Exit')
+        toolbar.addAction(exitAction)
         
-        self.setGeometry(300, 300, 600, 500)
-        self.setWindowTitle('Menubar')
-        
-        self.statusBar().showMessage('Ready to GO!!!')
-    
-        self.toolbar = self.addToolBar('Exit')
-        self.toolbar.addAction(exitAction)
+        self.setGeometry(300, 300, 350, 250)
+        self.setWindowTitle('Main window')    
         self.show()
         
         
@@ -48,7 +39,5 @@ if __name__ == '__main__':
     
     app = QApplication(sys.argv)
     ex = Example()
-    sys.exit(app.exec_())  
-        
-
+    sys.exit(app.exec_())
         
