@@ -2,9 +2,9 @@ import sys
 from PyQt5.QtWidgets import QWidget,QMainWindow, QTextEdit, QAction, QToolTip, QMessageBox,QDesktopWidget,QPushButton,QApplication,QTableWidget
 from PyQt5.QtGui import QIcon,QFont
 from PyQt5.QtCore import QCoreApplication
- 
+from sql_t import Ui_MainWindow 
 
-class Product_list(QMainWindow):
+class Products(QMainWindow,Ui_MainWindow):
     
     def __init__(self):
         super().__init__()
@@ -179,7 +179,7 @@ class Product_list(QMainWindow):
 if __name__ == '__main__':
     
     app = QApplication(sys.argv)
-    ex = Product_list()
+    ex = Products()
     
     sys.exit(app.exec_())
         
