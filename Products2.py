@@ -6,7 +6,7 @@ from PyQt5.QtCore import QCoreApplication,Qt
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import *
 from sql_ttt import Ui_MainWindow as MainWindow1
-
+from edit_1 import Ui_Form as Form1
 
 from datetime import datetime
 
@@ -171,7 +171,7 @@ class Products(QMainWindow,MainWindow1):
         self.lineEdit_3.setText(str(text))
 
 
-    def tbl_show(self):
+    def tbl_show(self,pages=0):
         conn=pymysql.connect(host='192.168.3.128',port=3306,user='sun',passwd='123456',db='test_schema',charset='utf8mb4')
         #获取游标
         cursor=conn.cursor()
@@ -324,24 +324,103 @@ class Products(QMainWindow,MainWindow1):
              event.ignore()
 
     def edit_it(self):
-         reply = QMessageBox.question(self, '进入编辑',"编辑该行数据吗?", QMessageBox.Yes | 
+        row_num = -1
+        for i in self.tableWidget.selectionModel().selection().indexes():
+            row_num = i.row()
+        print(row_num)
+        reply = QMessageBox.question(self, '进入编辑',"编辑该行数据吗?", QMessageBox.Yes | 
             QMessageBox.No, QMessageBox.No)
-         if reply == QMessageBox.Yes:
-             self.close()
-         else:
-             return
+        if reply == QMessageBox.Yes:
+            edt.show()
+#            edt.setupUi.show()
+            edt.edit_row(row=i)
+        else:
+            return
 
+    def generateMenu(self, pos):
+    # 计算有多少条数据，默认-1,
+        row_num = -1
+        for i in self.tableWidget.selectionModel().selection().indexes():
+            row_num = i.row()
+
+    # 表格中只有两条有效数据，所以只在前两行支持右键弹出菜单
+        if row_num < sums:
+             menu = QMenu()
+             item1 = menu.addAction(u'编辑该行数据')
+             item2 = menu.addAction(u'插入一行')
+             item3 = menu.addAction(u'删除该行')
+             action = menu.exec_(self.tableWidget.mapToGlobal(pos))
+             pts.row_num=row_num
+            # 显示选中行的数据文本
+             if action == item1:
+                 print('你选了选项一，当前行文字内容是：', self.tableWidget.item(row_num, 0).text(),
+                      self.tableWidget.item(row_num, 1).text(),
+                      self.tableWidget.item(row_num, 2).text())
+
+             if action == item2:
+                 print('你选了选项二，当前行文字内容是：', self.tableWidget.item(row_num, 0).text(),
+                      self.tableWidget.item(row_num, 1).text(),
+                      self.tableWidget.item(row_num, 2).text())
+
+             if action == item3:
+                 print('你选了选项三，当前行文字内容是：', self.tableWidget.item(row_num, 0).text(),
+                      self.tableWidget.item(row_num, 1).text(),
+                      self.tableWidget.item(row_num, 2).text())
+            
+             return row_num
+
+class edit_1(QMainWindow,Form1):
+    
+    def __init__(self):
+        super(edit_1,self).__init__()
+
+        self.initUI()
+
+        self.setupUi(self)
+#        self.opensql()
+#        self.edit_it()
+        self.center()
+       
+        
+    def initUI(self):
+        #定义主窗口位置和大小
+        qr = self.frameGeometry()
+        self.setGeometry(qr)
+        self.setGeometry(10, 10, 820, 920)
+#        self.setWindowTitle('产品列表')
+#        self.show()
+
+    def center(self):
+        
+        #获得窗口
+        qr = self.frameGeometry()
+        #获得屏幕中心点
+        cp = QDesktopWidget().availableGeometry().center()
+        #显示到屏幕中心
+        qr.moveCenter(cp)
+        self.move(qr.topLeft())
+
+    def edit_row(self,row):
+        print(row_sum)
+
+
+
+        
+        
 
         
 if __name__ == '__main__':
     
     app = QApplication(sys.argv)
     pts = Products()
+    edt = edit_1()
 
     #显示的数据列表页
     pages=0
     #查找到的记录行数
     sums=pts.tbl_show()
+    row_num=0
+
     #下拉菜单
     pts.action42.triggered.connect(pts.exit_menu)
     pts.action41.triggered.connect(pts.return_menu)
@@ -363,6 +442,11 @@ if __name__ == '__main__':
     pts.checkBox_3.stateChanged.connect(pts.tg_cb3)
     pts.checkBox_4.stateChanged.connect(pts.tg_cb4)
     pts.checkBox_5.stateChanged.connect(pts.tg_cb5)
+
+    # 允许右键产生菜单
+    pts.tableWidget.setContextMenuPolicy(Qt.CustomContextMenu)
+     # 将右键菜单绑定到槽函数generateMenu
+    pts.tableWidget.customContextMenuRequested.connect(pts.generateMenu)
 
     pts.tableWidget.clicked.connect(pts.edit_it)
     
