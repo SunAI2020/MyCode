@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE QtCreatorProject>
-<!-- Written by QtCreator 4.11.0, 2020-03-06T23:44:52. -->
+<!-- Written by QtCreator 4.11.0, 2020-03-19T21:18:10. -->
 <qtcreator>
  <data>
   <variable>EnvironmentId</variable>
@@ -276,7 +276,7 @@
     <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">PythonEditor.RunConfiguration.D:/GitHub/MyCode/sun_test/example.py</value>
     <value type="QString" key="ProjectExplorer.RunConfiguration.BuildKey">D:/GitHub/MyCode/sun_test/example.py</value>
     <value type="QString" key="PythonEditor.RunConfiguation.Interpreter"></value>
-    <value type="QString" key="PythonEditor.RunConfiguation.Script">D:\GitHub\MyCode\sun_test\example.py</value>
+    <value type="QString" key="PythonEditor.RunConfiguation.Script"></value>
     <value type="QString" key="RunConfiguration.Arguments"></value>
     <value type="bool" key="RunConfiguration.Arguments.multi">false</value>
     <value type="QString" key="RunConfiguration.OverrideDebuggerStartup"></value>

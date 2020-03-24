@@ -90,8 +90,8 @@ cursor = conn.cursor(pymysql.cursors.DictCursor)
 
 # prepare a cursor object using cursor() method
 cursor = conn.cursor()
-sql = "UPDATE TEST_TABLE SET PRODUCT_LICENSE = 'hhhh' \
-        WHERE PRODUCT_KIND = 'Web防火墙'"
+sql = "UPDATE TEST_TABLE SET PRODUCT_TYPE = 'Web防火墙' \
+        WHERE LICENSE = 'hhhh'"
 
 try:
 

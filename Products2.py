@@ -6,7 +6,9 @@ from PyQt5.QtCore import QCoreApplication,Qt
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import *
 from sql_ttt import Ui_MainWindow as MainWindow1
-from edit_1 import Ui_Form as Form1
+from edit_2 import Ui_MainWindow as Form1
+from subprocess import Popen, PIPE, STDOUT
+import Edit1
 
 from datetime import datetime
 
@@ -18,8 +20,10 @@ class Products(QMainWindow,MainWindow1):
         self.initUI()
 
         self.setupUi(self)
+#        self.showFullScreen()
         self.opensql()
         self.tbl_show()
+
         self.center()
 
         
@@ -27,7 +31,7 @@ class Products(QMainWindow,MainWindow1):
     def initUI(self):
         #定义程序图标
         self.setWindowIcon(QIcon('chanpin12.jpg'))
-
+        QApplication.setStyle(QStyleFactory.create('Windows'))
         #这种静态的方法设置一个用于显示工具提示的字体。我们使用16px滑体字体。
         QToolTip.setFont(QFont('SansSerif', 10))
         
@@ -43,43 +47,43 @@ class Products(QMainWindow,MainWindow1):
         homeAction.triggered.connect(self.close)
 
         contractAction = QAction(QIcon('hetong2.jpg'), '合同管理', self)
-        contractAction.setShortcut('Ctrl+Q')
+        contractAction.setShortcut('Ctrl+C')
         contractAction.setStatusTip('合同管理')
         contractAction.triggered.connect(self.close)
 
         paymentAction = QAction(QIcon('zijin2.jpg'), '资金管理', self)
-        paymentAction.setShortcut('Ctrl+Q')
+        paymentAction.setShortcut('Ctrl+Z')
         paymentAction.setStatusTip('资金管理')
         paymentAction.triggered.connect(self.close)
 
         serviceAction = QAction(QIcon('fuwu5.jpg'), '服务管理', self)
-        serviceAction.setShortcut('Ctrl+Q')
-        serviceAction.setStatusTip('退出系统')
+        serviceAction.setShortcut('Ctrl+F')
+        serviceAction.setStatusTip('服务管理')
         serviceAction.triggered.connect(self.close)
 
         personAction = QAction(QIcon('tuandui1.jpg'), '人员管理', self)
-        personAction.setShortcut('Ctrl+Q')
-        personAction.setStatusTip('退出系统')
+        personAction.setShortcut('Ctrl+R')
+        personAction.setStatusTip('人员管理')
         personAction.triggered.connect(self.close)
 
         storeAction = QAction(QIcon('kufang2.jpg'), '仓储管理', self)
-        storeAction.setShortcut('Ctrl+Q')
-        storeAction.setStatusTip('退出系统')
+        storeAction.setShortcut('Ctrl+K')
+        storeAction.setStatusTip('仓储管理')
         storeAction.triggered.connect(self.close)
 
         sellerAction = QAction(QIcon('hezuohuoban6.jpg'), '销售管理', self)
-        sellerAction.setShortcut('Ctrl+Q')
-        sellerAction.setStatusTip('退出系统')
+        sellerAction.setShortcut('Ctrl+X')
+        sellerAction.setStatusTip('销售管理')
         sellerAction.triggered.connect(self.close)
 
         customerAction = QAction(QIcon('hezuohuoban5.jpg'), '客户管理', self)
-        customerAction.setShortcut('Ctrl+Q')
-        customerAction.setStatusTip('退出系统')
+        customerAction.setShortcut('Ctrl+Y')
+        customerAction.setStatusTip('客户管理')
         customerAction.triggered.connect(self.close)
 
         tranceAction = QAction(QIcon('wuliu4.jpg'), '物流管理', self)
-        tranceAction.setShortcut('Ctrl+Q')
-        tranceAction.setStatusTip('退出系统')
+        tranceAction.setShortcut('Ctrl+W')
+        tranceAction.setStatusTip('物流管理')
         tranceAction.triggered.connect(self.close)
 
 
@@ -159,6 +163,9 @@ class Products(QMainWindow,MainWindow1):
 #        self.setWindowTitle('产品列表')
         self.show()
 
+        self.center()
+
+
 
     def opensql(self):
         conn=pymysql.connect(host='192.168.3.128',port=3306,user='sun',passwd='123456',db='test_schema',charset='utf8mb4')
@@ -203,6 +210,7 @@ class Products(QMainWindow,MainWindow1):
     def tbl_up(self):
         table=Table()
         table.show()
+        pts.center()
 
     def closesql(self):
         cursor.close()
@@ -292,7 +300,14 @@ class Products(QMainWindow,MainWindow1):
 
     def return_menu(self):
         self.close()
-        
+
+    def edit_it(self):
+         reply = QMessageBox.question(self, '进入编辑',"编辑该行数据吗?", QMessageBox.Yes | 
+            QMessageBox.No, QMessageBox.No)
+         if reply == QMessageBox.Yes:
+             p = Popen([sys.executable, "edit1.py"],stdout=PIPE, stdin=PIPE, stderr=STDOUT)
+         else:
+             return
 
 #    def buttonClicked(self):
       
@@ -323,19 +338,6 @@ class Products(QMainWindow,MainWindow1):
          else:
              event.ignore()
 
-    def edit_it(self):
-        row_num = -1
-        for i in self.tableWidget.selectionModel().selection().indexes():
-            row_num = i.row()
-        print(row_num)
-        reply = QMessageBox.question(self, '进入编辑',"编辑该行数据吗?", QMessageBox.Yes | 
-            QMessageBox.No, QMessageBox.No)
-        if reply == QMessageBox.Yes:
-            edt.show()
-#            edt.setupUi.show()
-            edt.edit_row(row=i)
-        else:
-            return
 
     def generateMenu(self, pos):
     # 计算有多少条数据，默认-1,
@@ -343,7 +345,7 @@ class Products(QMainWindow,MainWindow1):
         for i in self.tableWidget.selectionModel().selection().indexes():
             row_num = i.row()
 
-    # 表格中只有两条有效数据，所以只在前两行支持右键弹出菜单
+    # 表格中，在有效数据行支持右键弹出菜单
         if row_num < sums:
              menu = QMenu()
              item1 = menu.addAction(u'编辑该行数据')
@@ -356,11 +358,17 @@ class Products(QMainWindow,MainWindow1):
                  print('你选了选项一，当前行文字内容是：', self.tableWidget.item(row_num, 0).text(),
                       self.tableWidget.item(row_num, 1).text(),
                       self.tableWidget.item(row_num, 2).text())
+                 p = Popen([sys.executable, "edit1.py"],stdout=PIPE, stdin=PIPE, stderr=STDOUT)
+
+
 
              if action == item2:
                  print('你选了选项二，当前行文字内容是：', self.tableWidget.item(row_num, 0).text(),
                       self.tableWidget.item(row_num, 1).text(),
                       self.tableWidget.item(row_num, 2).text())
+                 eds=Edit1.Edits()
+                 eds.__init__(self)
+                 eds.tblshow(self,row_num)
 
              if action == item3:
                  print('你选了选项三，当前行文字内容是：', self.tableWidget.item(row_num, 0).text(),
@@ -369,43 +377,7 @@ class Products(QMainWindow,MainWindow1):
             
              return row_num
 
-class edit_1(QMainWindow,Form1):
-    
-    def __init__(self):
-        super(edit_1,self).__init__()
 
-        self.initUI()
-
-        self.setupUi(self)
-#        self.opensql()
-#        self.edit_it()
-        self.center()
-       
-        
-    def initUI(self):
-        #定义主窗口位置和大小
-        qr = self.frameGeometry()
-        self.setGeometry(qr)
-        self.setGeometry(10, 10, 820, 920)
-#        self.setWindowTitle('产品列表')
-#        self.show()
-
-    def center(self):
-        
-        #获得窗口
-        qr = self.frameGeometry()
-        #获得屏幕中心点
-        cp = QDesktopWidget().availableGeometry().center()
-        #显示到屏幕中心
-        qr.moveCenter(cp)
-        self.move(qr.topLeft())
-
-    def edit_row(self,row):
-        print(row_sum)
-
-
-
-        
         
 
         
@@ -413,7 +385,6 @@ if __name__ == '__main__':
     
     app = QApplication(sys.argv)
     pts = Products()
-    edt = edit_1()
 
     #显示的数据列表页
     pages=0
