@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'test2.ui'
+# Form implementation generated from reading ui file 'mwin1.ui'
 #
 # Created by: PyQt5 UI code generator 5.13.0
 #
@@ -27,14 +27,6 @@ class Ui_MainWindow(object):
         font.setWeight(75)
         font.setStyleStrategy(QtGui.QFont.PreferAntialias)
         self.pushButton_1.setFont(font)
-        icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap("exit.jpg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-        icon.addPixmap(QtGui.QPixmap("print.jpg"), QtGui.QIcon.Normal, QtGui.QIcon.On)
-        icon.addPixmap(QtGui.QPixmap("delete2.jpg"), QtGui.QIcon.Active, QtGui.QIcon.Off)
-        icon.addPixmap(QtGui.QPixmap("delete.jpg.png"), QtGui.QIcon.Active, QtGui.QIcon.On)
-        icon.addPixmap(QtGui.QPixmap("submit2.jpg"), QtGui.QIcon.Selected, QtGui.QIcon.On)
-        self.pushButton_1.setIcon(icon)
-        self.pushButton_1.setIconSize(QtCore.QSize(40, 40))
         self.pushButton_1.setObjectName("pushButton_1")
         self.formLayoutWidget = QtWidgets.QWidget(self.centralwidget)
         self.formLayoutWidget.setGeometry(QtCore.QRect(190, 100, 831, 831))
@@ -321,27 +313,6 @@ class Ui_MainWindow(object):
         font.setStyleStrategy(QtGui.QFont.PreferAntialias)
         self.pushButton_2.setFont(font)
         self.pushButton_2.setObjectName("pushButton_2")
-        self.lcdNumber = QtWidgets.QLCDNumber(self.centralwidget)
-        self.lcdNumber.setGeometry(QtCore.QRect(790, 40, 231, 51))
-        font = QtGui.QFont()
-        font.setPointSize(12)
-        self.lcdNumber.setFont(font)
-        self.lcdNumber.setStyleSheet("color:rgb(0, 0, 255)")
-        self.lcdNumber.setFrameShape(QtWidgets.QFrame.WinPanel)
-        self.lcdNumber.setFrameShadow(QtWidgets.QFrame.Raised)
-        self.lcdNumber.setLineWidth(4)
-        self.lcdNumber.setMidLineWidth(1)
-        self.lcdNumber.setDigitCount(8)
-        self.lcdNumber.setObjectName("lcdNumber")
-        self.label_14 = QtWidgets.QLabel(self.centralwidget)
-        self.label_14.setGeometry(QtCore.QRect(680, 47, 111, 41))
-        font = QtGui.QFont()
-        font.setPointSize(16)
-        font.setBold(True)
-        font.setWeight(75)
-        self.label_14.setFont(font)
-        self.label_14.setStyleSheet("")
-        self.label_14.setObjectName("label_14")
         MainWindow.setCentralWidget(self.centralwidget)
         self.statusbar = QtWidgets.QStatusBar(MainWindow)
         font = QtGui.QFont()
@@ -374,4 +345,3 @@ class Ui_MainWindow(object):
         self.label_1.setText(_translate("MainWindow", "数据编辑："))
         self.pushButton_4.setText(_translate("MainWindow", "下一条"))
         self.pushButton_2.setText(_translate("MainWindow", "新  増"))
-        self.label_14.setText(_translate("MainWindow", "记录号："))

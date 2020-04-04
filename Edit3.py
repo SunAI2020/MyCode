@@ -1,16 +1,16 @@
 import sys
 import pymysql
-#from PyQt5.QtWidgets import QWidget,QMainWindow,QInputDialog,QTextEdit,QAction, QToolTip,QTableWidget,QMessageBox,QDesktopWidget,QPushButton,QApplication,QTableWidget
+##from PyQt5.QtWidgets import QWidget,QMainWindow,QInputDialog,QTextEdit,QAction, QToolTip,QTableWidget,QMessageBox,QDesktopWidget,QPushButton,QApplication,QTableWidget
 from PyQt5.QtGui import QIcon,QFont,QColor, QBrush
 from PyQt5.QtCore import QCoreApplication,Qt
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import *
-from edit_3 import Ui_mainWindow 
+from mwin2 import Ui_MainWindow 
 from datetime import datetime
 
 ###################################################################################
 ###################################################################################
-class Edits(QMainWindow,Ui_mainWindow):
+class Edits(QMainWindow,Ui_MainWindow):
     ff=open('db_p.txt','r')
     p1=ff.readline().strip('\n')
     p2=ff.readline().strip('\n')
@@ -33,7 +33,6 @@ class Edits(QMainWindow,Ui_mainWindow):
         self.initUI()
 
         self.setupUi(self)
-
         self.tblshow(self.rows)
 
         self.showMaximized()       
@@ -44,9 +43,11 @@ class Edits(QMainWindow,Ui_mainWindow):
         self.setWindowIcon(QIcon('chanpin12.jpg'))
         QApplication.setStyle(QStyleFactory.create('Windows'))
         #这种静态的方法设置一个用于显示工具提示的字体。使用16px滑体字体。
-        QToolTip.setFont(QFont('SansSerif', 16))
+        QToolTip.setFont(QFont('SansSerif', 12))
         self.statusBar()
-        self.center()
+
+##        self.center()
+
 
         #定义动作
         homeAction = QAction(QIcon('home.jpg'), '主页', self)
@@ -55,57 +56,57 @@ class Edits(QMainWindow,Ui_mainWindow):
         homeAction.triggered.connect(self.close)
 
         contractAction = QAction(QIcon('hetong2.jpg'), '合同管理', self)
-        contractAction.setShortcut('Ctrl+C')
+        contractAction.setShortcut('Alt+H')
         contractAction.setStatusTip('合同管理')
         contractAction.triggered.connect(self.close)
 
         paymentAction = QAction(QIcon('zijin1.jpg'), '资金管理', self)
-        paymentAction.setShortcut('Ctrl+M')
+        paymentAction.setShortcut('Alt+Z')
         paymentAction.setStatusTip('资金管理')
         paymentAction.triggered.connect(self.close)
 
         productAction = QAction(QIcon('present.png'), '产品管理', self)
-        productAction.setShortcut('Ctrl+P')
+        productAction.setShortcut('Alt+C')
         productAction.setStatusTip('产品管理')
         productAction.triggered.connect(self.close)
         
         sellerAction = QAction(QIcon('wuliu2.jpg'), '进销管理', self)
-        sellerAction.setShortcut('Ctrl+S')
+        sellerAction.setShortcut('Alt+X')
         sellerAction.setStatusTip('进销管理')
         sellerAction.triggered.connect(self.close)
 
         channelAction = QAction(QIcon('ditu1.jpg'), '渠道管理', self)
-        channelAction.setShortcut('Ctrl+Q')
+        channelAction.setShortcut('Alt+Q')
         channelAction.setStatusTip('渠道管理')
         channelAction.triggered.connect(self.close)
         
         customerAction = QAction(QIcon('ouster.png'), '客户管理', self)
-        customerAction.setShortcut('Ctrl+Y')
+        customerAction.setShortcut('Alt+K')
         customerAction.setStatusTip('客户管理')
         customerAction.triggered.connect(self.close)
 
         serviceAction = QAction(QIcon('hezuohuoban2.jpg'), '服务管理', self)
-        serviceAction.setShortcut('Ctrl+F')
+        serviceAction.setShortcut('Alt+F')
         serviceAction.setStatusTip('服务管理')
         serviceAction.triggered.connect(self.close)
 
         personAction = QAction(QIcon('tuandui8.jpg'), '人员管理', self)
-        personAction.setShortcut('Ctrl+R')
+        personAction.setShortcut('Alt+R')
         personAction.setStatusTip('人员管理')
         personAction.triggered.connect(self.close)
 
         achievementAction = QAction(QIcon('yeji.jpg'), '业绩管理', self)
-        achievementAction.setShortcut('Ctrl+A')
+        achievementAction.setShortcut('Alt+Y')
         achievementAction.setStatusTip('业绩管理')
         achievementAction.triggered.connect(self.close)
         
         storeAction = QAction(QIcon('kufang6.jpg'), '仓储管理', self)
-        storeAction.setShortcut('Ctrl+K')
+        storeAction.setShortcut('Alt+S')
         storeAction.setStatusTip('仓储管理')
         storeAction.triggered.connect(self.close)
 
         trafficAction = QAction(QIcon('wuliu3.jpg'), '物流管理', self)
-        trafficAction.setShortcut('Ctrl+W')
+        trafficAction.setShortcut('Alt+W')
         trafficAction.setStatusTip('物流管理')
         trafficAction.triggered.connect(self.close)
 
@@ -120,7 +121,7 @@ class Edits(QMainWindow,Ui_mainWindow):
         editAction.triggered.connect(self.close)
 
         insertAction= QAction(QIcon('add1.jpg'), '新建记录', self)
-        insertAction.setShortcut('Ctrl+I')
+        insertAction.setShortcut('Ctrl+N')
         insertAction.setStatusTip('新建记录...')
         insertAction.triggered.connect(self.close)
         
@@ -135,7 +136,7 @@ class Edits(QMainWindow,Ui_mainWindow):
         backupAction.triggered.connect(self.close)
         
         restoreAction= QAction(QIcon('AndroidSdkPackage.ico'), '恢复数据', self)
-        restoreAction.setShortcut('Ctrl+Alt+H')
+        restoreAction.setShortcut('Ctrl+Alt+R')
         restoreAction.setStatusTip('注意：恢复数据将覆盖现在的数据，请谨慎操作！')
         restoreAction.triggered.connect(self.close)
 
@@ -166,7 +167,7 @@ class Edits(QMainWindow,Ui_mainWindow):
         printAction.triggered.connect(self.close)
 
         helpAction = QAction(QIcon('help.jpg'), '帮助文档', self)
-        helpAction.setShortcut('Ctrl+H')
+        helpAction.setShortcut('Ctrl+Alt+H')
         helpAction.setStatusTip('帮助帮助文档')
         helpAction.triggered.connect(self.close)
 
@@ -186,7 +187,7 @@ class Edits(QMainWindow,Ui_mainWindow):
         exitAction.triggered.connect(self.close)
 
         shutAction= QAction(QIcon('shut.jpg'), '关闭电脑', self)
-        shutAction.setShortcut('Ctrl+Q')
+        shutAction.setShortcut('Ctrl+Alt+S')
         shutAction.setStatusTip('关闭电脑')
         shutAction.triggered.connect(self.close)
 
@@ -199,10 +200,12 @@ class Edits(QMainWindow,Ui_mainWindow):
         self.statusBar().showMessage('Ready')
 
         #定义下拉菜单
-        menubar = self.menuBar()
-        menubar.setStyleSheet("color:rgb(10,10,10,255);font-size:25px;font-weight:bold;font-family:Roman times;")
 
-        funcMenu = menubar.addMenu('&功能模块')
+        menubar = self.menuBar()
+        menubar.setStyleSheet("color:rgb(10,10,10,255);font-size:25px;\
+                               font-weight;font-family:Roman times;")
+
+        funcMenu = menubar.addMenu('&功能模块(N)')
         funcMenu.addAction(contractAction)
         funcMenu.addSeparator()
         funcMenu.addAction(paymentAction)
@@ -225,7 +228,7 @@ class Edits(QMainWindow,Ui_mainWindow):
         funcMenu.addSeparator()
         funcMenu.addAction(trafficAction)
         
-        dataMenu = menubar.addMenu('&数据编辑')
+        dataMenu = menubar.addMenu('&数据编辑(E)')
         dataMenu.addAction(editAction)
         dataMenu.addSeparator()
         dataMenu.addAction(insertAction)
@@ -236,7 +239,7 @@ class Edits(QMainWindow,Ui_mainWindow):
         dataMenu.addSeparator()
         dataMenu.addAction(restoreAction)
 
-        fileMenu = menubar.addMenu('&数据输出')
+        fileMenu = menubar.addMenu('&数据输出(P)')
         fileMenu.addAction(xlsAction)
         fileMenu.addSeparator()
         fileMenu.addAction(docAction)
@@ -247,14 +250,14 @@ class Edits(QMainWindow,Ui_mainWindow):
         fileMenu.addSeparator()
         fileMenu.addAction(printAction)
 
-        sysMenu = menubar.addMenu('&系统')
+        sysMenu = menubar.addMenu('&系统(S)')
         sysMenu.addAction(homeAction)
         sysMenu.addSeparator()
         sysMenu.addAction(exitAction)
         sysMenu.addSeparator()
         sysMenu.addAction(shutAction)
 
-        helpMenu = menubar.addMenu('&帮助')
+        helpMenu = menubar.addMenu('&帮助(H)')
         helpMenu.addAction(helpAction)
         helpMenu.addSeparator()
         helpMenu.addAction(licenseAction)
@@ -299,6 +302,13 @@ class Edits(QMainWindow,Ui_mainWindow):
 
         
         #定义主窗口位置和大小
+        image = QtGui.QPixmap()
+        image.load(r"wangge5.jpg")
+        palette1 = QtGui.QPalette()
+        palette1.setBrush(self.backgroundRole(), QtGui.QBrush(image)) #背景图片
+##        palette1.setColor(self.backgroundRole(), QColor(192,253,123)) #背景颜色
+        self.setPalette(palette1)
+        self.setAutoFillBackground(True)
         qr = self.frameGeometry()
         self.setGeometry(qr)
         self.setGeometry(100, 100, 300, 300)
@@ -375,12 +385,12 @@ class Edits(QMainWindow,Ui_mainWindow):
 ###################################################################################
     def closeEvent(self, event):
 ###################################################################################
-         reply = QMessageBox.warning(self, '保存数据',"保存数据吗?", QMessageBox.Yes | 
-            QMessageBox.No, QMessageBox.Yes)
-         if reply == QMessageBox.Yes:
-             eds.ps_bt1()
-         else:
-             event.ignore()
+##         reply = QMessageBox.warning(self, '保存数据',"保存数据吗?", QMessageBox.Yes | 
+##            QMessageBox.No, QMessageBox.Yes)
+##         if reply == QMessageBox.Yes:
+##             eds.ps_bt1()
+##         else:
+##             event.ignore()
          reply = QMessageBox.warning(self, '退出系统',"确定退出吗?", QMessageBox.No | 
             QMessageBox.Yes)
          if reply == QMessageBox.Yes:
@@ -403,7 +413,10 @@ class Edits(QMainWindow,Ui_mainWindow):
         license_date=rows[9]
         stores=rows[10]
         product_status=rows[11]
- 
+        #LCD显示记录数
+        lcd1=str(self.cursor.rownumber)+' : '+str(self.sums)
+        self.lcdNumber.display(lcd1)
+        self.statusBar().showMessage('正在编辑第{}条记录'.format(self.cursor.rownumber))
         #显示数据列表        
         self.lineEdit_1.setText(serial_no)
         self.lineEdit_2.setText(contract_no)
@@ -558,6 +571,7 @@ class Edits(QMainWindow,Ui_mainWindow):
             cursor.execute(sql)
             # Commit your changes in the database
             conn.commit()
+            self.statusBar().showMessage('已经保存编辑内容')
 
         except:
            # Rollback in case there is any error
@@ -584,7 +598,9 @@ class Edits(QMainWindow,Ui_mainWindow):
                            " "," "," "," "," "," "," ",data1," "," "))
 
             conn.commit()
-            print(serial_no1)
+            self.sums+=1
+            self.statusBar().showMessage('插入一条新的记录')
+##            print(serial_no1)
         except:
            # Rollback in case there is any error
             conn.rollback()
@@ -606,6 +622,8 @@ class Edits(QMainWindow,Ui_mainWindow):
             cursor.execute(sql)
                 # Commit your changes in the database
             conn.commit()
+            self.statusBar().showMessage('删除了一条记录！！！')
+            self.sums-=1
             eds.ps_bt4()
 
         except:
@@ -664,10 +682,20 @@ if __name__ == '__main__':
     
 ###################################################################################
     #按钮控件
+    eds.pushButton_1.setStatusTip('保存当前编辑的内容')
+    eds.pushButton_1.setToolTip('保存编辑')
     eds.pushButton_1.clicked.connect(eds.ps_bt1)
+    eds.pushButton_2.setStatusTip('新建一条记录')
+    eds.pushButton_2.setToolTip('新建记录')
     eds.pushButton_2.clicked.connect(eds.ps_bt2)
+    eds.pushButton_3.setStatusTip('删除当前记录，请谨慎操作！')
+    eds.pushButton_3.setToolTip('删除记录')
     eds.pushButton_3.clicked.connect(eds.ps_bt3)
+    eds.pushButton_4.setStatusTip('保存当前记录内容，并跳转到下一条记录')
+    eds.pushButton_4.setToolTip('转到下一条记录')
     eds.pushButton_4.clicked.connect(eds.ps_bt4)
+    eds.pushButton_5.setStatusTip('退出当前窗口，请先保存，以免数据丢失！')
+    eds.pushButton_5.setToolTip('退出当前窗口！')
     eds.pushButton_5.clicked.connect(eds.ps_bt5)
 
 

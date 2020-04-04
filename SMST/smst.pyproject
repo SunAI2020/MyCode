@@ -1,0 +1,3 @@
+{
+    "files": ["frame.h","frame.cpp","smst.py","frame.ui","mainwindow.h","mainwindow.cpp","mainwindow.ui"]
+}

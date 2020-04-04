@@ -1,16 +1,17 @@
 import sys
 import pymysql
-#from PyQt5.QtWidgets import QWidget,QMainWindow,QInputDialog,QTextEdit,QAction, QToolTip,QTableWidget,QMessageBox,QDesktopWidget,QPushButton,QApplication,QTableWidget
+##from PyQt5.QtWidgets import QWidget,QMainWindow,QInputDialog,QTextEdit,QAction, QToolTip,QTableWidget,QMessageBox,QDesktopWidget,QPushButton,QApplication,QTableWidget
 from PyQt5.QtGui import QIcon,QFont,QColor, QBrush
 from PyQt5.QtCore import QCoreApplication,Qt
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import *
-from edit_3 import Ui_mainWindow 
+from mwin import Ui_MainWindow 
 from datetime import datetime
+from PyQt5.QtCore import QTimer 
 
 ###################################################################################
 ###################################################################################
-class Edits(QMainWindow,Ui_mainWindow):
+class Mains(QMainWindow,Ui_MainWindow):
     ff=open('db_p.txt','r')
     p1=ff.readline().strip('\n')
     p2=ff.readline().strip('\n')
@@ -25,28 +26,35 @@ class Edits(QMainWindow,Ui_mainWindow):
  
     sums=cursor.execute(sql)
     rows = cursor.fetchone()
+    
+
+    time=datetime.now().strftime('%H:%M:%S')
+    date=datetime.now().strftime('%Y-%m-%d')
+    time1=datetime.now()
+    second = time1.second
+
 
 ###################################################################################
     def __init__(self):
-###################################################################################
-        super(Edits,self).__init__()
+        super(Mains,self).__init__()
+        self.login()
         self.initUI()
 
         self.setupUi(self)
-
-        self.tblshow(self.rows)
+        self.showdatetime()
 
         self.showMaximized()       
 ###################################################################################
     def initUI(self):
-###################################################################################
         #定义程序图标
         self.setWindowIcon(QIcon('chanpin12.jpg'))
         QApplication.setStyle(QStyleFactory.create('Windows'))
         #这种静态的方法设置一个用于显示工具提示的字体。使用16px滑体字体。
-        QToolTip.setFont(QFont('SansSerif', 16))
+        QToolTip.setFont(QFont('SansSerif', 12))
         self.statusBar()
-        self.center()
+
+##        self.center()
+        
 
         #定义动作
         homeAction = QAction(QIcon('home.jpg'), '主页', self)
@@ -55,57 +63,57 @@ class Edits(QMainWindow,Ui_mainWindow):
         homeAction.triggered.connect(self.close)
 
         contractAction = QAction(QIcon('hetong2.jpg'), '合同管理', self)
-        contractAction.setShortcut('Ctrl+C')
+        contractAction.setShortcut('Alt+H')
         contractAction.setStatusTip('合同管理')
         contractAction.triggered.connect(self.close)
 
         paymentAction = QAction(QIcon('zijin1.jpg'), '资金管理', self)
-        paymentAction.setShortcut('Ctrl+M')
+        paymentAction.setShortcut('Alt+Z')
         paymentAction.setStatusTip('资金管理')
         paymentAction.triggered.connect(self.close)
 
         productAction = QAction(QIcon('present.png'), '产品管理', self)
-        productAction.setShortcut('Ctrl+P')
+        productAction.setShortcut('Alt+C')
         productAction.setStatusTip('产品管理')
         productAction.triggered.connect(self.close)
         
         sellerAction = QAction(QIcon('wuliu2.jpg'), '进销管理', self)
-        sellerAction.setShortcut('Ctrl+S')
+        sellerAction.setShortcut('Alt+X')
         sellerAction.setStatusTip('进销管理')
         sellerAction.triggered.connect(self.close)
 
         channelAction = QAction(QIcon('ditu1.jpg'), '渠道管理', self)
-        channelAction.setShortcut('Ctrl+Q')
+        channelAction.setShortcut('Alt+Q')
         channelAction.setStatusTip('渠道管理')
         channelAction.triggered.connect(self.close)
         
         customerAction = QAction(QIcon('ouster.png'), '客户管理', self)
-        customerAction.setShortcut('Ctrl+Y')
+        customerAction.setShortcut('Alt+K')
         customerAction.setStatusTip('客户管理')
         customerAction.triggered.connect(self.close)
 
         serviceAction = QAction(QIcon('hezuohuoban2.jpg'), '服务管理', self)
-        serviceAction.setShortcut('Ctrl+F')
+        serviceAction.setShortcut('Alt+F')
         serviceAction.setStatusTip('服务管理')
         serviceAction.triggered.connect(self.close)
 
         personAction = QAction(QIcon('tuandui8.jpg'), '人员管理', self)
-        personAction.setShortcut('Ctrl+R')
+        personAction.setShortcut('Alt+R')
         personAction.setStatusTip('人员管理')
         personAction.triggered.connect(self.close)
 
         achievementAction = QAction(QIcon('yeji.jpg'), '业绩管理', self)
-        achievementAction.setShortcut('Ctrl+A')
+        achievementAction.setShortcut('Alt+Y')
         achievementAction.setStatusTip('业绩管理')
         achievementAction.triggered.connect(self.close)
         
         storeAction = QAction(QIcon('kufang6.jpg'), '仓储管理', self)
-        storeAction.setShortcut('Ctrl+K')
+        storeAction.setShortcut('Alt+S')
         storeAction.setStatusTip('仓储管理')
         storeAction.triggered.connect(self.close)
 
         trafficAction = QAction(QIcon('wuliu3.jpg'), '物流管理', self)
-        trafficAction.setShortcut('Ctrl+W')
+        trafficAction.setShortcut('Alt+W')
         trafficAction.setStatusTip('物流管理')
         trafficAction.triggered.connect(self.close)
 
@@ -120,7 +128,7 @@ class Edits(QMainWindow,Ui_mainWindow):
         editAction.triggered.connect(self.close)
 
         insertAction= QAction(QIcon('add1.jpg'), '新建记录', self)
-        insertAction.setShortcut('Ctrl+I')
+        insertAction.setShortcut('Ctrl+N')
         insertAction.setStatusTip('新建记录...')
         insertAction.triggered.connect(self.close)
         
@@ -135,7 +143,7 @@ class Edits(QMainWindow,Ui_mainWindow):
         backupAction.triggered.connect(self.close)
         
         restoreAction= QAction(QIcon('AndroidSdkPackage.ico'), '恢复数据', self)
-        restoreAction.setShortcut('Ctrl+Alt+H')
+        restoreAction.setShortcut('Ctrl+Alt+R')
         restoreAction.setStatusTip('注意：恢复数据将覆盖现在的数据，请谨慎操作！')
         restoreAction.triggered.connect(self.close)
 
@@ -166,7 +174,7 @@ class Edits(QMainWindow,Ui_mainWindow):
         printAction.triggered.connect(self.close)
 
         helpAction = QAction(QIcon('help.jpg'), '帮助文档', self)
-        helpAction.setShortcut('Ctrl+H')
+        helpAction.setShortcut('Ctrl+Alt+H')
         helpAction.setStatusTip('帮助帮助文档')
         helpAction.triggered.connect(self.close)
 
@@ -186,7 +194,7 @@ class Edits(QMainWindow,Ui_mainWindow):
         exitAction.triggered.connect(self.close)
 
         shutAction= QAction(QIcon('shut.jpg'), '关闭电脑', self)
-        shutAction.setShortcut('Ctrl+Q')
+        shutAction.setShortcut('Ctrl+Alt+S')
         shutAction.setStatusTip('关闭电脑')
         shutAction.triggered.connect(self.close)
 
@@ -199,10 +207,12 @@ class Edits(QMainWindow,Ui_mainWindow):
         self.statusBar().showMessage('Ready')
 
         #定义下拉菜单
-        menubar = self.menuBar()
-        menubar.setStyleSheet("color:rgb(10,10,10,255);font-size:25px;font-weight:bold;font-family:Roman times;")
 
-        funcMenu = menubar.addMenu('&功能模块')
+        menubar = self.menuBar()
+        menubar.setStyleSheet("color:rgb(10,10,10,255);font-size:25px;\
+                               font-weight;font-family:Roman times;")
+
+        funcMenu = menubar.addMenu('&功能模块(N)')
         funcMenu.addAction(contractAction)
         funcMenu.addSeparator()
         funcMenu.addAction(paymentAction)
@@ -225,7 +235,7 @@ class Edits(QMainWindow,Ui_mainWindow):
         funcMenu.addSeparator()
         funcMenu.addAction(trafficAction)
         
-        dataMenu = menubar.addMenu('&数据编辑')
+        dataMenu = menubar.addMenu('&数据编辑(E)')
         dataMenu.addAction(editAction)
         dataMenu.addSeparator()
         dataMenu.addAction(insertAction)
@@ -236,7 +246,7 @@ class Edits(QMainWindow,Ui_mainWindow):
         dataMenu.addSeparator()
         dataMenu.addAction(restoreAction)
 
-        fileMenu = menubar.addMenu('&数据输出')
+        fileMenu = menubar.addMenu('&数据输出(P)')
         fileMenu.addAction(xlsAction)
         fileMenu.addSeparator()
         fileMenu.addAction(docAction)
@@ -247,14 +257,14 @@ class Edits(QMainWindow,Ui_mainWindow):
         fileMenu.addSeparator()
         fileMenu.addAction(printAction)
 
-        sysMenu = menubar.addMenu('&系统')
+        sysMenu = menubar.addMenu('&系统(S)')
         sysMenu.addAction(homeAction)
         sysMenu.addSeparator()
         sysMenu.addAction(exitAction)
         sysMenu.addSeparator()
         sysMenu.addAction(shutAction)
 
-        helpMenu = menubar.addMenu('&帮助')
+        helpMenu = menubar.addMenu('&帮助(H)')
         helpMenu.addAction(helpAction)
         helpMenu.addSeparator()
         helpMenu.addAction(licenseAction)
@@ -299,16 +309,107 @@ class Edits(QMainWindow,Ui_mainWindow):
 
         
         #定义主窗口位置和大小
+##        image = QtGui.QPixmap()
+##        image.load(r"wangge5.jpg")
+##        palette1 = QtGui.QPalette()
+##        palette1.setBrush(self.backgroundRole(), QtGui.QBrush(image)) #背景图片
+######        palette1.setColor(self.backgroundRole(), QColor(192,253,123)) #背景颜色
+##        self.setPalette(palette1)
+##        self.setAutoFillBackground(True)
         qr = self.frameGeometry()
         self.setGeometry(qr)
-        self.setGeometry(100, 100, 300, 300)
+        self.setGeometry(100, 100, 300, 400)
         self.setWindowTitle('编辑数据')
         self.show()
 
+        
+###################################################################################
+    def login(self):
+        global dialog
+        global pNormalLineEdit
+        global pPasswordLineEdit
+        dialog = QtWidgets.QDialog()
+        dialog.setWindowTitle("登录系统")
+        dialog.setGeometry(QtCore.QRect(300, 300, 560, 220))
+        dialog.setFont(QFont('SansSerif', 16))
+        dialog.closeEvent = self.closeEvent
+
+        btn1 = QPushButton("确定", dialog)
+        btn1.move(250, 150)
+        btn2 = QPushButton("退出", dialog)
+        btn2.move(400, 150)
+        
+        flo = QFormLayout()
+        pNormalLineEdit = QLineEdit()
+        pPasswordLineEdit = QLineEdit()
+
+        flo.addRow("请输入用户名", pNormalLineEdit)
+        flo.addRow("请输入密码", pPasswordLineEdit)
+
+        pNormalLineEdit.setPlaceholderText("Normal")
+        pPasswordLineEdit.setPlaceholderText("Password")
+        pNormalLineEdit.setMaxLength(12)
+        pPasswordLineEdit.setMaxLength(12)                      #密码为四位
+
+        # 设置显示效果
+        pNormalLineEdit.setEchoMode(QLineEdit.Normal)
+        pPasswordLineEdit.setEchoMode(QLineEdit.Password)                      #密码隐藏
+
+        dialog.setLayout(flo)
+
+        btn1.clicked.connect(self.input_detect)
+        btn2.clicked.connect(self.close)
+
+        dialog.exec_()
 
 ###################################################################################
-    def opensql(self):
+    def input_detect(self):
+
+        name = pNormalLineEdit.text()
+        pwd = pPasswordLineEdit.text()
+        if name == 'sun':
+            if pwd == '123456':
+                self.text_ok()
+            else:
+                self.text_err()
+                return
+        else:
+            self.text_err()
+            return
+        dialog.close()
+        
+
 ###################################################################################
+    def text_ok(self):
+        mb = QtWidgets.QMessageBox()
+        text = mb.about(self,"验证说明","验证通过,\n进入系统！") #弹窗
+        dialog.close()
+
+###################################################################################
+    def text_err(self):
+        text = QtWidgets.QMessageBox.about(self,"验证说明","用户名或密码不正确，\n请重新输入！") #弹窗
+##        dialog.close()
+
+###################################################################################
+    def showdatetime(self):
+        self.timer = QTimer(self)  # 初始化一个定时器
+        self.timer.timeout.connect(self.operate)  # 每次计时到时间时发出信号
+        self.timer.start(1000)  # 设置计时间隔并启动；单位毫秒
+
+###################################################################################
+    def operate(self):
+##        self.num=self.num+1
+        self.show_time()
+
+###################################################################################
+    def show_time(self):
+        time2=datetime.now().strftime('%H:%M:%S')
+        date2=datetime.now().strftime('%Y-%m-%d')
+        self.lcdNumber_date.display(date2)
+        self.lcdNumber_time.display(time2)
+       
+###################################################################################
+    def opensql(self):
         conn=pymysql.connect(host=self.p1,port=int(self.p2),user=self.p3,passwd=self.p4,db=self.p5,charset='utf8mb4')
         cursor=conn.cursor()
         sql="SELECT * FROM {}".format(self.p6)
@@ -320,7 +421,6 @@ class Edits(QMainWindow,Ui_mainWindow):
 
 ###################################################################################
     def closesql(self):
-###################################################################################
         cursor.close()
         #关闭数据库连接
         conn.close()
@@ -329,7 +429,6 @@ class Edits(QMainWindow,Ui_mainWindow):
 
 ###################################################################################
     def showDialog(self):
-###################################################################################
         text, ok = QInputDialog.getText(self, 'Input Dialog', 
             '请输入授权码:')
         if ok:
@@ -337,18 +436,15 @@ class Edits(QMainWindow,Ui_mainWindow):
 
 ###################################################################################
     def exit_menu(self):
-###################################################################################
         self.close()
 
 ###################################################################################
     def return_menu(self):
-###################################################################################
         self.close()
         
 
 ###################################################################################
 #    def buttonClicked(self):
-###################################################################################
       
 #        sender = self.sender()
 #        self.statusBar().showMessage(sender.text() + ' was pressed')
@@ -356,7 +452,6 @@ class Edits(QMainWindow,Ui_mainWindow):
 
 ###################################################################################
     def center(self):
-###################################################################################
         #获得窗口
         qr = self.frameGeometry()
         #获得屏幕中心点
@@ -367,181 +462,31 @@ class Edits(QMainWindow,Ui_mainWindow):
         
 ###################################################################################
 #    def keyPressEvent(self, e):
-###################################################################################
 #        #按Esc键退出系统
 #        if e.key() == Qt.Key_Escape:
 #            self.close()
 
 ###################################################################################
     def closeEvent(self, event):
-###################################################################################
-         reply = QMessageBox.warning(self, '保存数据',"保存数据吗?", QMessageBox.Yes | 
-            QMessageBox.No, QMessageBox.Yes)
-         if reply == QMessageBox.Yes:
-             eds.ps_bt1()
-         else:
-             event.ignore()
+##         reply = QMessageBox.warning(self, '保存数据',"保存数据吗?", QMessageBox.Yes | 
+##            QMessageBox.No, QMessageBox.Yes)
+##         if reply == QMessageBox.Yes:
+##             mns.ps_bt1()
+##         else:
+##             event.ignore()
          reply = QMessageBox.warning(self, '退出系统',"确定退出吗?", QMessageBox.No | 
             QMessageBox.Yes)
          if reply == QMessageBox.Yes:
              event.accept()
+             self.quit()
          else:
              event.ignore()
 
-###################################################################################
-    def tblshow(self,rows):
-###################################################################################
-        serial_no=rows[0]
-        contract_date=rows[1]
-        contract_no=rows[2]
-        product_name=rows[3]
-        product_type=rows[4]
-        factory=rows[5]
-        seller=rows[6]
-        customer=rows[7]
-        license_code=rows[8]
-        license_date=rows[9]
-        stores=rows[10]
-        product_status=rows[11]
- 
-        #显示数据列表        
-        self.lineEdit_1.setText(serial_no)
-        self.lineEdit_2.setText(contract_no)
-        self.lineEdit_3.setText(product_name)
-        self.lineEdit_4.setText(product_type)
-        self.lineEdit_5.setText(customer)
-        self.lineEdit_6.setText(license_code)
-        self.dateEdit_1.setDate(contract_date)
-        self.dateEdit_2.setDate(license_date)
-
-        self.comboBox_1.clear()
-        self.comboBox_1.addItem(factory)
-        fl1=open('factory.txt','r')
-        list1=fl1.readlines()
-        for it1 in list1:
-            if it1.strip('\n') != factory:
-                self.comboBox_1.addItem(it1.strip('\n'))
-        fl1.close()
-
-        self.comboBox_2.clear()
-        self.comboBox_2.addItem(seller)
-        fl2=open('seller.txt','r')
-        list2=fl2.readlines()
-        for it2 in list2:
-            if it2.strip('\n') != seller:
-                self.comboBox_2.addItem(it2.strip('\n'))
-        fl2.close()
-
-        self.comboBox_3.clear()
-        self.comboBox_3.addItem(stores)
-        fl3=open('stores.txt','r')
-        list3=fl3.readlines()
-        for it3 in list3:
-            if it3.strip('\n') != stores:
-                self.comboBox_3.addItem(it3.strip('\n'))
-        fl3.close()
-
-        self.comboBox_4.clear()
-        self.comboBox_4.addItem(product_status)
-        fl4=open('pstatus.txt','r')
-        list4=fl4.readlines()
-        for it4 in list4:
-            if it4.strip('\n') != product_status:
-                self.comboBox_4.addItem(it4.strip('\n'))
-        fl4.close()
-        
-        return self.cursor
-    
-###################################################################################
-    def date1_chg(self):
-###################################################################################
-        contract_date1=self.dateEdit_1.date().toString(Qt.ISODate)
-##        print(str(contract_date1))
-        return contract_date1
-    
-###################################################################################
-    def date2_chg(self):
-###################################################################################
-        license_date1=self.dateEdit_2.date().toString(Qt.ISODate)
-##        print(str(license_date1))
-        return license_date1
-    
-###################################################################################
-    def ln1_chg(self):
-###################################################################################
-        serial_no1=self.lineEdit_1.text()
-##        print(str(serial_no1))
-        return serial_no1
-
-###################################################################################
-    def ln2_chg(self):
-###################################################################################
-        contract_no1=self.lineEdit_2.text()
-##        print(str(contract_no1))
-        return contract_no1
-
-###################################################################################
-    def ln3_chg(self):
-###################################################################################
-        product_name1=self.lineEdit_3.text()
-##        print(str(product_name1))
-        return product_name1
-    
-###################################################################################
-    def ln4_chg(self):
-###################################################################################
-        product_type1=self.lineEdit_4.text()
-##        print(str(product_type1))
-        return product_type1
-
-###################################################################################
-    def ln5_chg(self):
-###################################################################################
-        customer1=self.lineEdit_5.text()
-##        print(str(customer1))
-        return customer1
-
-###################################################################################
-    def ln6_chg(self):
-###################################################################################
-        license_code1=self.lineEdit_6.text()
-        lic=str(license_code1)
-##        print(lic)
-        return lic
-      
-###################################################################################
-    def cmb1_chg(self):
-###################################################################################
-        factory1=self.comboBox_1.currentText()
-##        print(str(factory1))
-        return factory1
-
-###################################################################################
-    def cmb2_chg(self):
-###################################################################################
-        seller1=self.comboBox_2.currentText()
-##        print(str(seller1))
-        return seller1
-
-###################################################################################
-    def cmb3_chg(self):
-###################################################################################
-        stores1=self.comboBox_3.currentText()
-##        print(str(stores1))
-        return stores1
-
-###################################################################################
-    def cmb4_chg(self):
-###################################################################################
-        product_status1=self.comboBox_4.currentText()
-##        print(str(product_status1))
-        return product_status1
 
         
 ###################################################################################
 ##################################################################################
     def ps_bt1(self):
-###################################################################################
         conn=pymysql.connect(host=self.p1,port=int(self.p2),user=self.p3,passwd=self.p4,db=self.p5,charset='utf8mb4')
         cursor=conn.cursor()
         sql="SELECT * FROM {}".format(self.p6)
@@ -558,15 +503,15 @@ class Edits(QMainWindow,Ui_mainWindow):
             cursor.execute(sql)
             # Commit your changes in the database
             conn.commit()
+            self.statusBar().showMessage('已经保存编辑内容')
 
         except:
            # Rollback in case there is any error
             conn.rollback()
 ###################################################################################
     def ps_bt2(self):
-###################################################################################
         serial_no1=datetime.now().strftime('%Y%m%d%H%M%S')
-        data1=datetime.now().strftime('%Y-%m-%d')
+        date1=datetime.now().strftime('%Y-%m-%d')
 
         conn=pymysql.connect(host=self.p1,port=int(self.p2),user=self.p3,passwd=self.p4,db=self.p5,charset='utf8mb4')
         cursor=conn.cursor()
@@ -584,17 +529,18 @@ class Edits(QMainWindow,Ui_mainWindow):
                            " "," "," "," "," "," "," ",data1," "," "))
 
             conn.commit()
-            print(serial_no1)
+            self.sums+=1
+            self.statusBar().showMessage('插入一条新的记录')
+##            print(serial_no1)
         except:
            # Rollback in case there is any error
             conn.rollback()
 
         cursor.execute("select * from test_table where serial_no = (%s)",(serial_no1))
         rows = cursor.fetchone()
-        eds.tblshow(rows)
+        mns.tblshow(rows)
 ###################################################################################
     def ps_bt3(self):
-###################################################################################
         conn=pymysql.connect(host=self.p1,port=int(self.p2),user=self.p3,passwd=self.p4,db=self.p5,charset='utf8mb4')
         cursor=conn.cursor()
         sql="SELECT * FROM {}".format(self.p6)
@@ -606,7 +552,9 @@ class Edits(QMainWindow,Ui_mainWindow):
             cursor.execute(sql)
                 # Commit your changes in the database
             conn.commit()
-            eds.ps_bt4()
+            self.statusBar().showMessage('删除了一条记录！！！')
+            self.sums-=1
+            mns.ps_bt4()
 
         except:
            # Rollback in case there is any error
@@ -615,11 +563,10 @@ class Edits(QMainWindow,Ui_mainWindow):
 
 ###################################################################################
     def ps_bt4(self):
-###################################################################################
-        eds.ps_bt1()    
+        mns.ps_bt1()    
         try:
             rows = self.cursor.fetchone()
-            eds.tblshow(rows)
+            mns.tblshow(rows)
 
         except:
 ##            import traceback
@@ -641,58 +588,223 @@ class Edits(QMainWindow,Ui_mainWindow):
 ##                self.cursor.scroll(0,mode="absolute")
                 rows = self.cursor.fetchone()
 ##                print(sql)
-                eds.tblshow(rows)
+                mns.tblshow(rows)
 
 ###################################################################################
     def ps_bt5(self):
-###################################################################################
         self.close()
 
-        
-
-        
 ###################################################################################
+    def ps_a(self):
+        self.textBrowser_c.clear()
 
+    def ps_cc(self):
+        self.lineEdit_c.insert('/')
+
+    def ps_cx(self):
+        self.lineEdit_c.insert('*')
+
+    def ps_ca(self):
+        self.lineEdit_c.insert('+')
+
+    def ps_cj(self):
+        self.lineEdit_c.insert('-')
+
+    def ps_ce(self):
+        self.lineEdit_c.insert('=')
+        self.calculate()
+
+    def ps_cd(self):
+        self.lineEdit_c.insert('.')
+
+    def ps_c0(self):
+        self.lineEdit_c.insert('0')
+
+    def ps_c1(self):
+        self.lineEdit_c.insert('1')
+
+    def ps_c2(self):
+        self.lineEdit_c.insert('2')
+
+    def ps_c3(self):
+        self.lineEdit_c.insert('3')
+
+    def ps_c4(self):
+        self.lineEdit_c.insert('4')
+
+    def ps_c5(self):
+        self.lineEdit_c.insert('5')
+
+    def ps_c6(self):
+        self.lineEdit_c.insert('6')
+
+    def ps_c7(self):
+        self.lineEdit_c.insert('7')
+
+    def ps_c8(self):
+        self.lineEdit_c.insert('8')
+
+    def ps_c9(self):
+        self.lineEdit_c.insert('9')
+
+    def ps_cb(self):
+        self.lineEdit_c.backspace()
+
+    def ps_cs(self):
+        self.lineEdit_c.clear()
+
+    def ps_cq(self):
+        self.lineEdit_c.clear()
+
+    def ps_bt2(self):
+        self.close()
+
+    def lineEdit_clear(self):
+        self.lineEdit_c.clear()
+
+    def calculate(self):
+        text = self.lineEdit_c.text()
+        try: 
+            result=eval(text)
+            self.textBrowser_c.append('%s= %.2f' % (text, result))
+            self.lcdNumber_c.display(result)
+            self.lineEdit_clear()
+        except:
+            result='EEROR'
+            self.textBrowser_c.append(result+"\n计算错误！请核对您的输入！")
+            self.lcdNumber_c.display(result)
+            self.lineEdit_clear()
+            return
 ###################################################################################
 
 ###################################################################################
 if __name__ == '__main__':
     
     app = QApplication(sys.argv)
-    eds = Edits()
-    cur = eds.opensql()
-    
+    mns = Mains()
+    cur = mns.opensql()
+
+    t = datetime.today()  #获取此刻时间
+    second = t.second
+##    if second in range(60):
+    mns.show_time()
+    info="系统信息：\nsystem infomation:\n=====================\n登陆用户名：\n{}\n\n登陆日期：\n{}\n\n登陆时间：\n{}\n\n服务器：\n{}\n\n端口号：\n{}\n\n数据库：\n{}\n\n表单名称：\n{}\n\n\n系统已经就绪，\n开始您的工作吧!"\
+          .format(mns.p3,mns.date,mns.time,mns.p1,mns.p2,mns.p5,mns.p6)
+    mns.textEdit.append(info)
 ###################################################################################
     #按钮控件
-    eds.pushButton_1.clicked.connect(eds.ps_bt1)
-    eds.pushButton_2.clicked.connect(eds.ps_bt2)
-    eds.pushButton_3.clicked.connect(eds.ps_bt3)
-    eds.pushButton_4.clicked.connect(eds.ps_bt4)
-    eds.pushButton_5.clicked.connect(eds.ps_bt5)
-
-
-
-###################################################################################
-    #文本行控件
-    eds.lineEdit_1.textChanged.connect(eds.ln1_chg)
-    eds.lineEdit_2.textChanged.connect(eds.ln2_chg)
-    eds.lineEdit_3.textChanged.connect(eds.ln3_chg)
-    eds.lineEdit_4.textChanged.connect(eds.ln4_chg)
-    eds.lineEdit_5.textChanged.connect(eds.ln5_chg)
-    eds.lineEdit_6.textChanged.connect(eds.ln6_chg)
+    mns.pushButton_1.setStatusTip('合同管理')
+    mns.pushButton_1.setToolTip('合同管理')
+    mns.pushButton_1.setStyleSheet("QPushButton{border-image: url(anniu3a.jpg)}"
+                                   "QPushButton:hover{border-image: url(anniu3b.jpg)}"
+                                   "QPushButton:pressed{border-image: url(anniu3c.jpg)}")
+    mns.pushButton_1.clicked.connect(mns.ps_c1)
     
-###################################################################################
-    #日期控件
-    eds.dateEdit_1.dateChanged.connect(eds.date1_chg)
-    eds.dateEdit_2.dateChanged.connect(eds.date2_chg)
-
-###################################################################################
-    #下拉框控件
-    eds.comboBox_1.currentTextChanged.connect(eds.cmb1_chg)
-    eds.comboBox_2.currentTextChanged.connect(eds.cmb2_chg)
-    eds.comboBox_3.currentTextChanged.connect(eds.cmb3_chg)
-    eds.comboBox_4.currentTextChanged.connect(eds.cmb4_chg)
+    mns.pushButton_2.setStatusTip('产品管理')
+    mns.pushButton_2.setToolTip('产品管理')
+    mns.pushButton_2.setStyleSheet("QPushButton{border-image: url(anniu27a.jpg)}"
+                                   "QPushButton:hover{border-image: url(anniu27b.jpg)}"
+                                   "QPushButton:pressed{border-image: url(anniu27c.jpg)}")
+    mns.pushButton_2.clicked.connect(mns.ps_c2)
     
+    mns.pushButton_3.setStatusTip('资金管理')
+    mns.pushButton_3.setToolTip('资金管理')
+    mns.pushButton_3.setStyleSheet("QPushButton{border-image: url(anniu11a.jpg)}"
+                                   "QPushButton:hover{border-image: url(anniu11b.jpg)}"
+                                   "QPushButton:pressed{border-image: url(anniu11c.jpg)}")
+    mns.pushButton_3.clicked.connect(mns.ps_c3)
+    
+    mns.pushButton_4.setStatusTip('服务管理')
+    mns.pushButton_4.setToolTip('服务管理')
+    mns.pushButton_4.setStyleSheet("QPushButton{border-image: url(anniu8a.jpg)}"
+                                   "QPushButton:hover{border-image: url(anniu8b.jpg)}"
+                                   "QPushButton:pressed{border-image: url(anniu8c.jpg)}")
+    mns.pushButton_4.clicked.connect(mns.ps_c4)
+    
+    mns.pushButton_5.setStatusTip('进销管理')
+    mns.pushButton_5.setToolTip('进销管理')
+    mns.pushButton_5.setStyleSheet("QPushButton{border-image: url(anniu10a.jpg)}"
+                                   "QPushButton:hover{border-image: url(anniu10b.jpg)}"
+                                   "QPushButton:pressed{border-image: url(anniu10c.jpg)}")
+    mns.pushButton_5.clicked.connect(mns.ps_c5)
+
+    mns.pushButton_6.setStatusTip('人员管理')
+    mns.pushButton_6.setToolTip('人员管理')
+    mns.pushButton_6.setStyleSheet("QPushButton{border-image: url(anniu7a.jpg)}"
+                                   "QPushButton:hover{border-image: url(anniu7b.jpg)}"
+                                   "QPushButton:pressed{border-image: url(anniu7c.jpg)}")
+    mns.pushButton_6.clicked.connect(mns.ps_c6)
+
+    mns.pushButton_7.setStatusTip('渠道管理')
+    mns.pushButton_7.setToolTip('渠道管理')
+    mns.pushButton_7.setStyleSheet("QPushButton{border-image: url(anniu13a.jpg)}"
+                                   "QPushButton:hover{border-image: url(anniu13b.jpg)}"
+                                   "QPushButton:pressed{border-image: url(anniu13c.jpg)}")
+    mns.pushButton_7.clicked.connect(mns.ps_c6)
+
+    mns.pushButton_8.setStatusTip('业绩管理')
+    mns.pushButton_8.setToolTip('业绩管理')
+    mns.pushButton_8.setStyleSheet("QPushButton{border-image: url(anniu5a.jpg)}"
+                                   "QPushButton:hover{border-image: url(anniu5b.jpg)}"
+                                   "QPushButton:pressed{border-image: url(anniu5c.jpg)}")
+    mns.pushButton_8.clicked.connect(mns.ps_c6)
+
+    mns.pushButton_9.setStatusTip('客户管理')
+    mns.pushButton_9.setToolTip('客户管理')
+    mns.pushButton_9.setStyleSheet("QPushButton{border-image: url(anniu22a.jpg)}"
+                                   "QPushButton:hover{border-image: url(anniu22b.jpg)}"
+                                   "QPushButton:pressed{border-image: url(anniu22c.jpg)}")
+    mns.pushButton_9.clicked.connect(mns.ps_c9)
+
+    mns.pushButton_10.setStatusTip('仓储管理')
+    mns.pushButton_10.setToolTip('仓储管理')
+    mns.pushButton_10.setStyleSheet("QPushButton{border-image: url(anniu30a.jpg)}"
+                                   "QPushButton:hover{border-image: url(anniu30b.jpg)}"
+                                   "QPushButton:pressed{border-image: url(anniu30c.jpg)}")
+    mns.pushButton_10.clicked.connect(mns.ps_c0)
+
+    mns.pushButton_11.setStatusTip('物流管理')
+    mns.pushButton_11.setToolTip('物流管理')
+    mns.pushButton_11.setStyleSheet("QPushButton{border-image: url(anniu9a.jpg)}"
+                                   "QPushButton:hover{border-image: url(anniu9b.jpg)}"
+                                   "QPushButton:pressed{border-image: url(anniu9c.jpg)}")
+    mns.pushButton_11.clicked.connect(mns.ps_ca)
+
+    mns.pushButton_12.setStatusTip('参数设置')
+    mns.pushButton_12.setToolTip('参数设置')
+    mns.pushButton_12.setStyleSheet("QPushButton{border-image: url(anniu12a.jpg)}"
+                                   "QPushButton:hover{border-image: url(anniu12b.jpg)}"
+                                   "QPushButton:pressed{border-image: url(anniu12c.jpg)}")
+    mns.pushButton_12.clicked.connect(mns.ps_cb)
+
+    mns.pushButton_13.setStatusTip('销售管理系统')
+    mns.pushButton_13.setToolTip('销售管理系统')
+    mns.pushButton_13.setStyleSheet("QPushButton{border-image: url(anniu28a.jpg)}"
+                                   "QPushButton:hover{border-image: url(anniu28b.jpg)}"
+                                   "QPushButton:pressed{border-image: url(anniu28c.jpg)}")
+    mns.pushButton_13.clicked.connect(mns.ps_cc)
+
+    mns.pushButton_c1.clicked.connect(mns.ps_c1)
+    mns.pushButton_c2.clicked.connect(mns.ps_c2)
+    mns.pushButton_c3.clicked.connect(mns.ps_c3)
+    mns.pushButton_c4.clicked.connect(mns.ps_c4)
+    mns.pushButton_c5.clicked.connect(mns.ps_c5)
+    mns.pushButton_c6.clicked.connect(mns.ps_c6)
+    mns.pushButton_c7.clicked.connect(mns.ps_c7)
+    mns.pushButton_c8.clicked.connect(mns.ps_c8)
+    mns.pushButton_c9.clicked.connect(mns.ps_c9)
+    mns.pushButton_c0.clicked.connect(mns.ps_c0)
+    mns.pushButton_ca.clicked.connect(mns.ps_ca)
+    mns.pushButton_cb.clicked.connect(mns.ps_cb)
+    mns.pushButton_cc.clicked.connect(mns.ps_cc)
+    mns.pushButton_cd.clicked.connect(mns.ps_cd)
+    mns.pushButton_ce.clicked.connect(mns.calculate)
+    mns.pushButton_cj.clicked.connect(mns.ps_cj)
+    mns.pushButton_cq.clicked.connect(mns.ps_cq)
+    mns.pushButton_cx.clicked.connect(mns.ps_cx)
+    mns.pushButton_cs.clicked.connect(mns.ps_cs)
+    mns.pushButton_a.clicked.connect(mns.ps_a)
+
 ###################################################################################
     sys.exit(app.exec_())
 ###################################################################################

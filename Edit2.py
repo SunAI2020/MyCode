@@ -5,38 +5,38 @@ from PyQt5.QtGui import QIcon,QFont,QColor, QBrush
 from PyQt5.QtCore import QCoreApplication,Qt
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import *
-from edit_3 import Ui_mainWindow 
+from edit_2 import Ui_mainWindow 
 from datetime import datetime
 
 ###################################################################################
+FL=open('db_p.txt','r')
+P1=FL.readline().strip('\n')
+P2=FL.readline().strip('\n')
+P3=FL.readline().strip('\n')
+P4=FL.readline().strip('\n')
+P5=FL.readline().strip('\n')
+P6=FL.readline().strip('\n')
+ 
+Conn=pymysql.connect(host=P1,port=int(P2),user=P3,passwd=P4,db=P5,charset='utf8mb4')
+Cursor=Conn.cursor()
+Sql="SELECT * FROM {}".format(P6)
+ 
+Sums=Cursor.execute(Sql)
+Rows = Cursor.fetchone()
+
 ###################################################################################
 class Edits(QMainWindow,Ui_mainWindow):
-    ff=open('db_p.txt','r')
-    p1=ff.readline().strip('\n')
-    p2=ff.readline().strip('\n')
-    p3=ff.readline().strip('\n')
-    p4=ff.readline().strip('\n')
-    p5=ff.readline().strip('\n')
-    p6=ff.readline().strip('\n')
- 
-    conn=pymysql.connect(host=p1,port=int(p2),user=p3,passwd=p4,db=p5,charset='utf8mb4')
-    cursor=conn.cursor()
-    sql="SELECT * FROM {}".format(p6)
- 
-    sums=cursor.execute(sql)
-    rows = cursor.fetchone()
 
+   
 ###################################################################################
     def __init__(self):
 ###################################################################################
         super(Edits,self).__init__()
         self.initUI()
-
         self.setupUi(self)
-
-        self.tblshow(self.rows)
-
-        self.showMaximized()       
+        self.tblshow(Rows)
+        self.center()
+       
 ###################################################################################
     def initUI(self):
 ###################################################################################
@@ -45,8 +45,8 @@ class Edits(QMainWindow,Ui_mainWindow):
         QApplication.setStyle(QStyleFactory.create('Windows'))
         #这种静态的方法设置一个用于显示工具提示的字体。使用16px滑体字体。
         QToolTip.setFont(QFont('SansSerif', 16))
+
         self.statusBar()
-        self.center()
 
         #定义动作
         homeAction = QAction(QIcon('home.jpg'), '主页', self)
@@ -59,136 +59,71 @@ class Edits(QMainWindow,Ui_mainWindow):
         contractAction.setStatusTip('合同管理')
         contractAction.triggered.connect(self.close)
 
-        paymentAction = QAction(QIcon('zijin1.jpg'), '资金管理', self)
-        paymentAction.setShortcut('Ctrl+M')
+        paymentAction = QAction(QIcon('zijin2.jpg'), '资金管理', self)
+        paymentAction.setShortcut('Ctrl+Z')
         paymentAction.setStatusTip('资金管理')
         paymentAction.triggered.connect(self.close)
 
-        productAction = QAction(QIcon('present.png'), '产品管理', self)
-        productAction.setShortcut('Ctrl+P')
-        productAction.setStatusTip('产品管理')
-        productAction.triggered.connect(self.close)
-        
-        sellerAction = QAction(QIcon('wuliu2.jpg'), '进销管理', self)
-        sellerAction.setShortcut('Ctrl+S')
-        sellerAction.setStatusTip('进销管理')
-        sellerAction.triggered.connect(self.close)
-
-        channelAction = QAction(QIcon('ditu1.jpg'), '渠道管理', self)
-        channelAction.setShortcut('Ctrl+Q')
-        channelAction.setStatusTip('渠道管理')
-        channelAction.triggered.connect(self.close)
-        
-        customerAction = QAction(QIcon('ouster.png'), '客户管理', self)
-        customerAction.setShortcut('Ctrl+Y')
-        customerAction.setStatusTip('客户管理')
-        customerAction.triggered.connect(self.close)
-
-        serviceAction = QAction(QIcon('hezuohuoban2.jpg'), '服务管理', self)
+        serviceAction = QAction(QIcon('fuwu5.jpg'), '服务管理', self)
         serviceAction.setShortcut('Ctrl+F')
         serviceAction.setStatusTip('服务管理')
         serviceAction.triggered.connect(self.close)
 
-        personAction = QAction(QIcon('tuandui8.jpg'), '人员管理', self)
+        personAction = QAction(QIcon('tuandui1.jpg'), '人员管理', self)
         personAction.setShortcut('Ctrl+R')
         personAction.setStatusTip('人员管理')
         personAction.triggered.connect(self.close)
 
-        achievementAction = QAction(QIcon('yeji.jpg'), '业绩管理', self)
-        achievementAction.setShortcut('Ctrl+A')
-        achievementAction.setStatusTip('业绩管理')
-        achievementAction.triggered.connect(self.close)
-        
-        storeAction = QAction(QIcon('kufang6.jpg'), '仓储管理', self)
+        storeAction = QAction(QIcon('kufang2.jpg'), '仓储管理', self)
         storeAction.setShortcut('Ctrl+K')
         storeAction.setStatusTip('仓储管理')
         storeAction.triggered.connect(self.close)
 
-        trafficAction = QAction(QIcon('wuliu3.jpg'), '物流管理', self)
-        trafficAction.setShortcut('Ctrl+W')
-        trafficAction.setStatusTip('物流管理')
-        trafficAction.triggered.connect(self.close)
+        sellerAction = QAction(QIcon('hezuohuoban6.jpg'), '销售管理', self)
+        sellerAction.setShortcut('Ctrl+X')
+        sellerAction.setStatusTip('销售管理')
+        sellerAction.triggered.connect(self.close)
+
+        customerAction = QAction(QIcon('hezuohuoban5.jpg'), '客户管理', self)
+        customerAction.setShortcut('Ctrl+Y')
+        customerAction.setStatusTip('客户管理')
+        customerAction.triggered.connect(self.close)
+
+        tranceAction = QAction(QIcon('wuliu4.jpg'), '物流管理', self)
+        tranceAction.setShortcut('Ctrl+W')
+        tranceAction.setStatusTip('物流管理')
+        tranceAction.triggered.connect(self.close)
+
 
         fileAction = QAction(QIcon('file.jpg'), '文件', self)
-        fileAction.setShortcut('Ctrl+B')
-        fileAction.setStatusTip('文件管理...')
+        fileAction.setShortcut('Ctrl+F')
+        fileAction.setStatusTip('进入文件管理菜单')
         fileAction.triggered.connect(self.close)
 
-        editAction = QAction(QIcon('edit.jpg'), '编辑数据', self)
+        editAction = QAction(QIcon('edit.jpg'), '编辑', self)
         editAction.setShortcut('Ctrl+E')
-        editAction.setStatusTip('编辑数据...')
+        editAction.setStatusTip('进入文件编辑模式')
         editAction.triggered.connect(self.close)
 
-        insertAction= QAction(QIcon('add1.jpg'), '新建记录', self)
-        insertAction.setShortcut('Ctrl+I')
-        insertAction.setStatusTip('新建记录...')
-        insertAction.triggered.connect(self.close)
-        
-        deleteAction= QAction(QIcon('delete.jpg'), '删除数据', self)
-        deleteAction.setShortcut('Ctrl+D')
-        deleteAction.setStatusTip('删除数据！')
-        deleteAction.triggered.connect(self.close)
-        
-        backupAction= QAction(QIcon('save.jpg'), '备份数据', self)
-        backupAction.setShortcut('Ctrl+Alt+B')
-        backupAction.setStatusTip('备份数据！')
-        backupAction.triggered.connect(self.close)
-        
-        restoreAction= QAction(QIcon('AndroidSdkPackage.ico'), '恢复数据', self)
-        restoreAction.setShortcut('Ctrl+Alt+H')
-        restoreAction.setStatusTip('注意：恢复数据将覆盖现在的数据，请谨慎操作！')
-        restoreAction.triggered.connect(self.close)
-
-        xlsAction = QAction(QIcon('excel.jpg'), '保存为Excel', self)
-        xlsAction.setShortcut('Ctrl+X')
-        xlsAction.setStatusTip('保存为Excel文件')
-        xlsAction.triggered.connect(self.close)
-
-   
-        docAction= QAction(QIcon('word2.png'), '保存为Word', self)
-        docAction.setShortcut('Ctrl+W')
-        docAction.setStatusTip('保存为Word文件')
-        docAction.triggered.connect(self.close)
-        
-        txtAction= QAction(QIcon('note2.jpg'), '保存为txt', self)
-        txtAction.setShortcut('Ctrl+T')
-        txtAction.setStatusTip('保存为txt文件')
-        txtAction.triggered.connect(self.close)
-        
-        jpgAction= QAction(QIcon('tuandui6.jpg'), '保存为图片', self)
-        jpgAction.setShortcut('Ctrl+J')
-        jpgAction.setStatusTip('保存为图片文件')
-        jpgAction.triggered.connect(self.close)
+        saveAction = QAction(QIcon('save.jpg'), '保存', self)
+        saveAction.setShortcut('Ctrl+S')
+        saveAction.setStatusTip('保存文件')
+        saveAction.triggered.connect(self.close)
 
         printAction = QAction(QIcon('print.jpg'), '打印', self)
         printAction.setShortcut('Ctrl+P')
         printAction.setStatusTip('打印列表')
         printAction.triggered.connect(self.close)
 
-        helpAction = QAction(QIcon('help.jpg'), '帮助文档', self)
+        helpAction = QAction(QIcon('help.jpg'), '帮助', self)
         helpAction.setShortcut('Ctrl+H')
-        helpAction.setStatusTip('帮助帮助文档')
+        helpAction.setStatusTip('帮助')
         helpAction.triggered.connect(self.close)
-
-        licenseAction= QAction(QIcon('query.jpg'), '版权信息', self)
-        licenseAction.setShortcut('Ctrl+L')
-        licenseAction.setStatusTip('版权信息')
-        licenseAction.triggered.connect(self.close)
-
-        aboutAction= QAction(QIcon('info1.jpg'), '关于...', self)
-        aboutAction.setShortcut('Ctrl+A')
-        aboutAction.setStatusTip('关于...')
-        aboutAction.triggered.connect(self.close)
 
         exitAction = QAction(QIcon('exit4.jpg'), '退出系统', self)
         exitAction.setShortcut('Ctrl+Q')
         exitAction.setStatusTip('退出系统')
         exitAction.triggered.connect(self.close)
-
-        shutAction= QAction(QIcon('shut.jpg'), '关闭电脑', self)
-        shutAction.setShortcut('Ctrl+Q')
-        shutAction.setStatusTip('关闭电脑')
-        shutAction.triggered.connect(self.close)
 
         openAction = QAction(QIcon('open.jpg'), '打开文件', self)
         openAction.setShortcut('Ctrl+O')
@@ -198,69 +133,6 @@ class Edits(QMainWindow,Ui_mainWindow):
         #定义状态条
         self.statusBar().showMessage('Ready')
 
-        #定义下拉菜单
-        menubar = self.menuBar()
-        menubar.setStyleSheet("color:rgb(10,10,10,255);font-size:25px;font-weight:bold;font-family:Roman times;")
-
-        funcMenu = menubar.addMenu('&功能模块')
-        funcMenu.addAction(contractAction)
-        funcMenu.addSeparator()
-        funcMenu.addAction(paymentAction)
-        funcMenu.addSeparator()
-        funcMenu.addAction(productAction)
-        funcMenu.addSeparator()
-        funcMenu.addAction(sellerAction)
-        funcMenu.addSeparator()
-        funcMenu.addAction(channelAction)
-        funcMenu.addSeparator()
-        funcMenu.addAction(customerAction)
-        funcMenu.addSeparator()
-        funcMenu.addAction(serviceAction)
-        funcMenu.addSeparator()
-        funcMenu.addAction(personAction)
-        funcMenu.addSeparator()
-        funcMenu.addAction(achievementAction)
-        funcMenu.addSeparator()
-        funcMenu.addAction(storeAction)
-        funcMenu.addSeparator()
-        funcMenu.addAction(trafficAction)
-        
-        dataMenu = menubar.addMenu('&数据编辑')
-        dataMenu.addAction(editAction)
-        dataMenu.addSeparator()
-        dataMenu.addAction(insertAction)
-        dataMenu.addSeparator()
-        dataMenu.addAction(deleteAction)
-        dataMenu.addSeparator()
-        dataMenu.addAction(backupAction)
-        dataMenu.addSeparator()
-        dataMenu.addAction(restoreAction)
-
-        fileMenu = menubar.addMenu('&数据输出')
-        fileMenu.addAction(xlsAction)
-        fileMenu.addSeparator()
-        fileMenu.addAction(docAction)
-        fileMenu.addSeparator()
-        fileMenu.addAction(txtAction)
-        fileMenu.addSeparator()
-        fileMenu.addAction(jpgAction)
-        fileMenu.addSeparator()
-        fileMenu.addAction(printAction)
-
-        sysMenu = menubar.addMenu('&系统')
-        sysMenu.addAction(homeAction)
-        sysMenu.addSeparator()
-        sysMenu.addAction(exitAction)
-        sysMenu.addSeparator()
-        sysMenu.addAction(shutAction)
-
-        helpMenu = menubar.addMenu('&帮助')
-        helpMenu.addAction(helpAction)
-        helpMenu.addSeparator()
-        helpMenu.addAction(licenseAction)
-        helpMenu.addSeparator()
-        helpMenu.addAction(aboutAction)
-
         #定义工具条
         toolbar = self.addToolBar('主页')
         toolbar.addAction(homeAction)
@@ -268,35 +140,29 @@ class Edits(QMainWindow,Ui_mainWindow):
         toolbar.addAction(contractAction)
         toolbar = self.addToolBar('资金管理')
         toolbar.addAction(paymentAction)
-        toolbar = self.addToolBar('产品管理')
-        toolbar.addAction(productAction)
-        toolbar = self.addToolBar('进销管理')
-        toolbar.addAction(sellerAction)
-        toolbar = self.addToolBar('渠道管理')
-        toolbar.addAction(channelAction)
-        toolbar = self.addToolBar('客户管理')
-        toolbar.addAction(customerAction)
         toolbar = self.addToolBar('服务管理')
         toolbar.addAction(serviceAction)
         toolbar = self.addToolBar('人员管理')
         toolbar.addAction(personAction)
-        toolbar = self.addToolBar('业绩管理')
-        toolbar.addAction(achievementAction)        
         toolbar = self.addToolBar('仓储管理')
         toolbar.addAction(storeAction)
+        toolbar = self.addToolBar('销售管理')
+        toolbar.addAction(sellerAction)
+        toolbar = self.addToolBar('客户管理')
+        toolbar.addAction(customerAction)
         toolbar = self.addToolBar('物流管理')
-        toolbar.addAction(trafficAction)
+        toolbar.addAction(tranceAction)
+
         toolbar = self.addToolBar('编辑')
         toolbar.addAction(editAction)
-        toolbar = self.addToolBar('备份')
-        toolbar.addAction(backupAction)
+        toolbar = self.addToolBar('保存')
+        toolbar.addAction(saveAction)
         toolbar = self.addToolBar('打印')
         toolbar.addAction(printAction)
         toolbar = self.addToolBar('帮助')
         toolbar.addAction(helpAction)
         toolbar = self.addToolBar('退出')
         toolbar.addAction(exitAction)
-
         
         #定义主窗口位置和大小
         qr = self.frameGeometry()
@@ -309,21 +175,21 @@ class Edits(QMainWindow,Ui_mainWindow):
 ###################################################################################
     def opensql(self):
 ###################################################################################
-        conn=pymysql.connect(host=self.p1,port=int(self.p2),user=self.p3,passwd=self.p4,db=self.p5,charset='utf8mb4')
-        cursor=conn.cursor()
-        sql="SELECT * FROM {}".format(self.p6)
-        sums=cursor.execute(sql)
+        Conn=pymysql.connect(host=P1,port=int(P2),user=P3,passwd=P4,db=P5,charset='utf8mb4')
+        Cursor=Conn.cursor()
+        Sql="SELECT * FROM {}".format(P6)
+        Sums=Cursor.execute(Sql)
 
 ##        text=str('总共找到{}条记录').format(sums)
 ##        print(text)
-        return cursor
+        return Cursor
 
 ###################################################################################
     def closesql(self):
 ###################################################################################
-        cursor.close()
+        Cursor.close()
         #关闭数据库连接
-        conn.close()
+        Conn.close()
 
 
 
@@ -449,9 +315,7 @@ class Edits(QMainWindow,Ui_mainWindow):
             if it4.strip('\n') != product_status:
                 self.comboBox_4.addItem(it4.strip('\n'))
         fl4.close()
-        
-        return self.cursor
-    
+
 ###################################################################################
     def date1_chg(self):
 ###################################################################################
@@ -542,75 +406,84 @@ class Edits(QMainWindow,Ui_mainWindow):
 ##################################################################################
     def ps_bt1(self):
 ###################################################################################
-        conn=pymysql.connect(host=self.p1,port=int(self.p2),user=self.p3,passwd=self.p4,db=self.p5,charset='utf8mb4')
-        cursor=conn.cursor()
-        sql="SELECT * FROM {}".format(self.p6)
-        sums=cursor.execute(sql)
+##        conn=pymysql.connect(host=self.p1,port=int(self.p2),user=self.p3,passwd=self.p4,db=self.p5,charset='utf8mb4')
+##        cursor=conn.cursor()
+##        sql="SELECT * FROM {}".format(self.p6)
+##        sums=cursor.execute(sql)
 
-        sql = "UPDATE TEST_TABLE SET CONTRACT_DATE = '{}', CONTRACT_NO = '{}',PRODUCT_NAME = '{}',\
+        sql = "UPDATE {} SET CONTRACT_DATE = '{}', CONTRACT_NO = '{}',PRODUCT_NAME = '{}',\
                PRODUCT_TYPE = '{}',FACTORY = '{}',SELLER = '{}',CUSTOMER = '{}', LICENSE = '{}', \
                LICENSE_LIMITED = '{}', PRODUCT_LOCATION = '{}',PRODUCT_STATUS = '{}' WHERE SERIAL_NO = '{}'"\
-               .format(self.date1_chg(),self.ln2_chg(),\
+               .format(P6,self.date1_chg(),self.ln2_chg(),\
               self.ln3_chg(),self.ln4_chg(),self.cmb1_chg(),self.cmb2_chg(),self.ln5_chg(),self.ln6_chg(),\
               self.date2_chg(),self.cmb3_chg(),self.cmb4_chg(),self.ln1_chg())
 
         try:
-            cursor.execute(sql)
+            Cursor.execute(sql)
             # Commit your changes in the database
-            conn.commit()
+            Conn.commit()
 
         except:
            # Rollback in case there is any error
-            conn.rollback()
+            Conn.rollback()
 ###################################################################################
     def ps_bt2(self):
 ###################################################################################
         serial_no1=datetime.now().strftime('%Y%m%d%H%M%S')
         data1=datetime.now().strftime('%Y-%m-%d')
 
-        conn=pymysql.connect(host=self.p1,port=int(self.p2),user=self.p3,passwd=self.p4,db=self.p5,charset='utf8mb4')
-        cursor=conn.cursor()
-        sql="SELECT * FROM {}".format(self.p6)
-        sums=cursor.execute(sql)
+##        Conn=pymysql.connect(host=self.p1,port=int(self.p2),user=self.p3,passwd=self.p4,db=self.p5,charset='utf8mb4')
+##        Cursor=Conn.cursor()
+##        Sql="SELECT * FROM {}".format(self.p6)
+##        sums=cursor.execute(sql)
 
-##        rows = self.cursor.fetchall()
-##        new_id=self.cursor.lastrowid
+        Rows = Cursor.fetchall()
+##        new_id=Cursor.lastrowid
 
+      
         try:
-            cursor.execute("insert into test_table(serial_no,contract_date,contract_no,\
+            sql = "insert into {}(serial_no,contract_date,contract_no,\
                            product_name,product_type,factory,seller,customer,license,\
                            license_limited,product_location,product_status)\
-                           values(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",(serial_no1,data1,\
-                           " "," "," "," "," "," "," ",data1," "," "))
+                           values(serial_no1,data1,"","","","","","","",data1,"","")".format(P6)
+            print(sql)
+##            Cursor.execute("insert into %s(serial_no,contract_date,contract_no,\
+##                           product_name,product_type,factory,seller,customer,license,\
+##                           license_limited,product_location,product_status)\
+##                           values(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",(P6,serial_no1,data1,\
+##                           "","","","","","","",data1,"",""))
+            Cursor.execute(sql)
 
-            conn.commit()
+            Conn.commit()
             print(serial_no1)
         except:
            # Rollback in case there is any error
-            conn.rollback()
+            Conn.rollback()
 
-        cursor.execute("select * from test_table where serial_no = (%s)",(serial_no1))
-        rows = cursor.fetchone()
-        eds.tblshow(rows)
+        sql = "select * from {} where serial_no = (%s)".format(P6),(serial_no1)
+        print(sql)
+        Cursor.execute(sql)
+        Rows = Cursor.fetchone()
+        eds.tblshow(Rows)
 ###################################################################################
     def ps_bt3(self):
 ###################################################################################
-        conn=pymysql.connect(host=self.p1,port=int(self.p2),user=self.p3,passwd=self.p4,db=self.p5,charset='utf8mb4')
-        cursor=conn.cursor()
-        sql="SELECT * FROM {}".format(self.p6)
-        sums=cursor.execute(sql)
+##        conn=pymysql.connect(host=self.p1,port=int(self.p2),user=self.p3,passwd=self.p4,db=self.p5,charset='utf8mb4')
+##        cursor=conn.cursor()
+##        sql="SELECT * FROM {}".format(self.p6)
+##        sums=cursor.execute(sql)
 
-        sql = "DELETE FROM {} WHERE SERIAL_NO = '{}'".format(self.p6,self.ln1_chg())
+        Sql = "DELETE FROM {} WHERE SERIAL_NO = '{}'".format(P6,self.ln1_chg())
 
         try:
-            cursor.execute(sql)
+            Cursor.execute(Sql)
                 # Commit your changes in the database
-            conn.commit()
+            Conn.commit()
             eds.ps_bt4()
 
         except:
            # Rollback in case there is any error
-            conn.rollback()
+            Conn.rollback()
 
 
 ###################################################################################
@@ -618,8 +491,8 @@ class Edits(QMainWindow,Ui_mainWindow):
 ###################################################################################
         eds.ps_bt1()    
         try:
-            rows = self.cursor.fetchone()
-            eds.tblshow(rows)
+            Rows = Cursor.fetchone()
+            eds.tblshow(Rows)
 
         except:
 ##            import traceback
@@ -630,18 +503,18 @@ class Edits(QMainWindow,Ui_mainWindow):
              \n返回第一条记录吗？",QMessageBox.Yes|QMessageBox.No)
             if reply == QMessageBox.Yes:
 
-                self.cursor.close()
-                self.conn.close()
+                Cursor.close()
+                Conn.close()
 
-                conn=pymysql.connect(host=self.p1,port=int(self.p2),user=self.p3,passwd=self.p4,db=self.p5,charset='utf8mb4')
-                self.cursor=conn.cursor()
-                sql="SELECT * FROM {}".format(self.p6)
-                sums=self.cursor.execute(sql)
+                Conn=pymysql.connect(host=self.p1,port=int(self.p2),user=self.p3,passwd=self.p4,db=self.p5,charset='utf8mb4')
+                Cursor=conn.cursor()
+                Sql="SELECT * FROM {}".format(self.p6)
+                Sums=sCursor.execute(sql)
                 
 ##                self.cursor.scroll(0,mode="absolute")
-                rows = self.cursor.fetchone()
+                Rows = Cursor.fetchone()
 ##                print(sql)
-                eds.tblshow(rows)
+                eds.tblshow(Rows)
 
 ###################################################################################
     def ps_bt5(self):
@@ -662,6 +535,12 @@ if __name__ == '__main__':
     eds = Edits()
     cur = eds.opensql()
     
+###################################################################################
+    #下拉菜单
+    eds.action42.triggered.connect(eds.exit_menu)
+    eds.action41.triggered.connect(eds.return_menu)
+    
+
 ###################################################################################
     #按钮控件
     eds.pushButton_1.clicked.connect(eds.ps_bt1)
