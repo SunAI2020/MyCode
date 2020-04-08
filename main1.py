@@ -499,7 +499,7 @@ class Mains(QMainWindow,Ui_MainWindow):
             QMessageBox.Yes)
             if reply == QMessageBox.Yes:
                 event.accept()
-                self.quit()
+                self.exit()
             else:
                 event.ignore()
                 
