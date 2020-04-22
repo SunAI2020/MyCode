@@ -11,4 +11,4 @@ a=df
 a=df.loc[1,:]
 df=df.set_index('名称')
 a=df.loc['苹果',:]
-a=df.iloc[1,1]
+a=df.iloc[2,1]

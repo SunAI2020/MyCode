@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import *
 from product_l2 import Ui_MainWindow as MainWindow1
 ##from edit_2 import Ui_mainWindow as Form1
 from subprocess import Popen, PIPE, STDOUT
-from Edit3 import *
+##from Edit3 import *
 
 from datetime import datetime
 
