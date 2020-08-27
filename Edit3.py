@@ -33,6 +33,7 @@ class Edits(QMainWindow,Ui_MainWindow):
         self.initUI()
 
         self.setupUi(self)
+        self.comboBox_3.setEditable(True)
         self.tblshow(self.rows)
 
         self.showMaximized()       

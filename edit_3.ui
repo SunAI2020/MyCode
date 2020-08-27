@@ -431,6 +431,9 @@
          <stylestrategy>PreferAntialias</stylestrategy>
         </font>
        </property>
+       <property name="editable">
+        <bool>true</bool>
+       </property>
       </widget>
      </item>
      <item row="6" column="1">

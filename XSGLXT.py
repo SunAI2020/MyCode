@@ -5,9 +5,10 @@ from PyQt5.QtGui import QIcon,QFont,QColor, QBrush
 from PyQt5.QtCore import QCoreApplication,Qt
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import *
-from XSGLXT_UI import Ui_MainWindow 
+##from XSGLXT_UI import Ui_MainWindow 
 from datetime import datetime
-from PyQt5.QtCore import QTimer 
+from PyQt5.QtCore import QTimer,pyqtSignal
+from HTGL import *
 
 ###################################################################################
 ff1=open('db_p.txt','r')
@@ -30,12 +31,12 @@ p3='      '
 p4='      '
 log1=False
 ###################################################################################
-class Mains(QMainWindow,Ui_MainWindow):
+class Mains(QMainWindow):
     time=datetime.now().strftime('%H:%M:%S')
     date=datetime.now().strftime('%Y-%m-%d')
     time1=datetime.now()
     second = time1.second
-    
+    sig_1 = pyqtSignal()
 
 ###################################################################################
     def __init__(self):
@@ -43,7 +44,7 @@ class Mains(QMainWindow,Ui_MainWindow):
         self.login()
         self.initUI()
 
-        self.setupUi(self)
+##        self.setupUi(self)
 
         self.center()       
 ###################################################################################
@@ -53,11 +54,238 @@ class Mains(QMainWindow,Ui_MainWindow):
         QApplication.setStyle(QStyleFactory.create('Windows'))
         #这种静态的方法设置一个用于显示工具提示的字体。使用16px滑体字体。
         QToolTip.setFont(QFont('SansSerif', 12))
-        self.statusBar()
-
-##        self.center()
         
+###################################################################################
+    #按钮控件
+        self.resize(1220, 1280)
+        self.setMinimumSize(QtCore.QSize(1220, 1280))
+        self.centralwidget = QtWidgets.QWidget()
 
+        self.gridLayoutWidget_2 = QtWidgets.QWidget(self.centralwidget)
+        self.gridLayoutWidget_2.setGeometry(QtCore.QRect(0, 0, 1220, 1220))
+
+        self.gridLayout_1 = QtWidgets.QGridLayout(self.gridLayoutWidget_2)
+        self.gridLayout_1.setContentsMargins(0, 0, 0, 0)
+
+        font = QtGui.QFont()
+        font.setFamily("华文中宋")
+        font.setPointSize(20)
+        font.setBold(True)
+        font.setWeight(75)
+        font.setStyleStrategy(QtGui.QFont.PreferAntialias)
+
+        self.pushButton_1 = QtWidgets.QPushButton(self.gridLayoutWidget_2)
+        self.pushButton_1.setMinimumSize(QtCore.QSize(300, 300))
+        self.pushButton_1.setMaximumSize(QtCore.QSize(300, 300))
+        self.pushButton_1.setBaseSize(QtCore.QSize(300, 300))
+        self.pushButton_1.setFont(font)
+        self.pushButton_1.setIconSize(QtCore.QSize(300, 300))
+        self.pushButton_1.setFlat(False)
+        self.gridLayout_1.addWidget(self.pushButton_1, 0, 0, 1, 1)
+        self.pushButton_1.setStatusTip('合同管理')
+        self.pushButton_1.setToolTip('合同管理')
+        self.pushButton_1.setStyleSheet("QPushButton{border-image: url(anniu3a.jpg)}"
+                                   "QPushButton:hover{border-image: url(anniu3b.jpg)}"
+                                   "QPushButton:pressed{border-image: url(anniu3c.jpg)}")
+        self.pushButton_1.clicked.connect(self.slot_btn_1)
+
+        self.pushButton_2 = QtWidgets.QPushButton(self.gridLayoutWidget_2)
+        self.pushButton_2.setMinimumSize(QtCore.QSize(300, 300))
+        self.pushButton_2.setMaximumSize(QtCore.QSize(300, 300))
+        self.pushButton_2.setFont(font)
+        self.pushButton_2.setIconSize(QtCore.QSize(300, 300))
+        self.gridLayout_1.addWidget(self.pushButton_2, 0, 1, 1, 1)
+        self.pushButton_2.setStatusTip('产品管理')
+        self.pushButton_2.setToolTip('产品管理')
+        self.pushButton_2.setStyleSheet("QPushButton{border-image: url(anniu27a.jpg)}"
+                                   "QPushButton:hover{border-image: url(anniu27b.jpg)}"
+                                   "QPushButton:pressed{border-image: url(anniu27c.jpg)}")
+        self.pushButton_2.clicked.connect(self.slot_btn_1)
+        
+        self.pushButton_3 = QtWidgets.QPushButton(self.gridLayoutWidget_2)
+        self.pushButton_3.setMinimumSize(QtCore.QSize(300, 300))
+        self.pushButton_3.setMaximumSize(QtCore.QSize(300, 300))
+        self.pushButton_3.setFont(font)
+        self.pushButton_3.setIconSize(QtCore.QSize(300, 300))
+        self.gridLayout_1.addWidget(self.pushButton_3, 0, 2, 1, 1)
+        self.pushButton_3.setStatusTip('资金管理')
+        self.pushButton_3.setToolTip('资金管理')
+        self.pushButton_3.setStyleSheet("QPushButton{border-image: url(anniu11a.jpg)}"
+                                   "QPushButton:hover{border-image: url(anniu11b.jpg)}"
+                                   "QPushButton:pressed{border-image: url(anniu11c.jpg)}")
+        self.pushButton_3.clicked.connect(self.slot_btn_1)
+
+        self.pushButton_4 = QtWidgets.QPushButton(self.gridLayoutWidget_2)
+        self.pushButton_4.setMinimumSize(QtCore.QSize(300, 300))
+        self.pushButton_4.setMaximumSize(QtCore.QSize(300, 300))
+        self.pushButton_4.setFont(font)
+        self.pushButton_4.setIconSize(QtCore.QSize(300, 300))
+        self.gridLayout_1.addWidget(self.pushButton_4, 0, 3, 1, 1)
+        self.pushButton_4.setStatusTip('服务管理')
+        self.pushButton_4.setToolTip('服务管理')
+        self.pushButton_4.setStyleSheet("QPushButton{border-image: url(anniu8a.jpg)}"
+                                   "QPushButton:hover{border-image: url(anniu8b.jpg)}"
+                                   "QPushButton:pressed{border-image: url(anniu8c.jpg)}")
+        self.pushButton_4.clicked.connect(self.slot_btn_1)
+
+        self.pushButton_5 = QtWidgets.QPushButton(self.gridLayoutWidget_2)
+        self.pushButton_5.setMinimumSize(QtCore.QSize(300, 300))
+        self.pushButton_5.setMaximumSize(QtCore.QSize(300, 300))
+        self.pushButton_5.setFont(font)
+        self.pushButton_5.setIconSize(QtCore.QSize(300, 300))
+        self.gridLayout_1.addWidget(self.pushButton_5, 1, 0, 1, 1)
+        self.pushButton_5.setStatusTip('进销管理')
+        self.pushButton_5.setToolTip('进销管理')
+        self.pushButton_5.setStyleSheet("QPushButton{border-image: url(anniu10a.jpg)}"
+                                   "QPushButton:hover{border-image: url(anniu10b.jpg)}"
+                                   "QPushButton:pressed{border-image: url(anniu10c.jpg)}")
+        self.pushButton_5.clicked.connect(self.slot_btn_1)
+
+        self.pushButton_6 = QtWidgets.QPushButton(self.gridLayoutWidget_2)
+        self.pushButton_6.setMinimumSize(QtCore.QSize(300, 300))
+        self.pushButton_6.setMaximumSize(QtCore.QSize(300, 300))
+        self.pushButton_6.setFont(font)
+        self.pushButton_6.setIconSize(QtCore.QSize(300, 300))
+        self.pushButton_6.setFlat(False)
+        self.gridLayout_1.addWidget(self.pushButton_6, 1, 3, 1, 1)
+        self.pushButton_6.setStatusTip('人员管理')
+        self.pushButton_6.setToolTip('人员管理')
+        self.pushButton_6.setStyleSheet("QPushButton{border-image: url(anniu7a.jpg)}"
+                                   "QPushButton:hover{border-image: url(anniu7b.jpg)}"
+                                   "QPushButton:pressed{border-image: url(anniu7c.jpg)}")
+        self.pushButton_6.clicked.connect(self.slot_btn_1)
+
+        
+        self.pushButton_7 = QtWidgets.QPushButton(self.gridLayoutWidget_2)
+        self.pushButton_7.setMinimumSize(QtCore.QSize(300, 300))
+        self.pushButton_7.setMaximumSize(QtCore.QSize(300, 300))
+        self.pushButton_7.setFont(font)
+        self.pushButton_7.setIconSize(QtCore.QSize(300, 300))
+        self.pushButton_7.setFlat(False)
+        self.gridLayout_1.addWidget(self.pushButton_7, 2, 0, 1, 1)
+        self.pushButton_7.setStatusTip('渠道管理')
+        self.pushButton_7.setToolTip('渠道管理')
+        self.pushButton_7.setStyleSheet("QPushButton{border-image: url(anniu13a.jpg)}"
+                                   "QPushButton:hover{border-image: url(anniu13b.jpg)}"
+                                   "QPushButton:pressed{border-image: url(anniu13c.jpg)}")
+        self.pushButton_7.clicked.connect(self.slot_btn_1)
+
+
+        self.pushButton_8 = QtWidgets.QPushButton(self.gridLayoutWidget_2)
+        self.pushButton_8.setMinimumSize(QtCore.QSize(300, 300))
+        self.pushButton_8.setMaximumSize(QtCore.QSize(300, 300))
+        self.pushButton_8.setFont(font)
+        self.pushButton_8.setIconSize(QtCore.QSize(300, 300))
+        self.pushButton_8.setFlat(False)
+        self.gridLayout_1.addWidget(self.pushButton_8, 2, 3, 1, 1)
+        self.pushButton_8.setStatusTip('业绩管理')
+        self.pushButton_8.setToolTip('业绩管理')
+        self.pushButton_8.setStyleSheet("QPushButton{border-image: url(anniu5a.jpg)}"
+                                   "QPushButton:hover{border-image: url(anniu5b.jpg)}"
+                                   "QPushButton:pressed{border-image: url(anniu5c.jpg)}")
+        self.pushButton_8.clicked.connect(self.slot_btn_1)
+
+
+        self.pushButton_9 = QtWidgets.QPushButton(self.gridLayoutWidget_2)
+        self.pushButton_9.setMinimumSize(QtCore.QSize(300, 300))
+        self.pushButton_9.setMaximumSize(QtCore.QSize(300, 300))
+        self.pushButton_9.setFont(font)
+        self.pushButton_9.setIconSize(QtCore.QSize(300, 300))
+        self.pushButton_9.setFlat(False)
+        self.gridLayout_1.addWidget(self.pushButton_9, 3, 0, 1, 1)
+        self.pushButton_9.setStatusTip('客户管理')
+        self.pushButton_9.setToolTip('客户管理')
+        self.pushButton_9.setStyleSheet("QPushButton{border-image: url(anniu22a.jpg)}"
+                                   "QPushButton:hover{border-image: url(anniu22b.jpg)}"
+                                   "QPushButton:pressed{border-image: url(anniu22c.jpg)}")
+        self.pushButton_9.clicked.connect(self.slot_btn_1)
+
+
+        self.pushButton_10 = QtWidgets.QPushButton(self.gridLayoutWidget_2)
+        self.pushButton_10.setMinimumSize(QtCore.QSize(300, 300))
+        self.pushButton_10.setMaximumSize(QtCore.QSize(300, 300))
+        self.pushButton_10.setFont(font)
+        self.pushButton_10.setIconSize(QtCore.QSize(300, 300))
+        self.pushButton_10.setFlat(False)
+        self.gridLayout_1.addWidget(self.pushButton_10, 3, 1, 1, 1)
+        self.pushButton_10.setStatusTip('仓储管理')
+        self.pushButton_10.setToolTip('仓储管理')
+        self.pushButton_10.setStyleSheet("QPushButton{border-image: url(anniu30a.jpg)}"
+                                   "QPushButton:hover{border-image: url(anniu30b.jpg)}"
+                                   "QPushButton:pressed{border-image: url(anniu30c.jpg)}")
+        self.pushButton_10.clicked.connect(self.slot_btn_1)
+
+        self.pushButton_11 = QtWidgets.QPushButton(self.gridLayoutWidget_2)
+        self.pushButton_11.setMinimumSize(QtCore.QSize(300, 300))
+        self.pushButton_11.setMaximumSize(QtCore.QSize(300, 300))
+        self.pushButton_11.setFont(font)
+        self.pushButton_11.setIconSize(QtCore.QSize(300, 300))
+        self.pushButton_11.setFlat(False)
+        self.gridLayout_1.addWidget(self.pushButton_11, 3, 2, 1, 1)
+        self.pushButton_11.setStatusTip('物流管理')
+        self.pushButton_11.setToolTip('物流管理')
+        self.pushButton_11.setStyleSheet("QPushButton{border-image: url(anniu9a.jpg)}"
+                                   "QPushButton:hover{border-image: url(anniu9b.jpg)}"
+                                   "QPushButton:pressed{border-image: url(anniu9c.jpg)}")
+        self.pushButton_11.clicked.connect(self.slot_btn_1)
+
+        self.pushButton_12 = QtWidgets.QPushButton(self.gridLayoutWidget_2)
+        self.pushButton_12.setMinimumSize(QtCore.QSize(300, 300))
+        self.pushButton_12.setMaximumSize(QtCore.QSize(300, 300))
+        self.pushButton_12.setFont(font)
+        self.pushButton_12.setIconSize(QtCore.QSize(300, 300))
+        self.pushButton_12.setFlat(False)
+        self.gridLayout_1.addWidget(self.pushButton_12, 3, 3, 1, 1)
+        self.pushButton_12.setStatusTip('参数设置')
+        self.pushButton_12.setToolTip('参数设置')
+        self.pushButton_12.setStyleSheet("QPushButton{border-image: url(anniu12a.jpg)}"
+                                   "QPushButton:hover{border-image: url(anniu12b.jpg)}"
+                                   "QPushButton:pressed{border-image: url(anniu12c.jpg)}")
+        self.pushButton_12.clicked.connect(self.slot_btn_1)
+
+
+        self.pushButton_13 = QtWidgets.QPushButton(self.gridLayoutWidget_2)
+        self.pushButton_13.setMinimumSize(QtCore.QSize(606, 606))
+        self.pushButton_13.setMaximumSize(QtCore.QSize(600, 600))
+        self.pushButton_13.setBaseSize(QtCore.QSize(0, 0))
+        self.pushButton_13.setFont(font)
+        self.pushButton_13.setIconSize(QtCore.QSize(600, 600))
+        self.pushButton_13.setAutoDefault(False)
+        self.pushButton_13.setDefault(False)
+        self.pushButton_13.setFlat(False)
+        self.gridLayout_1.addWidget(self.pushButton_13, 1, 1, 2, 2)
+        self.pushButton_13.setStatusTip('销售管理系统')
+        self.pushButton_13.setToolTip('销售管理系统')
+        self.pushButton_13.setStyleSheet("QPushButton{border-image: url(anniu28a.jpg)}"
+                                   "QPushButton:hover{border-image: url(anniu28b.jpg)}"
+                                   "QPushButton:pressed{border-image: url(anniu28c.jpg)}")
+##        self.pushButton_13.clicked.connect(self.slot_btn_1)
+
+        
+        self.setCentralWidget(self.centralwidget)
+        self.statusbar = QtWidgets.QStatusBar()
+        self.statusbar.setObjectName("statusbar")
+        self.setStatusBar(self.statusbar)
+
+        _translate = QtCore.QCoreApplication.translate
+        self.setWindowTitle(_translate("MainWindow", "销售管理系统"))
+        self.pushButton_1.setText(_translate("MainWindow", "\n\n\n\n合同管理"))
+        self.pushButton_2.setText(_translate("MainWindow", "\n\n\n\n产品管理"))
+        self.pushButton_3.setText(_translate("MainWindow", "\n\n\n\n资金管理"))
+        self.pushButton_4.setText(_translate("MainWindow", "\n\n\n\n服务管理"))
+        self.pushButton_5.setText(_translate("MainWindow", "\n\n\n\n进销管理"))
+        self.pushButton_6.setText(_translate("MainWindow", "\n\n\n\n人员管理"))
+        self.pushButton_7.setText(_translate("MainWindow", "\n\n\n\n渠道管理"))
+        self.pushButton_8.setText(_translate("MainWindow", "\n\n\n\n业绩管理"))
+        self.pushButton_9.setText(_translate("MainWindow", "\n\n\n\n客户管理"))
+        self.pushButton_10.setText(_translate("MainWindow", "\n\n\n\n仓储管理"))
+        self.pushButton_11.setText(_translate("MainWindow", "\n\n\n\n物流管理"))
+        self.pushButton_12.setText(_translate("MainWindow", "\n\n\n\n参数设置"))
+        self.pushButton_13.setText(_translate("MainWindow", "\n\n\n\n\n\n销售管理系统"))
+
+
+##        QtCore.QMetaObject.connectSlotsByName(MainWindow)
+###################################################################################
         #定义动作
         homeAction = QAction(QIcon('home.jpg'), '主页', self)
         homeAction.setShortcut('Ctrl+H')
@@ -67,7 +295,7 @@ class Mains(QMainWindow,Ui_MainWindow):
         contractAction = QAction(QIcon('hetong2.jpg'), '合同管理', self)
         contractAction.setShortcut('Alt+H')
         contractAction.setStatusTip('合同管理')
-        contractAction.triggered.connect(self.close)
+        contractAction.triggered.connect(self.slot_btn_1)
 
         paymentAction = QAction(QIcon('zijin1.jpg'), '资金管理', self)
         paymentAction.setShortcut('Alt+Z')
@@ -322,8 +550,22 @@ class Mains(QMainWindow,Ui_MainWindow):
 ##        self.setGeometry(qr)
 ##        self.setGeometry(100, 100, 300, 400)
 ##        self.setWindowTitle('编辑数据')
+        self.sig_1.connect(self.sig_1_slot)
         self.show()
+        
+###################################################################################
+    def slot_btn_1(self):
 
+        self.sig_1.emit()
+
+ 
+###################################################################################
+
+    def sig_1_slot(self):
+
+        self.t = htgl()
+        self.t.show()
+##        self.hide()
         
 ###################################################################################
     def login(self):
@@ -444,7 +686,7 @@ class Mains(QMainWindow,Ui_MainWindow):
 ###################################################################################
     def license(self):
         mb = QMessageBox()
-        text = mb.about(self,"版权信息！","本软件由Sun设计开发，版权所有！\n感谢您的使用！\n欢迎您给我们提出宝贵意见！\n联系电话：18636112233。") #弹窗
+        text = mb.about(self,"版权信息！","本软件代码由Sun设计开发，版权所有！\n软件中使用的图片及图标均从网络获取，\n图片及图标的版权归属原作者所有！\n感谢您使用本软件！\n欢迎您给我们提出宝贵意见！\n敬请关注作者头条认证号：SunAI2020。") #弹窗
 ##        dialog.close()
 
 ###################################################################################
@@ -515,7 +757,11 @@ class Mains(QMainWindow,Ui_MainWindow):
 ###################################################################################
 ##################################################################################
     def ps_bt1(self):
-        p = Popen([sys.executable, "htgl.py"],stdout=PIPE, stdin=PIPE, stderr=STDOUT)
+
+        htgl.show()
+
+        
+##        p = Popen([sys.executable, "htgl.py"],stdout=PIPE, stdin=PIPE, stderr=STDOUT)
 
 ##        conn=pymysql.connect(host=self.p1,port=int(self.p2),user=self.p3,passwd=self.p4,db=self.p5,charset='utf8mb4')
 ##        cursor=conn.cursor()
@@ -633,100 +879,6 @@ if __name__ == '__main__':
     mns = Mains()
 
 
-###################################################################################
-    #按钮控件
-    mns.pushButton_1.setStatusTip('合同管理')
-    mns.pushButton_1.setToolTip('合同管理')
-    mns.pushButton_1.setStyleSheet("QPushButton{border-image: url(anniu3a.jpg)}"
-                                   "QPushButton:hover{border-image: url(anniu3b.jpg)}"
-                                   "QPushButton:pressed{border-image: url(anniu3c.jpg)}")
-    mns.pushButton_1.clicked.connect(mns.ps_bt1)
-    
-    mns.pushButton_2.setStatusTip('产品管理')
-    mns.pushButton_2.setToolTip('产品管理')
-    mns.pushButton_2.setStyleSheet("QPushButton{border-image: url(anniu27a.jpg)}"
-                                   "QPushButton:hover{border-image: url(anniu27b.jpg)}"
-                                   "QPushButton:pressed{border-image: url(anniu27c.jpg)}")
-    mns.pushButton_2.clicked.connect(mns.ps_bt0)
-    
-    mns.pushButton_3.setStatusTip('资金管理')
-    mns.pushButton_3.setToolTip('资金管理')
-    mns.pushButton_3.setStyleSheet("QPushButton{border-image: url(anniu11a.jpg)}"
-                                   "QPushButton:hover{border-image: url(anniu11b.jpg)}"
-                                   "QPushButton:pressed{border-image: url(anniu11c.jpg)}")
-    mns.pushButton_3.clicked.connect(mns.ps_bt0)
-    
-    mns.pushButton_4.setStatusTip('服务管理')
-    mns.pushButton_4.setToolTip('服务管理')
-    mns.pushButton_4.setStyleSheet("QPushButton{border-image: url(anniu8a.jpg)}"
-                                   "QPushButton:hover{border-image: url(anniu8b.jpg)}"
-                                   "QPushButton:pressed{border-image: url(anniu8c.jpg)}")
-    mns.pushButton_4.clicked.connect(mns.ps_bt0)
-    
-    mns.pushButton_5.setStatusTip('进销管理')
-    mns.pushButton_5.setToolTip('进销管理')
-    mns.pushButton_5.setStyleSheet("QPushButton{border-image: url(anniu10a.jpg)}"
-                                   "QPushButton:hover{border-image: url(anniu10b.jpg)}"
-                                   "QPushButton:pressed{border-image: url(anniu10c.jpg)}")
-    mns.pushButton_5.clicked.connect(mns.ps_bt0)
-
-    mns.pushButton_6.setStatusTip('人员管理')
-    mns.pushButton_6.setToolTip('人员管理')
-    mns.pushButton_6.setStyleSheet("QPushButton{border-image: url(anniu7a.jpg)}"
-                                   "QPushButton:hover{border-image: url(anniu7b.jpg)}"
-                                   "QPushButton:pressed{border-image: url(anniu7c.jpg)}")
-    mns.pushButton_6.clicked.connect(mns.ps_bt0)
-
-    mns.pushButton_7.setStatusTip('渠道管理')
-    mns.pushButton_7.setToolTip('渠道管理')
-    mns.pushButton_7.setStyleSheet("QPushButton{border-image: url(anniu13a.jpg)}"
-                                   "QPushButton:hover{border-image: url(anniu13b.jpg)}"
-                                   "QPushButton:pressed{border-image: url(anniu13c.jpg)}")
-    mns.pushButton_7.clicked.connect(mns.ps_bt0)
-
-    mns.pushButton_8.setStatusTip('业绩管理')
-    mns.pushButton_8.setToolTip('业绩管理')
-    mns.pushButton_8.setStyleSheet("QPushButton{border-image: url(anniu5a.jpg)}"
-                                   "QPushButton:hover{border-image: url(anniu5b.jpg)}"
-                                   "QPushButton:pressed{border-image: url(anniu5c.jpg)}")
-    mns.pushButton_8.clicked.connect(mns.ps_bt0)
-
-    mns.pushButton_9.setStatusTip('客户管理')
-    mns.pushButton_9.setToolTip('客户管理')
-    mns.pushButton_9.setStyleSheet("QPushButton{border-image: url(anniu22a.jpg)}"
-                                   "QPushButton:hover{border-image: url(anniu22b.jpg)}"
-                                   "QPushButton:pressed{border-image: url(anniu22c.jpg)}")
-    mns.pushButton_9.clicked.connect(mns.ps_bt0)
-
-    mns.pushButton_10.setStatusTip('仓储管理')
-    mns.pushButton_10.setToolTip('仓储管理')
-    mns.pushButton_10.setStyleSheet("QPushButton{border-image: url(anniu30a.jpg)}"
-                                   "QPushButton:hover{border-image: url(anniu30b.jpg)}"
-                                   "QPushButton:pressed{border-image: url(anniu30c.jpg)}")
-    mns.pushButton_10.clicked.connect(mns.ps_bt0)
-
-    mns.pushButton_11.setStatusTip('物流管理')
-    mns.pushButton_11.setToolTip('物流管理')
-    mns.pushButton_11.setStyleSheet("QPushButton{border-image: url(anniu9a.jpg)}"
-                                   "QPushButton:hover{border-image: url(anniu9b.jpg)}"
-                                   "QPushButton:pressed{border-image: url(anniu9c.jpg)}")
-    mns.pushButton_11.clicked.connect(mns.ps_bt0)
-
-    mns.pushButton_12.setStatusTip('参数设置')
-    mns.pushButton_12.setToolTip('参数设置')
-    mns.pushButton_12.setStyleSheet("QPushButton{border-image: url(anniu12a.jpg)}"
-                                   "QPushButton:hover{border-image: url(anniu12b.jpg)}"
-                                   "QPushButton:pressed{border-image: url(anniu12c.jpg)}")
-    mns.pushButton_12.clicked.connect(mns.ps_bt0)
-
-    mns.pushButton_13.setStatusTip('销售管理系统')
-    mns.pushButton_13.setToolTip('销售管理系统')
-    mns.pushButton_13.setStyleSheet("QPushButton{border-image: url(anniu28a.jpg)}"
-                                   "QPushButton:hover{border-image: url(anniu28b.jpg)}"
-                                   "QPushButton:pressed{border-image: url(anniu28c.jpg)}")
-##    mns.pushButton_13.clicked.connect(mns.ps_bt0)
-
-###################################################################################
     sys.exit(app.exec_())
 ###################################################################################
         

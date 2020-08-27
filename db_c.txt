@@ -3,4 +3,4 @@
 sun
 123456
 test_schema
-test_table
+contract

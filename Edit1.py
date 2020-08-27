@@ -11,7 +11,7 @@ from datetime import datetime
 ###################################################################################
 ###################################################################################
 class Edits(QMainWindow,Ui_mainWindow):
-    ff=open('db_p.txt','r')
+    ff=open('db_t.txt','r')
     p1=ff.readline().strip('\n')
     p2=ff.readline().strip('\n')
     p3=ff.readline().strip('\n')

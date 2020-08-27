@@ -10,8 +10,8 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 
-class Ui_MainWindow(object):
-    def setupUi(self, MainWindow):
+class Ui_htglWindow(object):
+    def setupUi1(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(920, 680)
         MainWindow.setMinimumSize(QtCore.QSize(920, 680))
@@ -23,97 +23,97 @@ class Ui_MainWindow(object):
         self.gridLayout_1 = QtWidgets.QGridLayout(self.gridLayoutWidget_2)
         self.gridLayout_1.setContentsMargins(0, 0, 0, 0)
         self.gridLayout_1.setObjectName("gridLayout_1")
-        self.pushButton_3 = QtWidgets.QPushButton(self.gridLayoutWidget_2)
-        self.pushButton_3.setMinimumSize(QtCore.QSize(300, 300))
-        self.pushButton_3.setMaximumSize(QtCore.QSize(300, 300))
+        self.pButton_3 = QtWidgets.QPushButton(self.gridLayoutWidget_2)
+        self.pButton_3.setMinimumSize(QtCore.QSize(300, 300))
+        self.pButton_3.setMaximumSize(QtCore.QSize(300, 300))
         font = QtGui.QFont()
         font.setFamily("华文中宋")
         font.setPointSize(20)
         font.setBold(True)
         font.setWeight(75)
         font.setStyleStrategy(QtGui.QFont.PreferAntialias)
-        self.pushButton_3.setFont(font)
-        self.pushButton_3.setIconSize(QtCore.QSize(300, 300))
-        self.pushButton_3.setObjectName("pushButton_3")
-        self.gridLayout_1.addWidget(self.pushButton_3, 0, 2, 1, 1)
-        self.pushButton_4 = QtWidgets.QPushButton(self.gridLayoutWidget_2)
-        self.pushButton_4.setMinimumSize(QtCore.QSize(300, 300))
-        self.pushButton_4.setMaximumSize(QtCore.QSize(300, 300))
+        self.pButton_3.setFont(font)
+        self.pButton_3.setIconSize(QtCore.QSize(300, 300))
+        self.pButton_3.setObjectName("pButton_3")
+        self.gridLayout_1.addWidget(self.pButton_3, 0, 2, 1, 1)
+        self.pButton_4 = QtWidgets.QPushButton(self.gridLayoutWidget_2)
+        self.pButton_4.setMinimumSize(QtCore.QSize(300, 300))
+        self.pButton_4.setMaximumSize(QtCore.QSize(300, 300))
         font = QtGui.QFont()
         font.setFamily("华文中宋")
         font.setPointSize(20)
         font.setBold(True)
         font.setWeight(75)
         font.setStyleStrategy(QtGui.QFont.PreferAntialias)
-        self.pushButton_4.setFont(font)
-        self.pushButton_4.setIconSize(QtCore.QSize(300, 300))
-        self.pushButton_4.setObjectName("pushButton_4")
-        self.gridLayout_1.addWidget(self.pushButton_4, 1, 0, 1, 1)
-        self.pushButton_1 = QtWidgets.QPushButton(self.gridLayoutWidget_2)
+        self.pButton_4.setFont(font)
+        self.pButton_4.setIconSize(QtCore.QSize(300, 300))
+        self.pButton_4.setObjectName("pButton_4")
+        self.gridLayout_1.addWidget(self.pButton_4, 1, 0, 1, 1)
+        self.pButton_1 = QtWidgets.QPushButton(self.gridLayoutWidget_2)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.pushButton_1.sizePolicy().hasHeightForWidth())
-        self.pushButton_1.setSizePolicy(sizePolicy)
-        self.pushButton_1.setMinimumSize(QtCore.QSize(300, 300))
-        self.pushButton_1.setMaximumSize(QtCore.QSize(300, 300))
-        self.pushButton_1.setBaseSize(QtCore.QSize(300, 300))
+        sizePolicy.setHeightForWidth(self.pButton_1.sizePolicy().hasHeightForWidth())
+        self.pButton_1.setSizePolicy(sizePolicy)
+        self.pButton_1.setMinimumSize(QtCore.QSize(300, 300))
+        self.pButton_1.setMaximumSize(QtCore.QSize(300, 300))
+        self.pButton_1.setBaseSize(QtCore.QSize(300, 300))
         font = QtGui.QFont()
         font.setFamily("华文中宋")
         font.setPointSize(20)
         font.setBold(True)
         font.setWeight(75)
         font.setStyleStrategy(QtGui.QFont.PreferAntialias)
-        self.pushButton_1.setFont(font)
-        self.pushButton_1.setIconSize(QtCore.QSize(300, 300))
-        self.pushButton_1.setFlat(False)
-        self.pushButton_1.setObjectName("pushButton_1")
-        self.gridLayout_1.addWidget(self.pushButton_1, 0, 0, 1, 1)
-        self.pushButton_5 = QtWidgets.QPushButton(self.gridLayoutWidget_2)
-        self.pushButton_5.setMinimumSize(QtCore.QSize(300, 300))
-        self.pushButton_5.setMaximumSize(QtCore.QSize(300, 300))
+        self.pButton_1.setFont(font)
+        self.pButton_1.setIconSize(QtCore.QSize(300, 300))
+        self.pButton_1.setFlat(False)
+        self.pButton_1.setObjectName("pButton_1")
+        self.gridLayout_1.addWidget(self.pButton_1, 0, 0, 1, 1)
+        self.pButton_5 = QtWidgets.QPushButton(self.gridLayoutWidget_2)
+        self.pButton_5.setMinimumSize(QtCore.QSize(300, 300))
+        self.pButton_5.setMaximumSize(QtCore.QSize(300, 300))
         font = QtGui.QFont()
         font.setFamily("华文中宋")
         font.setPointSize(20)
         font.setBold(True)
         font.setWeight(75)
         font.setStyleStrategy(QtGui.QFont.PreferAntialias)
-        self.pushButton_5.setFont(font)
-        self.pushButton_5.setIconSize(QtCore.QSize(300, 300))
-        self.pushButton_5.setObjectName("pushButton_5")
-        self.gridLayout_1.addWidget(self.pushButton_5, 1, 1, 1, 1)
-        self.pushButton_2 = QtWidgets.QPushButton(self.gridLayoutWidget_2)
+        self.pButton_5.setFont(font)
+        self.pButton_5.setIconSize(QtCore.QSize(300, 300))
+        self.pButton_5.setObjectName("pButton_5")
+        self.gridLayout_1.addWidget(self.pButton_5, 1, 1, 1, 1)
+        self.pButton_2 = QtWidgets.QPushButton(self.gridLayoutWidget_2)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.pushButton_2.sizePolicy().hasHeightForWidth())
-        self.pushButton_2.setSizePolicy(sizePolicy)
-        self.pushButton_2.setMinimumSize(QtCore.QSize(300, 300))
-        self.pushButton_2.setMaximumSize(QtCore.QSize(300, 300))
+        sizePolicy.setHeightForWidth(self.pButton_2.sizePolicy().hasHeightForWidth())
+        self.pButton_2.setSizePolicy(sizePolicy)
+        self.pButton_2.setMinimumSize(QtCore.QSize(300, 300))
+        self.pButton_2.setMaximumSize(QtCore.QSize(300, 300))
         font = QtGui.QFont()
         font.setFamily("华文中宋")
         font.setPointSize(20)
         font.setBold(True)
         font.setWeight(75)
         font.setStyleStrategy(QtGui.QFont.PreferAntialias)
-        self.pushButton_2.setFont(font)
-        self.pushButton_2.setIconSize(QtCore.QSize(300, 300))
-        self.pushButton_2.setObjectName("pushButton_2")
-        self.gridLayout_1.addWidget(self.pushButton_2, 0, 1, 1, 1)
-        self.pushButton_6 = QtWidgets.QPushButton(self.gridLayoutWidget_2)
-        self.pushButton_6.setMinimumSize(QtCore.QSize(300, 300))
-        self.pushButton_6.setMaximumSize(QtCore.QSize(300, 300))
+        self.pButton_2.setFont(font)
+        self.pButton_2.setIconSize(QtCore.QSize(300, 300))
+        self.pButton_2.setObjectName("pButton_2")
+        self.gridLayout_1.addWidget(self.pButton_2, 0, 1, 1, 1)
+        self.pButton_6 = QtWidgets.QPushButton(self.gridLayoutWidget_2)
+        self.pButton_6.setMinimumSize(QtCore.QSize(300, 300))
+        self.pButton_6.setMaximumSize(QtCore.QSize(300, 300))
         font = QtGui.QFont()
         font.setFamily("华文中宋")
         font.setPointSize(20)
         font.setBold(True)
         font.setWeight(75)
         font.setStyleStrategy(QtGui.QFont.PreferAntialias)
-        self.pushButton_6.setFont(font)
-        self.pushButton_6.setIconSize(QtCore.QSize(300, 300))
-        self.pushButton_6.setFlat(False)
-        self.pushButton_6.setObjectName("pushButton_6")
-        self.gridLayout_1.addWidget(self.pushButton_6, 1, 2, 1, 1)
+        self.pButton_6.setFont(font)
+        self.pButton_6.setIconSize(QtCore.QSize(300, 300))
+        self.pButton_6.setFlat(False)
+        self.pButton_6.setObjectName("pButton_6")
+        self.gridLayout_1.addWidget(self.pButton_6, 1, 2, 1, 1)
         MainWindow.setCentralWidget(self.centralwidget)
         self.statusbar = QtWidgets.QStatusBar(MainWindow)
         self.statusbar.setObjectName("statusbar")
@@ -125,32 +125,32 @@ class Ui_MainWindow(object):
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "合同管理"))
-        self.pushButton_3.setText(_translate("MainWindow", "\n"
+        self.pButton_3.setText(_translate("MainWindow", "\n"
 "\n"
 "\n"
 "\n"
 "合同查询"))
-        self.pushButton_4.setText(_translate("MainWindow", "\n"
+        self.pButton_4.setText(_translate("MainWindow", "\n"
 "\n"
 "\n"
 "\n"
 "合同作废"))
-        self.pushButton_1.setText(_translate("MainWindow", "\n"
+        self.pButton_1.setText(_translate("MainWindow", "\n"
 "\n"
 "\n"
 "\n"
 "合同录入"))
-        self.pushButton_5.setText(_translate("MainWindow", "\n"
+        self.pButton_5.setText(_translate("MainWindow", "\n"
 "\n"
 "\n"
 "\n"
 "合同归档"))
-        self.pushButton_2.setText(_translate("MainWindow", "\n"
+        self.pButton_2.setText(_translate("MainWindow", "\n"
 "\n"
 "\n"
 "\n"
 "合同编辑"))
-        self.pushButton_6.setText(_translate("MainWindow", "\n"
+        self.pButton_6.setText(_translate("MainWindow", "\n"
 "\n"
 "\n"
 "\n"
