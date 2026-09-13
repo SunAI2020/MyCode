@@ -1,0 +1,82 @@
+/* AI漏洞扫描系统 Pro - Web 前端样式 */
+:root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --panel-2: #273449;
+    --border: #334155;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --primary: #0f3460;
+    --accent: #3b82f6;
+    --danger: #ef4444;
+    --warn: #f59e0b;
+    --ok: #22c55e;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+    background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.6;
+}
+a { color: var(--accent); }
+button {
+    background: var(--accent); color: #fff; border: none; padding: 8px 14px;
+    border-radius: 6px; cursor: pointer; font-size: 14px;
+}
+button:hover { opacity: 0.9; }
+button.secondary { background: var(--panel-2); }
+button.danger { background: var(--danger); }
+input, select {
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+    padding: 8px 10px; border-radius: 6px; font-size: 14px; width: 100%;
+}
+.login-wrap {
+    display: flex; align-items: center; justify-content: center; height: 100vh;
+}
+.login-card {
+    background: var(--panel); padding: 40px; border-radius: 12px; width: 380px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+}
+.login-card h1 { font-size: 20px; margin-bottom: 6px; }
+.login-card .sub { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+.login-card .field { margin-bottom: 14px; }
+.login-card label { display: block; margin-bottom: 4px; color: var(--muted); font-size: 13px; }
+.login-card button { width: 100%; margin-top: 8px; padding: 10px; }
+.error { color: var(--danger); font-size: 13px; margin-top: 10px; }
+.app { display: flex; min-height: 100vh; }
+.sidebar {
+    width: 220px; background: var(--panel); border-right: 1px solid var(--border);
+    padding: 20px 0; flex-shrink: 0;
+}
+.sidebar .brand { padding: 0 20px 20px; font-size: 16px; font-weight: 700; border-bottom: 1px solid var(--border); }
+.sidebar .brand small { display: block; color: var(--muted); font-weight: 400; font-size: 11px; }
+.sidebar .nav { margin-top: 12px; }
+.sidebar .nav button {
+    display: block; width: 100%; text-align: left; background: none; color: var(--text);
+    border-radius: 0; padding: 12px 20px;
+}
+.sidebar .nav button.active { background: var(--primary); border-left: 3px solid var(--accent); }
+.main { flex: 1; padding: 28px; overflow: auto; }
+.main h2 { margin-bottom: 18px; font-size: 20px; }
+.topbar { display: flex; justify-content: flex-end; gap: 12px; margin-bottom: 20px; align-items: center; }
+.topbar .user { color: var(--muted); font-size: 13px; }
+.card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    padding: 20px; margin-bottom: 20px;
+}
+.card h3 { margin-bottom: 12px; font-size: 15px; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); font-size: 13px; }
+th { color: var(--muted); font-weight: 600; }
+.badge { padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+.badge.CRITICAL, .badge.HIGH { background: #7f1d1d; color: #fecaca; }
+.badge.MEDIUM { background: #78350f; color: #fde68a; }
+.badge.LOW { background: #14532d; color: #bbf7d0; }
+.badge.INFO { background: #1e3a8a; color: #bfdbfe; }
+.grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.stat { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+.stat .num { font-size: 28px; font-weight: 700; }
+.stat .label { color: var(--muted); font-size: 12px; }
+.row { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.row input, .row select { width: auto; flex: 1; min-width: 140px; }
+pre { background: #0b1120; padding: 14px; border-radius: 8px; overflow: auto; font-size: 12px; }
+.muted { color: var(--muted); }

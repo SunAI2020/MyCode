@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>P1 技术升级报告</title>
+<style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft YaHei", sans-serif; line-height: 1.6; max-width: 1200px; margin: 0 auto; padding: 20px; background: #f0f2f5; }
+    .container { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    .header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); color: white; padding: 30px 40px; border-radius: 8px 8px 0 0; margin: -40px -40px 30px -40px; }
+    .header h1 { color: white; border: none; margin: 0; font-size: 24pt; }
+    .meta { color: rgba(255,255,255,0.8); font-size: 13px; margin-top: 12px; line-height: 1.8; }
+    h1 { color: #1a1a2e; border-bottom: 3px solid #0f3460; padding-bottom: 10px; font-size: 20pt; }
+    h2 { color: #16213e; border-bottom: 2px solid #0f3460; padding-bottom: 8px; margin-top: 40px; }
+    h3 { color: #16213e; margin-top: 24px; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 10pt; }
+    th, td { border: 1px solid #d0d5dd; padding: 10px 12px; text-align: left; }
+    th { background: #0f3460; color: white; font-weight: 600; }
+    tr:nth-child(even) { background: #f8f9fa; }
+    pre { background: #1e1e1e; color: #d4d4d4; padding: 15px; border-radius: 6px; overflow-x: auto; font-size: 9pt; line-height: 1.5; }
+    code { font-family: "Consolas", "Monaco", "Courier New", monospace; background: #f0f0f0; padding: 1px 4px; border-radius: 3px; font-size: 9pt; }
+    pre code { background: transparent; padding: 0; }
+    .ok { color: #2e7d32; font-weight: bold; }
+    hr { border: none; border-top: 2px solid #e0e0e0; margin: 35px 0; }
+    @media print { body { background: white; } .container { box-shadow: none; padding: 20px; } .header { margin: -20px -20px 20px -20px; } }
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+    <h1>🚀 P1 技术升级报告</h1>
+    <div class="meta">
+        <strong>项目:</strong> AI漏洞扫描系统 Pro | <strong>公司:</strong> 山西有信网安科技有限公司<br>
+        <strong>版本:</strong> v2.1.0 → v2.2.0 | <strong>日期:</strong> 2026-08-18<br>
+        <strong>基线:</strong> 《需求与实现差距分析报告 2026-08-08》 + P0 升级成果
+    </div>
+</div>
+
+<h1>一、执行摘要</h1>
+<p>本次升级在 P0（测试体系 + FastAPI + 双后端配置）基础上，完成两大方向 <strong>改进1（Web 应用安全扫描）</strong> 与 <strong>改进2（P1 核心能力补齐）</strong>，并同步完成质量加固与工程化增强。</p>
+<table>
+<tr><th>维度</th><th>交付内容</th><th>状态</th></tr>
+<tr><td>Web 应用安全扫描</td><td>ZAP 被动扫描 / HTTP 探测 / 指纹识别 / 目录枚举</td><td class="ok">✅</td></tr>
+<tr><td>P1 核心能力</td><td>弱口令检测 / 漏洞处置工作流 / 用户+RBAC / React 前端</td><td class="ok">✅</td></tr>
+<tr><td>质量加固</td><td>修复 16 个测试漂移 + 4 项代码审查技术债 + 7 项安全审查</td><td class="ok">✅</td></tr>
+<tr><td>工程化</td><td>异步扫描 / 前端 Vite 生产化 / 默认账号强制改密</td><td class="ok">✅</td></tr>
+<tr><td>测试</td><td>新增 24 个测试，全套 <strong>154 passed</strong></td><td class="ok">✅</td></tr>
+</table>
+
+<h1>二、改进1：Web 应用安全扫描</h1>
+<p>新增 <code>web_scanner.py</code>，四个子模块 + 编排器：</p>
+<table>
+<tr><th>模块</th><th>功能</th><th>关键实现</th></tr>
+<tr><td><code>WebFingerprinter</code></td><td>CMS/框架/中间件指纹识别</td><td>40+ 特征库，版本提取 + 置信度 + 去重</td></tr>
+<tr><td><code>HTTPProber</code></td><td>自定义 HTTP 请求探测</td><td>任意 method/headers/body + 10 条高危路径</td></tr>
+<tr><td><code>DirectoryEnumerator</code></td><td>目录枚举 + 备份文件检测</td><td>33 词表 + 16 种备份后缀，并发受控</td></tr>
+<tr><td><code>ZAPScanner</code></td><td>OWASP ZAP 被动扫描</td><td>REST API（零新依赖），未启动优雅降级</td></tr>
+<tr><td><code>WebSecurityScanner</code></td><td>编排器</td><td>指纹 → 高危路径 → 目录 → ZAP</td></tr>
+</table>
+
+<h1>三、改进2：P1 核心能力补齐</h1>
+<h2>3.1 弱口令检测</h2>
+<p>HTTP Basic / FTP / SSH 三协议 handler，复用弱口令字典；不支持协议如实返回；命中即停。</p>
+<h2>3.2 漏洞处置工作流</h2>
+<p>9 状态状态机（含终态与重开），非法流转被拒绝，全链路审计。</p>
+<h2>3.3 用户 + RBAC</h2>
+<p>pbkdf2 密码哈希 + HMAC token + 4 角色矩阵 + <code>require_role</code>；默认账号强制改密。</p>
+<h2>3.4 React Web 前端</h2>
+<p>7 页面 SPA，Bearer token 多用户访问，资产网址一键跳转 Web 扫描。</p>
+
+<h1>四、资产网址字段</h1>
+<p><code>assets</code> 表新增 <code>url</code> 列（含旧库迁移），对接 Web 漏洞扫描。</p>
+
+<h1>五、质量加固</h1>
+<table>
+<tr><th>类别</th><th>修复内容</th></tr>
+<tr><td>测试漂移（16）</td><td><code>analyze_code</code> / CIDR 展开 / <code>name</code> 字段检索</td></tr>
+<tr><td>代码审查技术债（4）</td><td>matplotlib 依赖 / CIDR 边界 / <code>closed_at</code> / 默认账号</td></tr>
+<tr><td>安全审查（7）</td><td>密钥随机化 / RBAC 收口 / CORS / SSRF 说明</td></tr>
+</table>
+
+<h1>六、工程化增强</h1>
+<h2>6.1 异步扫描</h2>
+<p>BackgroundTasks + 轮询：<code>/webscan</code>、<code>/weakpass/scan</code> 提交返回 <code>job_id</code>，前端自动轮询。</p>
+<h2>6.2 前端 Vite 生产化</h2>
+<p>CDN React → Vite 本地打包（156KB JS / 49.9KB gzip），FastAPI 托管 <code>frontend/dist/</code>，消除 CDN 依赖与 SRI 风险。</p>
+
+<h1>七、文件变更清单</h1>
+<p><strong>新增 ~30 个</strong>：<code>web_scanner.py</code>、<code>weak_password_scanner.py</code>、<code>workflow.py</code>、<code>auth_rbac.py</code>、<code>api/scan_jobs.py</code>、<code>api/routers/*</code>、<code>frontend/src/*</code>、<code>tests/test_*</code> 等。</p>
+<p><strong>修改 ~20 个</strong>：<code>database.py</code>、<code>scanner_engine.py</code>、<code>ai_analyzer.py</code>、<code>api/*</code>、<code>requirements.txt</code>、<code>.gitignore</code> 等。</p>
+
+<h1>八、测试与验证</h1>
+<pre><code>python -m pytest tests/ -q
+# 154 passed</code></pre>
+<p>新增测试覆盖 RBAC/工作流/弱口令/Web 扫描/资产 url/CIDR 边界；冒烟验证 API 工厂、token、job 状态机、Vite 托管。</p>
+
+<h1>九、验收状态</h1>
+<table>
+<tr><th>验收项</th><th>状态</th></tr>
+<tr><td>pytest 全部通过</td><td class="ok">✅ 154 passed</td></tr>
+<tr><td>登录/RBAC/强制改密生效</td><td class="ok">✅</td></tr>
+<tr><td>Web 扫描 / 弱口令 异步 + 轮询</td><td class="ok">✅</td></tr>
+<tr><td>工作流非法流转拒绝</td><td class="ok">✅</td></tr>
+<tr><td>React 前端本地打包（无 CDN）</td><td class="ok">✅</td></tr>
+<tr><td>既有功能零回归</td><td class="ok">✅</td></tr>
+</table>
+
+<hr>
+<p><strong>文档结束</strong> · 编制: AI漏洞扫描系统 Pro · 日期: 2026-08-18</p>
+<p>© 2026 山西有信网安科技有限公司</p>
+</div>
+</body>
+</html>

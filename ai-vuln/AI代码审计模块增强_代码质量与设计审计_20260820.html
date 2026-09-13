@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <title>AI 代码审计模块增强 — 代码质量与设计审计</title>
+    <style>
+        body { font-family: "Microsoft YaHei", Arial, sans-serif; margin: 20px; background: #f0f2f5; color: #333; line-height: 1.7; }
+        .container { max-width: 1080px; margin: 0 auto; background: white; padding: 40px; border-radius: 10px; box-shadow: 0 2px 20px rgba(0,0,0,0.08); }
+        .header { text-align: center; padding-bottom: 20px; border-bottom: 3px solid #6a1b9a; margin-bottom: 30px; }
+        .header h1 { margin: 0 0 8px; color: #1a237e; }
+        .header .meta { color: #777; font-size: 14px; }
+        h2 { color: #6a1b9a; border-left: 4px solid #6a1b9a; padding-left: 10px; margin-top: 36px; }
+        h3 { color: #283593; margin-top: 24px; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+        th { background: #6a1b9a; color: white; padding: 9px 10px; text-align: left; }
+        td { padding: 8px 10px; border-bottom: 1px solid #eee; }
+        tr:nth-child(even) { background: #fafafa; }
+        code { background: #f3e5f5; color: #6a1b9a; padding: 1px 6px; border-radius: 4px; font-family: Consolas, monospace; font-size: 12px; }
+        pre { background: #263238; color: #eceff1; padding: 16px; border-radius: 8px; overflow-x: auto; font-size: 13px; }
+        pre code { background: none; color: #eceff1; }
+        .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+        .badge-new { background: #2e7d32; color: white; }
+        .badge-mod { background: #f57c00; color: white; }
+        .callout { background: #fff3e0; border-left: 4px solid #f57c00; padding: 12px 16px; margin: 16px 0; border-radius: 4px; }
+        .footer { text-align: center; color: #999; font-size: 12px; margin-top: 40px; padding-top: 15px; border-top: 1px solid #eee; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>AI 代码审计模块增强 — 代码质量与设计审计</h1>
+            <div class="meta">下一代智能漏洞扫描系统 Pro | 山西有信网安科技有限公司 | 版本 2.1.0 | 2026-08-20</div>
+        </div>
+
+        <h2>一、概述</h2>
+        <p>原 AI 代码审计模块（<code>ai_analyzer.py</code> + <code>ai_verifier.py</code>）<strong>只做安全漏洞检测</strong>：10 类正则（SQL 注入/命令注入/XSS/路径遍历/硬编码密钥/反序列化/弱加密/随机数/信息泄露/SSRF）+ 可选 Claude 误报核验，<strong>不审查</strong>软件设计架构、逻辑、函数规范、接口、API、数据库等设计质量问题。</p>
+        <p>本次增强使审计模块覆盖<strong>安全 + 代码质量/设计</strong>两个维度，对每个问题给出<strong>详尽的解决方案</strong>。</p>
+        <div class="callout">
+            <strong>设计决策</strong><br>
+            ① <strong>独立开关、可叠加</strong>：保留现有「Claude Code Security」安全审计复选框，新增「深度代码质量/设计审计」复选框，两者可独立或同时运行，结果合并到同一报告。<br>
+            ② <strong>混合检测</strong>：简单问题用确定性规则（免费、零延迟、无外部依赖）；复杂问题交给 Claude AI 深度分析。
+        </div>
+
+        <h2>二、质量维度分类（14 个维度）</h2>
+        <table>
+            <thead><tr><th>key</th><th>中文名</th><th>检测方式</th></tr></thead>
+            <tbody>
+                <tr><td><code>architecture</code></td><td>架构设计</td><td>AI</td></tr>
+                <tr><td><code>logic</code></td><td>逻辑问题</td><td>AI</td></tr>
+                <tr><td><code>function</code></td><td>函数规范</td><td>规则 + AI</td></tr>
+                <tr><td><code>completeness</code></td><td>功能完整性</td><td>规则 + AI</td></tr>
+                <tr><td><code>loop</code></td><td>循环与复杂度</td><td>规则 + AI</td></tr>
+                <tr><td><code>invocation</code></td><td>调用关系</td><td>AI</td></tr>
+                <tr><td><code>interface</code></td><td>接口规范</td><td>AI</td></tr>
+                <tr><td><code>parameter</code></td><td>参数传递</td><td>规则 + AI</td></tr>
+                <tr><td><code>naming</code></td><td>命名标识</td><td>规则 + AI</td></tr>
+                <tr><td><code>io</code></td><td>输入输出</td><td>AI</td></tr>
+                <tr><td><code>ui</code></td><td>交互界面</td><td>AI</td></tr>
+                <tr><td><code>api</code></td><td>API 设计</td><td>AI</td></tr>
+                <tr><td><code>database</code></td><td>数据库</td><td>AI</td></tr>
+                <tr><td><code>security</code></td><td>安全</td><td>现有正则 + AI</td></tr>
+            </tbody>
+        </table>
+
+        <h2>三、分层检测设计</h2>
+        <h3>第一层：确定性启发式规则（免费、零依赖）</h3>
+        <table>
+            <thead><tr><th>规则</th><th>触发条件</th><th>严重度</th><th>维度</th></tr></thead>
+            <tbody>
+                <tr><td>循环嵌套过深</td><td><code>for</code>/<code>while</code> 嵌套 &gt; 3 层</td><td>MEDIUM</td><td>loop</td></tr>
+                <tr><td>待办占位</td><td>TODO/FIXME/XXX/HACK</td><td>LOW</td><td>completeness</td></tr>
+                <tr><td>空实现占位</td><td>独立 <code>pass</code> 语句</td><td>LOW</td><td>completeness</td></tr>
+                <tr><td>未实现异常</td><td><code>raise NotImplementedError</code></td><td>MEDIUM</td><td>completeness</td></tr>
+                <tr><td>裸 except 捕获</td><td><code>except:</code> 无异常类型</td><td>MEDIUM</td><td>function</td></tr>
+                <tr><td>可变默认参数</td><td><code>def f(x=[]/{}/dict()/set()/list())</code></td><td>MEDIUM</td><td>parameter</td></tr>
+                <tr><td>函数过长</td><td>函数体 &gt; 60 行</td><td>MEDIUM</td><td>function</td></tr>
+                <tr><td>命名不规范</td><td>Python camelCase 变量/函数名</td><td>LOW</td><td>naming</td></tr>
+            </tbody>
+        </table>
+        <h3>第二层：Claude AI 深度分析</h3>
+        <ul>
+            <li>系统提示词 <code>CODE_REVIEW_SYSTEM_PROMPT</code> 从 14 个维度审查，仅报告真实、可行动问题。</li>
+            <li>每个问题返回 JSON：<code>{dimension, category, severity, line, code, problem, solution}</code>，<code>problem</code>/<code>solution</code> 为详尽中文描述（含修复代码示例）。</li>
+            <li><strong>分块</strong>：单文件 &gt; 400 行按行分块（重叠 10 行），避免 token 溢出。</li>
+            <li><strong>文件准入</strong>：跳过 &gt; 200KB、二进制、压缩文件、<code>node_modules/__pycache__/venv/.git</code> 等目录。</li>
+            <li><strong>失败保守</strong>：AI 失败/解析失败 → 记录日志、跳过该文件，不产生空壳条目。</li>
+        </ul>
+
+        <h2>四、统一 issue 字段（安全与质量共用）</h2>
+        <pre><code>{
+  "file": "路径",
+  "line": 行号,
+  "dimension": "维度 key",
+  "category": "问题类别",
+  "severity": "CRITICAL|HIGH|MEDIUM|LOW|INFO",
+  "code": "代码片段",
+  "problem": "问题描述",
+  "recommendation": "详尽解决方案"
+}</code></pre>
+        <p>安全类 issue 由 <code>_analyze_lines()</code> 补齐 <code>dimension='security'</code>、<code>problem</code>；质量类由 <code>AICodeReviewer</code> 产出。</p>
+
+        <h2>五、文件变更清单</h2>
+        <h3>新增文件</h3>
+        <table>
+            <thead><tr><th>文件</th><th>说明</th></tr></thead>
+            <tbody>
+                <tr><td><span class="badge badge-new">新增</span> <code>ai_code_reviewer.py</code></td><td>核心模块：14 维度分类、系统提示词、6 类确定性规则、<code>AICodeReviewer</code> 审查器（规则 + AI 分层）</td></tr>
+                <tr><td><span class="badge badge-new">新增</span> <code>tests/test_code_reviewer.py</code></td><td>14 个测试：维度完整性、确定性规则、JSON 解析、无 AI 降级</td></tr>
+            </tbody>
+        </table>
+        <h3>修改文件</h3>
+        <table>
+            <thead><tr><th>文件</th><th>改动</th></tr></thead>
+            <tbody>
+                <tr><td><span class="badge badge-mod">修改</span> <code>ai_analyzer.py</code></td><td><code>scan_directory()</code> 新增质量审计阶段；安全 issue 补齐 <code>dimension</code>/<code>problem</code>；新增维度统计</td></tr>
+                <tr><td><span class="badge badge-mod">修改</span> <code>database.py</code></td><td>新增 <code>_ensure_column()</code> 迁移；<code>audit_issues</code> 增补 <code>dimension</code>/<code>problem</code> 列；<code>save_audit()</code> 写入新字段</td></tr>
+                <tr><td><span class="badge badge-mod">修改</span> <code>main_window.py</code></td><td>新增质量审计复选框；表格 6→8 列；MD 报告/统计日志/弹窗触发同步</td></tr>
+                <tr><td><span class="badge badge-mod">修改</span> <code>report_generator.py</code></td><td>HTML 报告加维度/问题描述列、维度分布统计、<code>html.escape</code> 防注入</td></tr>
+            </tbody>
+        </table>
+
+        <h2>六、使用说明</h2>
+        <ol>
+            <li>启动 GUI：<code>python main.py</code> → 打开「AI代码审计」页。</li>
+            <li>选择代码文件或目录。</li>
+            <li>勾选「深度代码质量/设计审计」复选框（与「Claude Code Security」可独立/同时勾选）。</li>
+            <li>点击「开始审计」，结果合并显示在 8 列表格中，自动生成 HTML + MD 报告。</li>
+        </ol>
+        <div class="callout"><strong>成本说明</strong>：质量审计是可选、昂贵的 AI 操作，默认关闭；确定性规则在无 Claude CLI 时仍正常工作。</div>
+
+        <h2>七、验证结果</h2>
+        <pre><code>python -m pytest tests/test_code_reviewer.py tests/test_scanner_ai.py -v   # 37 passed
+python -m pytest tests/test_database.py -v                                # 85 passed
+python -m py_compile ai_code_reviewer.py ai_analyzer.py database.py report_generator.py main_window.py</code></pre>
+        <ul>
+            <li>确定性规则在示例代码上正确报出 loop/completeness/parameter/naming 四类问题。</li>
+            <li><code>scan_directory</code> 集成正确输出 <code>dimension='security'</code>、<code>problem</code>、<code>dimension_summary</code>。</li>
+            <li>数据库迁移未破坏既有 <code>TestAuditResultsDB</code> 测试。</li>
+        </ul>
+
+        <h2>八、后续建议（未执行）</h2>
+        <ol>
+            <li>GUI 表格按维度分组筛选/排序。</li>
+            <li>单文件质量审计报告导出 PDF/Word 格式。</li>
+            <li>增加质量维度对应的确定性规则覆盖（如魔法数字、重复代码、圈复杂度）。</li>
+        </ol>
+
+        <div class="footer">本文档由 AI 代码审计模块增强开发过程自动整理生成 | 山西有信网安科技有限公司 &copy; 2026</div>
+    </div>
+</body>
+</html>

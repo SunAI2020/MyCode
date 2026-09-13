@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI-VULN 系统 — 研发需求差距分析与开发计划</title>
+<style>
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Microsoft YaHei", sans-serif;
+        line-height: 1.7;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        background: #f0f2f5;
+        color: #333;
+    }
+    .container { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    .header {
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        color: white; padding: 30px 40px; border-radius: 8px 8px 0 0; margin: -40px -40px 30px -40px;
+    }
+    .header h1 { color: white; border: none; margin: 0; font-size: 22pt; }
+    .meta { color: rgba(255,255,255,0.85); font-size: 13px; margin-top: 12px; line-height: 1.9; }
+    h1 { color: #1a1a2e; border-bottom: 3px solid #0f3460; padding-bottom: 10px; font-size: 18pt; margin-top: 40px; }
+    h2 { color: #16213e; border-bottom: 2px solid #0f3460; padding-bottom: 8px; margin-top: 32px; }
+    h3 { color: #16213e; margin-top: 24px; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 10pt; }
+    th, td { border: 1px solid #d0d5dd; padding: 9px 11px; text-align: left; vertical-align: top; }
+    th { background: #0f3460; color: white; font-weight: 600; }
+    tr:nth-child(even) { background: #f8f9fa; }
+    tr:hover { background: #e8f0fe; }
+    code { font-family: "Consolas","Monaco","Courier New",monospace; background: #f0f0f0; padding: 1px 5px; border-radius: 3px; font-size: 9pt; color: #c7254e; }
+    pre { background: #1e1e1e; color: #d4d4d4; padding: 15px; border-radius: 6px; overflow-x: auto; font-size: 9pt; line-height: 1.5; }
+    pre code { background: transparent; padding: 0; color: #d4d4d4; }
+    hr { border: none; border-top: 2px solid #e0e0e0; margin: 30px 0; }
+    .badge-critical { background: #fce4e4; color: #c62828; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
+    .badge-moderate { background: #fff3e0; color: #e65100; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
+    .badge-done { background: #e8f5e9; color: #2e7d32; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
+    .badge-missing { background: #fce4ec; color: #880e4f; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
+    .red { color: #c62828; font-weight: bold; }
+    .green { color: #2e7d32; font-weight: bold; }
+    .amber { color: #e65100; font-weight: bold; }
+    .toc { background: #f5f7fa; padding: 20px 30px; border-radius: 6px; margin: 20px 0; border: 1px solid #e0e4e8; }
+    .toc h3 { margin-top: 0; }
+    .toc ul { list-style: none; padding-left: 15px; }
+    .toc a { color: #0f3460; text-decoration: none; }
+    .toc a:hover { text-decoration: underline; }
+    .summary-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin: 20px 0; }
+    .summary-card { background: linear-gradient(135deg, #0f3460, #16213e); color: white; padding: 20px; border-radius: 8px; text-align: center; }
+    .summary-card .number { font-size: 26pt; font-weight: bold; }
+    .summary-card .label { font-size: 10pt; opacity: 0.85; margin-top: 5px; }
+    .summary-card.warn { background: linear-gradient(135deg, #e65100, #bf360c); }
+    .summary-card.good { background: linear-gradient(135deg, #2e7d32, #1b5e20); }
+    blockquote { border-left: 4px solid #0f3460; margin: 15px 0; padding: 10px 20px; background: #eef3fb; }
+    .phase-card { border: 1px solid #e0e4e8; border-radius: 8px; padding: 20px; margin: 15px 0; background: #fafbfc; }
+    .phase-card h4 { margin-top: 0; color: #0f3460; font-size: 13pt; }
+    .phase-card ul { padding-left: 18px; }
+    .phase-card li { margin: 4px 0; }
+    footer { margin-top: 30px; padding: 15px; text-align: center; color: #999; border-top: 1px solid #ddd; font-size: 11px; }
+    @media print { body { background: white; } .container { box-shadow: none; padding: 20px; } .header { margin: -20px -20px 20px -20px; } }
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+    <h1>AI-VULN 系统 — 研发需求差距分析与开发计划</h1>
+    <div class="meta">
+        <strong>文档编号:</strong> VSS-GAP-2026-002 | <strong>版本:</strong> V2.0 | <strong>日期:</strong> 2026-08-18<br>
+        <strong>项目:</strong> AI漏洞扫描系统 Pro (D:\projects\ai-vuln)<br>
+        <strong>对比基线:</strong> 《项目研发报告》(2026-08-05) + 《需求与实现差距分析报告 V1.0》(2026-08-08)<br>
+        <strong>分析方法:</strong> 逐模块核对当前代码库实际实现（非文档宣称），结合需求规格说明书 FR-01 ~ FR-17
+    </div>
+</div>
+
+<div class="toc">
+<h3>📑 目录</h3>
+<ul>
+    <li><a href="#sec1">一、执行摘要</a></li>
+    <li><a href="#sec2">二、代码现状总览</a></li>
+    <li><a href="#sec3">三、架构级差距分析</a></li>
+    <li><a href="#sec4">四、功能模块差距详细分析（FR-01~FR-17）</a></li>
+    <li><a href="#sec5">五、非功能需求差距分析</a></li>
+    <li><a href="#sec6">六、数据层差距分析</a></li>
+    <li><a href="#sec7">七、现有系统亮点</a></li>
+    <li><a href="#sec8">八、具体代码缺陷清单</a></li>
+    <li><a href="#sec9">九、开发计划（分阶段）</a></li>
+    <li><a href="#sec10">十、技术债务与风险</a></li>
+    <li><a href="#sec11">十一、优先行动项总表</a></li>
+    <li><a href="#appendix">附录A：功能完成度矩阵</a></li>
+</ul>
+</div>
+
+<!-- ============ 一、执行摘要 ============ -->
+<h1 id="sec1">一、执行摘要</h1>
+
+<p>自 2026-08-08 首版差距分析报告以来，代码库经历了 <strong>P0/P1 两轮系统升级</strong>（git 历史：<code>feat: 数据库维护图形界面</code> → <code>perf: 回填多线程</code> → <code>fix: 代码审查问题修复</code> 及大量未提交工作树变更），实际功能覆盖度较首版报告的 ~25% 有<strong>显著提升</strong>。</p>
+
+<h3>首版报告判为"未实现（0%）"的模块，现已落地</h3>
+<table>
+<tr><th>首版判定</th><th>现状（2026-08-18 代码核实）</th></tr>
+<tr><td>FR-09 API接口「无任何API层」</td><td><span class="badge-done">已实现</span> FastAPI REST 层：<code>api/server.py</code> + 11 个路由 + Swagger + API Key/Bearer 双认证</td></tr>
+<tr><td>FR-08-01 用户管理「无用户系统」</td><td><span class="badge-done">已实现</span> <code>auth_rbac.py</code> + users 表 + 登录/改密/用户 CRUD 接口</td></tr>
+<tr><td>FR-08-02 RBAC「无」</td><td><span class="badge-done">已实现</span> 4 角色（admin/analyst/auditor/viewer）+ 权限矩阵 + <code>require_role</code> 依赖注入</td></tr>
+<tr><td>FR-13 弱口令检测「无」</td><td><span class="badge-done">已实现</span> <code>weak_password_scanner.py</code>（HTTP Basic / FTP / SSH + 字典库）</td></tr>
+<tr><td>FR-04-03 漏洞处置「未实现」</td><td><span class="badge-done">已实现</span> <code>workflow.py</code> 状态机（OPEN→CONFIRMED→…→CLOSED，含误报/重复终态）</td></tr>
+<tr><td>测试覆盖「无任何自动化测试」</td><td><span class="badge-done">已实现</span> <code>tests/</code> pytest 套件（7 文件，DB/RBAC/扫描/AI/弱口令/Web/工作流）</td></tr>
+<tr><td>FR-07 报告「仅HTML/TXT，无PDF」</td><td><span class="badge-done">已实现</span> <code>report_converter.py</code> 支持 HTML/PDF(weasyprint)/Word(docx)/MD</td></tr>
+<tr><td>SQLite→PostgreSQL 迁移</td><td><span class="badge-moderate">部分</span> <code>db/schema_postgres.py</code>(20表DDL) + <code>db/migrate.py</code> 已存在，<strong>但运行期 Database 仍硬编码 SQLite，未接线</strong></td></tr>
+<tr><td>前端 React「未实现」</td><td><span class="badge-moderate">脚手架</span> <code>frontend/</code>（React 18 + Vite，App.jsx 378 行），无 dist 构建产物，功能单一</td></tr>
+<tr><td>威胁情报</td><td><span class="badge-done">升级</span> 13 源（6 本地 API + 7 Web OSINT AI 搜索）+ <code>threat_intel_reporter.py</code> 17 章节报告</td></tr>
+</table>
+
+<h3>修订后完成度估算（基于代码逐模块核实）</h3>
+<div class="summary-cards">
+    <div class="summary-card"><div class="number">~40%</div><div class="label">功能需求完成率<br>(原 ~25%)</div></div>
+    <div class="summary-card warn"><div class="number">~25%</div><div class="label">非功能需求完成率<br>(原 ~15%)</div></div>
+    <div class="summary-card warn"><div class="number">~40%</div><div class="label">外部接口完成率<br>(原 ~20%)</div></div>
+    <div class="summary-card good"><div class="number">~55%</div><div class="label">数据需求完成率<br>(原 ~50%)</div></div>
+</div>
+
+<p><strong>核心结论</strong>：系统已从"功能原型（PoC）"演进为 <strong>"单机可用的垂直功能闭环 + REST 接口的半成品"</strong>。AI 集成仍是最大亮点；架构级差距（微服务/云原生/分布式/多租户）与工程化差距（测试深度、监控、安全加固、CI/CD）依旧是通往企业级产品的主要障碍。</p>
+
+<!-- ============ 二、代码现状总览 ============ -->
+<h1 id="sec2">二、代码现状总览（2026-08-18 实际）</h1>
+
+<table>
+<tr><th>模块</th><th>文件</th><th>状态</th><th>说明</th></tr>
+<tr><td>主窗口 GUI</td><td><code>main_window.py</code></td><td><span class="badge-done">成熟</span></td><td>8 标签页，~4000+ 行</td></tr>
+<tr><td>数据库引擎</td><td><code>database.py</code></td><td><span class="badge-done">成熟</span></td><td>5 库分离 + Database 门面，~1488 行，含 users/roles/web_scan_results/vuln_dispositions 新表</td></tr>
+<tr><td>扫描引擎</td><td><code>scanner_engine.py</code></td><td><span class="badge-done">成熟</span></td><td>Nmap+Socket 双引擎，CVE 匹配并行化（<code>_cve_lock</code> 串行化共享连接）</td></tr>
+<tr><td>AI 客户端</td><td><code>ai_client.py</code></td><td><span class="badge-done">成熟</span></td><td>Claude Code CLI 子进程封装</td></tr>
+<tr><td>AI 扫描增强</td><td><code>ai_scan_enhancer.py</code></td><td><span class="badge-done">成熟</span></td><td>版本预过滤 + 3 并发批次 AI 核验 + 风险重评</td></tr>
+<tr><td>AI 验证器</td><td><code>ai_verifier.py</code></td><td><span class="badge-done">成熟</span></td><td>代码审计误报过滤（±5 行上下文）</td></tr>
+<tr><td>AI 代码审计</td><td><code>ai_analyzer.py</code></td><td><span class="badge-done">成熟</span></td><td>10 类 40+ 正则</td></tr>
+<tr><td>威胁情报（门面）</td><td><code>threat_intel.py</code></td><td><span class="badge-moderate">精简</span></td><td>委托 <code>IntelPipeline</code></td></tr>
+<tr><td>情报源</td><td><code>intel_sources.py</code></td><td><span class="badge-done">新增</span></td><td>13 源（6 本地 + 7 OSINT），IntelSource ABC</td></tr>
+<tr><td>情报流水线</td><td><code>intel_pipeline.py</code></td><td><span class="badge-done">新增</span></td><td>3 阶段：并行本地 → 串行 OSINT → AI 综合分析</td></tr>
+<tr><td>情报报告</td><td><code>threat_intel_reporter.py</code></td><td><span class="badge-done">新增</span></td><td>17 章节 AI 增强报告</td></tr>
+<tr><td>Web 扫描</td><td><code>web_scanner.py</code></td><td><span class="badge-done">新增</span></td><td>指纹识别/高危路径/目录枚举/ZAP 集成</td></tr>
+<tr><td>弱口令检测</td><td><code>weak_password_scanner.py</code></td><td><span class="badge-done">新增</span></td><td>HTTP/FTP/SSH + 字典</td></tr>
+<tr><td>漏洞处置工作流</td><td><code>workflow.py</code></td><td><span class="badge-done">新增</span></td><td>状态机</td></tr>
+<tr><td>认证与 RBAC</td><td><code>auth_rbac.py</code></td><td><span class="badge-done">新增</span></td><td>PBKDF2 密码哈希 + HMAC 令牌 + 权限矩阵</td></tr>
+<tr><td>API 层</td><td><code>api/</code></td><td><span class="badge-done">新增</span></td><td>FastAPI（server/auth/dependencies/models/11 路由/scan_jobs）</td></tr>
+<tr><td>PG 后端抽象</td><td><code>db/</code></td><td><span class="badge-moderate">新增(未接线)</span></td><td>backend/schema_postgres/migrate</td></tr>
+<tr><td>配置</td><td><code>config.py</code> / <code>constants.py</code></td><td><span class="badge-done">新增</span></td><td>环境变量驱动 + 共享常量</td></tr>
+<tr><td>前端</td><td><code>frontend/</code></td><td><span class="badge-moderate">脚手架</span></td><td>React 18 + Vite</td></tr>
+<tr><td>测试</td><td><code>tests/</code></td><td><span class="badge-done">新增</span></td><td>pytest 7 文件</td></tr>
+<tr><td>报告生成/转换</td><td><code>report_generator.py</code> / <code>report_converter.py</code></td><td><span class="badge-done">成熟</span></td><td>HTML/PDF/Word/MD</td></tr>
+</table>
+
+<p><strong>总计约 20,000+ 行 Python</strong>（首版研发报告为 ~10,800 行，增长近一倍）。</p>
+
+<!-- ============ 三、架构级差距分析 ============ -->
+<h1 id="sec3">三、架构级差距分析（修订）</h1>
+
+<table>
+<tr><th>维度</th><th>设计要求 (SAD)</th><th>实际实现 (08-18)</th><th>差距评级</th></tr>
+<tr><td>架构风格</td><td>微服务</td><td>单体（PyQt5 GUI + FastAPI 后端，同进程）</td><td><span class="badge-critical">严重</span></td></tr>
+<tr><td>后端框架</td><td>Go/Gin + Python/FastAPI</td><td>Python/FastAPI（已落地）</td><td><span class="badge-done">已满足</span></td></tr>
+<tr><td>前端框架</td><td>React 18+ / Vue 3</td><td>React 18 脚手架（未完成）</td><td><span class="badge-moderate">中等</span></td></tr>
+<tr><td>数据库</td><td>PostgreSQL 14+</td><td>SQLite 运行期；PG 仅有迁移工具未接线</td><td><span class="badge-critical">严重</span></td></tr>
+<tr><td>缓存</td><td>Redis 7+</td><td>无</td><td><span class="badge-critical">严重</span></td></tr>
+<tr><td>搜索</td><td>Elasticsearch 8.x</td><td>SQLite LIKE</td><td><span class="badge-critical">严重</span></td></tr>
+<tr><td>消息队列</td><td>Kafka 3.x</td><td>无（FastAPI BackgroundTasks + 进程内 <code>_jobs</code> 字典）</td><td><span class="badge-critical">严重</span></td></tr>
+<tr><td>对象存储</td><td>MinIO</td><td>本地文件系统</td><td><span class="badge-moderate">中等</span></td></tr>
+<tr><td>容器编排</td><td>K8s</td><td>无（无 Dockerfile/docker-compose/.github）</td><td><span class="badge-critical">严重</span></td></tr>
+<tr><td>监控告警</td><td>Prometheus+Grafana</td><td>无（仅 <code>/api/health</code>）</td><td><span class="badge-critical">严重</span></td></tr>
+<tr><td>API 网关</td><td>Kong/Ingress</td><td>无（FastAPI CORS 直连）</td><td><span class="badge-moderate">中等</span></td></tr>
+</table>
+
+<blockquote><strong>关键澄清</strong>：<code>config.py</code> 提供 <code>DB_BACKEND=postgresql</code> 与 <code>db/backend.py</code> 的 <code>create_backend()</code>，但主 <code>Database</code> 类（<code>database.py:1266</code>）<strong>未引用该抽象</strong>，设置 <code>DB_BACKEND=postgresql</code> 不会生效（静默回退 SQLite）——见第八节缺陷清单。</blockquote>
+
+<!-- ============ 四、功能模块差距 ============ -->
+<h1 id="sec4">四、功能模块差距详细分析（FR-01 ~ FR-17，代码核实）</h1>
+
+<h2>FR-01 资产管理（~45%）</h2>
+<ul>
+<li><span class="green">✅</span> 资产发现（nmap CIDR/IP 范围展开，纯 Python <code>ipaddress</code>）、CRUD、类型/重要性/OS 下拉、url 字段（对接 Web 扫描）。</li>
+<li><span class="red">❌</span> 仍缺：批量 CSV/Excel 导入、标签系统、6 阶段生命周期状态机、树状结构（组织→部门→网络→子网→资产）。</li>
+</ul>
+
+<h2>FR-02/03 扫描策略与任务（~40%）</h2>
+<ul>
+<li><span class="green">✅</span> 扫描类型（quick/full）、任务创建/状态/进度/停止、<code>scan_policies</code> 表。</li>
+<li><span class="red">❌</span> 仍缺：插件体系、策略模板/版本管理、定时调度、优先级调度、暂停/恢复、分布式执行。</li>
+</ul>
+
+<h2>FR-04 漏洞管理（~55%）</h2>
+<ul>
+<li><span class="green">✅</span> CVE 库（分页/搜索/CVSS 筛选）、<code>vuln_dispositions</code> 表 + <code>workflow.py</code> 状态机（<strong>本轮新增</strong>）、<code>scan_results</code>/<code>web_scan_results</code> 存储。</li>
+<li><span class="red">❌</span> 仍缺：漏洞相似度去重、evidence/remediation 结构化展示。</li>
+</ul>
+
+<h2>FR-05 风险分析（~60%）</h2>
+<ul>
+<li><span class="green">✅</span> AI 批量核验（置信度/风险重评/KEV 加权）、CVSS、<code>generate_ai_analysis</code> 报告。</li>
+<li><span class="red">❌</span> 仍缺：多因子风险评分（资产价值×威胁×脆弱性）、EPSS 融合评分。</li>
+</ul>
+
+<h2>FR-06 修复管理（~25%）</h2>
+<ul>
+<li><span class="green">✅</span> AI 生成修复建议（<code>ai_remediation</code>）。</li>
+<li><span class="red">❌</span> 仍缺：可执行修复脚本、工单集成（Jira/ServiceNow/钉钉/飞书，全库 grep 无结果）、复测验证闭环。</li>
+</ul>
+
+<h2>FR-07 报告中心（~50%）</h2>
+<ul>
+<li><span class="green">✅</span> HTML/MD/TXT + PDF(weasyprint)/Word(docx)（<strong>本轮已具备</strong>，含 HTML 回退降级）。</li>
+<li><span class="red">❌</span> 仍缺：5 类预定义模板、定时分发、图表导出完善。</li>
+</ul>
+
+<h2>FR-08 系统管理（~55%）</h2>
+<ul>
+<li><span class="green">✅</span> 用户 CRUD + 角色 + 审计日志（<code>audit_logs</code> 表 + <code>add_audit_log</code>）——<strong>本轮新增</strong>。</li>
+<li><span class="red">❌</span> 仍缺：配置中心、组织管理、MFA、令牌吊销（见第八节缺陷 #1）。</li>
+</ul>
+
+<h2>FR-09 API 接口（~65%）</h2>
+<ul>
+<li><span class="green">✅</span> REST：<code>/api/v1/{assets,scans,cve,intel,audit,reports,dashboard,auth,users,webscan,weakpass,workflow}</code>，Swagger <code>/api/docs</code>，API Key + Bearer 双认证。</li>
+<li><span class="red">❌</span> 仍缺：GraphQL、Webhook、开放 SDK 文档、API 限流。</li>
+</ul>
+
+<h2>FR-10 插件管理（~0%）</h2>
+<p><span class="red">❌</span> 完全缺失：插件 SDK/上传/版本/热加载/沙箱。</p>
+
+<h2>FR-11 多类型扫描（~20%）</h2>
+<ul>
+<li><span class="green">✅</span> 通用 OS + 端口 + <strong>Web 应用扫描（本轮新增）</strong>。</li>
+<li><span class="red">❌</span> 仍缺：网络设备、安全设备、IoT、工控、国产化（麒麟/统信/达梦等）专项检测。</li>
+</ul>
+
+<h2>FR-12 大数据组件扫描（~10%）</h2>
+<p><span class="red">❌</span> 仅端口层面识别，无 Hadoop/ES/Kafka/ClickHouse 等深度漏洞检测。</p>
+
+<h2>FR-13 弱口令检测（~40%）</h2>
+<ul>
+<li><span class="green">✅</span> HTTP Basic / FTP / SSH（paramiko 可选）+ 字典库——<strong>本轮新增</strong>。</li>
+<li><span class="red">❌</span> 仍缺：MySQL/PostgreSQL/Redis/MongoDB/RDP/Telnet（代码如实返回"暂不支持"），无分布式字典、无锁定策略规避。</li>
+</ul>
+
+<h2>FR-14 漏洞库规则（~60%）</h2>
+<ul>
+<li><span class="green">✅</span> NVD 同步框架 + CWE/补丁链接回填 + 去重 + FAKE 清理。</li>
+<li><span class="red">❌</span> 仍缺：450K+ 规模扩充、增量实时同步、供应商公告自动化。</li>
+</ul>
+
+<h2>FR-15 资产管理增强（~20%）</h2>
+<p><span class="red">❌</span> 树状结构、服务/Web/漏洞/历史多维详情未完整实现。</p>
+
+<h2>FR-16 自动化漏洞验证（~35%）</h2>
+<ul>
+<li><span class="green">✅</span> AI 辅助验证（<code>AIScanEnhancer</code>/<code>AIVerifier</code>）。</li>
+<li><span class="red">❌</span> 仍缺：PoC 安全执行沙箱、复测自动验证。</li>
+</ul>
+
+<h2>FR-17 隐匿站点探测（~25%）</h2>
+<ul>
+<li><span class="green">✅</span> 端口服务识别 + Web 指纹 + 目录枚举（本轮新增）。</li>
+<li><span class="red">❌</span> 仍缺：暴露面综合分析报告、暗网/深网监测。</li>
+</ul>
+
+<!-- ============ 五、非功能需求差距 ============ -->
+<h1 id="sec5">五、非功能需求差距分析（修订）</h1>
+
+<table>
+<tr><th>维度</th><th>指标</th><th>目标</th><th>现状</th><th>评级</th></tr>
+<tr><td>性能</td><td>并发扫描任务</td><td>≥100</td><td>单任务（GUI）</td><td><span class="badge-critical">严重</span></td></tr>
+<tr><td>性能</td><td>API 响应</td><td>&lt;1s</td><td>部分端点全表加载（见缺陷 #7）</td><td><span class="badge-moderate">中等</span></td></tr>
+<tr><td>性能</td><td>增量扫描</td><td>支持</td><td>不支持</td><td><span class="badge-critical">严重</span></td></tr>
+<tr><td>安全</td><td>认证</td><td>MFA+bcrypt</td><td>PBKDF2(10万次)+令牌（优于明文，未达 bcrypt/MFA）</td><td><span class="badge-moderate">中等</span></td></tr>
+<tr><td>安全</td><td>授权</td><td>RBAC</td><td><span class="badge-done">✅ 4 角色 RBAC</span></td><td><span class="badge-done">已满足</span></td></tr>
+<tr><td>安全</td><td>传输加密</td><td>TLS 1.3</td><td>无（uvicorn 明文 HTTP）</td><td><span class="badge-critical">严重</span></td></tr>
+<tr><td>安全</td><td>存储加密</td><td>AES-256</td><td>明文 SQLite</td><td><span class="badge-critical">严重</span></td></tr>
+<tr><td>安全</td><td>审计日志</td><td>不可篡改</td><td>普通表 + 无签名</td><td><span class="badge-moderate">中等</span></td></tr>
+<tr><td>可靠</td><td>可用率/HA</td><td>≥99.9%</td><td>单机无 HA</td><td><span class="badge-critical">严重</span></td></tr>
+<tr><td>可靠</td><td>备份恢复</td><td>日增+周全量</td><td>无自动备份</td><td><span class="badge-critical">严重</span></td></tr>
+<tr><td>可靠</td><td>断点续传</td><td>支持</td><td>不支持</td><td><span class="badge-critical">严重</span></td></tr>
+<tr><td>扩展</td><td>水平扩展</td><td>动态节点</td><td>不支持</td><td><span class="badge-critical">严重</span></td></tr>
+<tr><td>扩展</td><td>多租户</td><td>隔离</td><td>不支持</td><td><span class="badge-critical">严重</span></td></tr>
+<tr><td>扩展</td><td>插件热加载</td><td>支持</td><td>不支持</td><td><span class="badge-critical">严重</span></td></tr>
+<tr><td>可观测</td><td>监控告警</td><td>Prometheus+Grafana</td><td>无</td><td><span class="badge-critical">严重</span></td></tr>
+</table>
+
+<!-- ============ 六、数据层差距 ============ -->
+<h1 id="sec6">六、数据层差距分析（修订）</h1>
+
+<table>
+<tr><th>维度</th><th>设计要求</th><th>实际</th><th>影响</th></tr>
+<tr><td>主库</td><td>PostgreSQL（UUID/JSONB/INET）</td><td>SQLite 运行期；PG 迁移工具存在未接线</td><td>类型弱、并发弱</td></tr>
+<tr><td>缓存</td><td>Redis</td><td>无</td><td>无会话/热数据缓存</td></tr>
+<tr><td>搜索</td><td>ES 8.x</td><td>SQLite LIKE</td><td>无全文/聚合</td></tr>
+<tr><td>队列</td><td>Kafka</td><td>FastAPI BackgroundTasks + 进程内 <code>_jobs</code></td><td>重启丢任务、不可扩展</td></tr>
+<tr><td>对象存储</td><td>MinIO</td><td>本地文件</td><td>报告/证据不可共享</td></tr>
+<tr><td>ORM</td><td>—</td><td>原生 SQL（无 ORM）</td><td>维护成本高、迁移易错（见缺陷 #2）</td></tr>
+<tr><td>迁移</td><td>Alembic 版本化</td><td>手动 CREATE TABLE + 手写 migrate.py</td><td>无回滚/版本管理</td></tr>
+</table>
+
+<!-- ============ 七、亮点 ============ -->
+<h1 id="sec7">七、现有系统亮点（超出需求的部分，已核实）</h1>
+<ol>
+<li><strong>AI 原生深度集成</strong>：扫描→核验→分析→报告全链路 AI，无 API Key 开箱即用（CC SWITCH）。</li>
+<li><strong>完整 REST API + RBAC</strong>：11 路由 + Swagger + 双认证 + 4 角色权限矩阵（超出需求文档概念描述）。</li>
+<li><strong>13 源威胁情报流水线</strong>：6 本地 API 并行 + 7 Web OSINT AI 搜索 + 3 阶段流水线 + 17 章节报告。</li>
+<li><strong>漏洞处置工作流状态机</strong>：可审计的 OPEN→CLOSED 流转 + 误报/重复终态。</li>
+<li><strong>Web 应用安全扫描</strong>：指纹/高危路径/目录枚举/ZAP 集成（原需求未明确）。</li>
+<li><strong>pytest 测试套件</strong>：DB/RBAC/扫描/AI/弱口令/Web/工作流 7 组测试。</li>
+<li><strong>CVE 库工程化</strong>：分页/CVSS 筛选/CWE/补丁链接回填/FAKE 清理/图形维护工具。</li>
+</ol>
+
+<!-- ============ 八、缺陷清单 ============ -->
+<h1 id="sec8">八、具体代码缺陷清单（本轮审查发现，需优先修复）</h1>
+
+<blockquote>以下为对照实际代码逐行核实的问题，作为技术债务的<strong>可执行清单</strong>（而非抽象风险）。</blockquote>
+
+<table>
+<tr><th>#</th><th>位置</th><th>问题</th><th>严重度</th></tr>
+<tr><td>1</td><td><code>api/auth.py:31</code> / <code>api/dependencies.py:59</code></td><td><strong>停用/删除的用户仍可访问</strong>：令牌校验路径只查 <code>must_change_password</code>，从不查 <code>active</code>；角色取自令牌而非 DB，停用/降权/删除的账户在令牌 12h 有效期内继续拥有权限，且无服务端吊销机制</td><td><span class="badge-critical">高</span></td></tr>
+<tr><td>2</td><td><code>db/migrate.py:59-68</code></td><td><strong>PG 迁移破坏外键</strong>：迁移对 SERIAL 表剥离 <code>id</code> 列让 PG 重排主键，但 <code>scan_results.task_id</code>/<code>audit_issues.audit_id</code> 保留 SQLite 旧 id，<code>clear_all()</code> 后主键不连续时引用失效，迁移要么 FK 违规失败要么错挂记录</td><td><span class="badge-critical">高</span></td></tr>
+<tr><td>3</td><td><code>weak_password_scanner.py:68</code></td><td><strong>HTTP Basic 误报</strong>：<code>return r.status_code == 200</code>，凡返回 200（非 Basic 认证站点、登录页、开放首页）即判"弱口令命中"，产生大量误报</td><td><span class="badge-moderate">中</span></td></tr>
+<tr><td>4</td><td><code>database.py:1267</code></td><td><strong><code>DB_BACKEND=postgresql</code> 静默失效</strong>：<code>Database</code> 硬编码 SQLite，<code>db/backend.py</code> 抽象从未被引用</td><td><span class="badge-moderate">中</span></td></tr>
+<tr><td>5</td><td><code>api/models/__init__.py:80</code> / <code>api/routers/webscan.py:53</code></td><td><strong>SSRF</strong>：<code>WebScanRequest</code>/<code>HTTPProbeRequest</code> 缺 URL scheme 校验（<code>AssetCreate</code> 有而这两者无），任意已认证用户可探测云元数据/内网地址</td><td><span class="badge-moderate">中</span></td></tr>
+<tr><td>6</td><td><code>intel_sources.py:383</code></td><td><strong>NVD 同步全表入内存</strong>：<code>search_cve(limit=9990000)</code> 每次同步加载全部 CVE 建去重集合（库约 225MB）</td><td><span class="badge-moderate">低</span></td></tr>
+<tr><td>7</td><td><code>api/routers/scans.py:13,21</code></td><td><strong>列表/详情全表加载</strong>：<code>get_all_tasks(limit=99999)</code> 拉全表再 Python 过滤，分页未下沉 SQL</td><td><span class="badge-moderate">低</span></td></tr>
+</table>
+
+<!-- ============ 九、开发计划 ============ -->
+<h1 id="sec9">九、开发计划（分阶段、可执行）</h1>
+
+<blockquote><strong>原则</strong>：先修安全与数据正确性缺陷 → 打通 PG 运行期 → 补核心扫描能力 → 平台化 → 云原生。每项标注目标文件与工作量（人周）。</blockquote>
+
+<div class="phase-card">
+<h4>阶段 P0 —— 安全与正确性修复（第 1-2 周，最高优先）</h4>
+<table>
+<tr><th>任务</th><th>目标文件</th><th>说明</th><th>工作量</th></tr>
+<tr><td>令牌吊销 + active 校验</td><td><code>api/dependencies.py</code>、<code>api/auth.py</code></td><td><code>require_role</code>/<code>verify_api_key</code>/<code>get_current_user</code> 增加 <code>active</code> 检查；引入令牌版本/吊销表</td><td>0.5</td></tr>
+<tr><td>修复 PG 迁移外键</td><td><code>db/migrate.py</code></td><td>迁移时保留 SQLite 原始 <code>id</code>（显式 INSERT 含 id），或建 id 映射表</td><td>0.5</td></tr>
+<tr><td>HTTP Basic 误报修复</td><td><code>weak_password_scanner.py</code></td><td>仅当响应先 401 挑战后再 200 才判定命中，或校验 <code>WWW-Authenticate</code> 头</td><td>0.5</td></tr>
+<tr><td>URL scheme 校验</td><td><code>api/models/__init__.py</code></td><td><code>WebScanRequest</code>/<code>HTTPProbeRequest</code> 复用 <code>_validate_http_url</code> + 内网地址告警</td><td>0.25</td></tr>
+<tr><td>分页下沉 SQL</td><td><code>api/routers/scans.py</code>、<code>database.py</code></td><td><code>get_all_tasks</code> 支持 <code>LIMIT/OFFSET</code>/<code>WHERE id=</code></td><td>0.25</td></tr>
+</table>
+</div>
+
+<div class="phase-card">
+<h4>阶段 P1 —— 打通 PostgreSQL 运行期（第 3-5 周）</h4>
+<table>
+<tr><th>任务</th><th>目标文件</th><th>说明</th><th>工作量</th></tr>
+<tr><td>Database 接入后端抽象</td><td><code>database.py</code></td><td><code>_connect()</code> 改为 <code>create_backend()</code>，SQL 占位符按后端切换（<code>?</code>→<code>%s</code>）</td><td>1.5</td></tr>
+<tr><td>Alembic 版本化迁移</td><td>新增 <code>db/alembic/</code></td><td>替换手写 <code>migrate.py</code>，支持升级/回滚</td><td>1</td></tr>
+<tr><td>连接池与事务封装</td><td><code>db/backend.py</code></td><td>PG <code>ThreadedConnectionPool</code> 的 get/put 配对，修连接泄漏</td><td>0.5</td></tr>
+<tr><td>迁移数据校验加固</td><td><code>db/migrate.py</code></td><td>校验 FK 一致性，生成 id 映射报告</td><td>0.5</td></tr>
+</table>
+</div>
+
+<div class="phase-card">
+<h4>阶段 P2 —— 核心扫描能力补齐（第 6-12 周）</h4>
+<table>
+<tr><th>任务</th><th>目标文件</th><th>说明</th><th>工作量</th></tr>
+<tr><td>弱口令协议扩充</td><td><code>weak_password_scanner.py</code></td><td>新增 MySQL/PostgreSQL/Redis/MongoDB/RDP/Telnet handler（pymysql/psycopg2/redis/paramiko）</td><td>2</td></tr>
+<tr><td>多因子风险评分</td><td><code>ai_scan_enhancer.py</code> 或新模块</td><td>资产价值×威胁(EPSS/KEV)×脆弱性(CVSS) 综合评分</td><td>1.5</td></tr>
+<tr><td>漏洞相似度去重</td><td><code>workflow.py</code> 或新模块</td><td>CVE+服务+版本指纹相似度去重</td><td>1</td></tr>
+<tr><td>资产批量导入</td><td><code>api/routers/assets.py</code>、<code>main_window.py</code></td><td>CSV/Excel 导入 + 标签系统</td><td>1.5</td></tr>
+<tr><td>扫描任务调度</td><td>新增 <code>scheduler.py</code></td><td>定时任务（APScheduler）+ 优先级队列</td><td>1.5</td></tr>
+<tr><td>报告模板化</td><td><code>report_generator.py</code></td><td>5 类预定义模板 + 定时分发</td><td>1</td></tr>
+</table>
+</div>
+
+<div class="phase-card">
+<h4>阶段 P3 —— 平台化升级（第 13-24 周）</h4>
+<table>
+<tr><th>任务</th><th>目标文件</th><th>说明</th><th>工作量</th></tr>
+<tr><td>React 前端补全</td><td><code>frontend/</code></td><td>资产/扫描/情报/工作流/报表页面 + 对接 API + 构建产物托管</td><td>6</td></tr>
+<tr><td>工单与通知集成</td><td>新增 <code>integrations/</code></td><td>Jira/钉钉/飞书 Webhook</td><td>2</td></tr>
+<tr><td>CI/CD</td><td>新增 <code>.github/workflows/</code></td><td>测试 + 构建 + 打包流水线</td><td>1</td></tr>
+<tr><td>安全加固</td><td><code>api/server.py</code>、<code>auth_rbac.py</code></td><td>TLS、bcrypt、MFA、AES 存储加密、令牌吊销</td><td>3</td></tr>
+<tr><td>监控告警</td><td>新增 <code>/metrics</code> + 告警</td><td>Prometheus 指标导出</td><td>1.5</td></tr>
+</table>
+</div>
+
+<div class="phase-card">
+<h4>阶段 P4 —— 云原生/企业级（第 25 周起，长期）</h4>
+<table>
+<tr><th>任务</th><th>说明</th><th>工作量</th></tr>
+<tr><td>消息队列解耦</td><td>Kafka 异步任务，替换进程内 <code>_jobs</code></td><td>3</td></tr>
+<tr><td>搜索升级</td><td>Elasticsearch 全文检索与聚合</td><td>3</td></tr>
+<tr><td>缓存层</td><td>Redis 会话/热数据</td><td>2</td></tr>
+<tr><td>对象存储</td><td>MinIO 报告/证据存储</td><td>1.5</td></tr>
+<tr><td>微服务拆分</td><td>扫描服务/情报服务/资产服务独立部署</td><td>8</td></tr>
+<tr><td>容器化部署</td><td>Dockerfile + K8s + HA + 边缘扫描节点</td><td>8</td></tr>
+<tr><td>插件体系</td><td>SDK + 沙箱 + 插件市场</td><td>8</td></tr>
+</table>
+</div>
+
+<!-- ============ 十、技术债务与风险 ============ -->
+<h1 id="sec10">十、技术债务与风险（修订）</h1>
+
+<table>
+<tr><th>类别</th><th>问题</th><th>严重度</th><th>说明</th></tr>
+<tr><td>安全</td><td>令牌无吊销/不校验 active</td><td><span class="badge-critical">高</span></td><td>见缺陷 #1，停用账户可继续访问</td></tr>
+<tr><td>数据</td><td>PG 迁移破坏外键</td><td><span class="badge-critical">高</span></td><td>见缺陷 #2，迁移即数据损坏风险</td></tr>
+<tr><td>架构</td><td>PG 后端未接线</td><td><span class="badge-critical">高</span></td><td>见缺陷 #4，<code>DB_BACKEND</code> 配置无效</td></tr>
+<tr><td>质量</td><td>无 ORM/原生 SQL</td><td><span class="badge-moderate">中</span></td><td>维护成本高，注入面大</td></tr>
+<tr><td>质量</td><td>测试覆盖浅</td><td><span class="badge-moderate">中</span></td><td>有套件但缺集成/E2E/迁移回归测试</td></tr>
+<tr><td>安全</td><td>SSRF 暴露</td><td><span class="badge-moderate">中</span></td><td>见缺陷 #5</td></tr>
+<tr><td>准确</td><td>弱口令 HTTP 误报</td><td><span class="badge-moderate">中</span></td><td>见缺陷 #3</td></tr>
+<tr><td>工程</td><td>无 CI/CD</td><td><span class="badge-moderate">中</span></td><td>无自动构建/测试门禁</td></tr>
+<tr><td>运行</td><td>后台任务进程内存储</td><td><span class="badge-moderate">中</span></td><td><code>_jobs</code> 重启即丢，不可扩展</td></tr>
+</table>
+
+<!-- ============ 十一、优先行动项 ============ -->
+<h1 id="sec11">十一、优先行动项总表</h1>
+
+<table>
+<tr><th>优先级</th><th>行动</th><th>工作量</th><th>价值</th><th>阶段</th></tr>
+<tr><td><strong>P0</strong></td><td>令牌吊销 + active 校验</td><td>0.5 周</td><td>堵住越权访问</td><td>P0</td></tr>
+<tr><td><strong>P0</strong></td><td>修复 PG 迁移外键</td><td>0.5 周</td><td>数据正确性</td><td>P0</td></tr>
+<tr><td><strong>P0</strong></td><td>HTTP Basic 误报修复</td><td>0.5 周</td><td>误报率（核心卖点）</td><td>P0</td></tr>
+<tr><td><strong>P0</strong></td><td>URL scheme/SSRF 校验</td><td>0.25 周</td><td>安全</td><td>P0</td></tr>
+<tr><td><strong>P1</strong></td><td>PostgreSQL 运行期接线 + Alembic</td><td>3 周</td><td>数据基础升级</td><td>P1</td></tr>
+<tr><td><strong>P1</strong></td><td>弱口令协议扩充</td><td>2 周</td><td>核心扫描能力</td><td>P2</td></tr>
+<tr><td><strong>P1</strong></td><td>多因子风险评分</td><td>1.5 周</td><td>差异化</td><td>P2</td></tr>
+<tr><td><strong>P2</strong></td><td>React 前端补全</td><td>6 周</td><td>多用户访问</td><td>P3</td></tr>
+<tr><td><strong>P2</strong></td><td>工单/通知集成</td><td>2 周</td><td>DevOps 集成</td><td>P3</td></tr>
+<tr><td><strong>P3</strong></td><td>微服务 + K8s + 插件体系</td><td>24 周</td><td>企业级</td><td>P4</td></tr>
+</table>
+
+<!-- ============ 附录A ============ -->
+<h1 id="appendix">附录 A：功能完成度矩阵（修订版 2026-08-18）</h1>
+
+<pre><code>模块                    完成度    说明
+──────────────────────────────────────────────────
+FR-01  资产管理          █████░░░░ 45%  基础发现+CRUD，缺树状/批量/生命周期
+FR-02  扫描策略          ████░░░░░ 35%  缺策略模板/版本管理/插件
+FR-03  扫描任务          ████░░░░░ 45%  基础执行，缺调度/暂停/分布式
+FR-04  漏洞管理          ██████░░░ 55%  CVE库+处置工作流(新增)，缺去重
+FR-05  风险分析          ██████░░░ 60%  AI验证亮点，缺多因子评分
+FR-06  修复管理          ███░░░░░░ 25%  仅有建议，缺工单/复测
+FR-07  报告中心          █████░░░░ 50%  HTML/PDF/Word/MD，缺模板/分发
+FR-08  系统管理          ██████░░░ 55%  用户+RBAC+审计(新增)，缺MFA/配置中心
+FR-09  API接口           ███████░░ 65%  REST+Swagger+认证(新增)，缺GraphQL/Webhook
+FR-10  插件管理          ░░░░░░░░░ 0%   无
+FR-11  多类型扫描        ██░░░░░░░ 20%  通用OS+端口+Web(新增)
+FR-12  大数据组件        █░░░░░░░░ 10%  仅端口检测
+FR-13  弱口令检测        ████░░░░░ 40%  HTTP/FTP/SSH(新增)，缺DB/RDP/Redis
+FR-14  漏洞库规则        ██████░░░ 60%  NVD同步+回填
+FR-15  资产管理增强      ██░░░░░░░ 20%  详情，缺树状结构
+FR-16  自动化验证        ████░░░░░ 35%  AI辅助验证，缺PoC执行
+FR-17  隐匿站点探测      ███░░░░░░ 25%  Web指纹+目录枚举(新增)
+──────────────────────────────────────────────────
+总体完成度:               ~40%
+</code></pre>
+
+<footer>
+<p><strong>文档结束</strong></p>
+<p><em>编制: AI 代码审查系统 | 日期: 2026-08-18 | 基于 D:\projects\ai-vuln 当前工作树代码逐模块核实</em></p>
+<p>© 2026 山西有信网安科技有限公司</p>
+</footer>
+
+</div>
+</body>
+</html>

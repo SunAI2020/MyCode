@@ -1,0 +1,16 @@
+D:\pythonfiles\ssq>python ssq_gui.py
+Traceback (most recent call last):
+  File "D:\pythonfiles\ssq\ssq_gui.py", line 57, in <module>
+    from ssq_prediction_v2 import (
+    ...<3 lines>...
+    )
+  File "D:\pythonfiles\ssq\ssq_prediction_v2.py", line 77, in <module>
+    import torch
+  File "D:\python313\Lib\site-packages\torch\__init__.py", line 288, in <module>
+    _load_dll_libraries()
+    ~~~~~~~~~~~~~~~~~~~^^
+  File "D:\python313\Lib\site-packages\torch\__init__.py", line 271, in _load_dll_libraries
+    raise err
+OSError: [WinError 1114] 动态链接库(DLL)初始化例程失败。 Error loading "D:\python313\Lib\site-packages\torch\lib\c10.dll" or one of its dependencies.
+
+D:\pythonfiles\ssq>                                                         

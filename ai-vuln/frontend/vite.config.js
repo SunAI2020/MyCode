@@ -1,0 +1,12 @@
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+// 开发模式将 /api 代理到本地 FastAPI；生产由 FastAPI 直接托管 dist
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    proxy: {
+      '/api': 'http://127.0.0.1:8000',
+    },
+  },
+})

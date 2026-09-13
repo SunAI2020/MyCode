@@ -1,0 +1,13 @@
+# Python 编译产物
+__pycache__/
+*.py[cod]
+
+# 运行时数据与密钥（严禁入库）
+data/secret.key
+data/browser_profiles/
+data/*.db
+data/*.db-shm
+data/*.db-wal
+
+# 生成的报告
+reports/

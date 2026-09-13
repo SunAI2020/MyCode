@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>蜜罐识别模块 — 落地方案</title>
+<style>
+  :root { --bg:#f7f8fa; --card:#fff; --ink:#1f2933; --muted:#5b6672; --line:#e4e7eb;
+          --accent:#0b6bcb; --accent-soft:#e8f1fc; --good:#1f9d55; --good-soft:#e8f7ef; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); line-height:1.7; font-size:15px;
+    font-family:"PingFang SC","Microsoft YaHei","Source Han Sans SC","Noto Sans CJK SC",-apple-system,"Segoe UI",sans-serif; }
+  .container { max-width:960px; margin:0 auto; padding:32px 20px 64px; }
+  header.docs { background:linear-gradient(135deg,#0b3a75,#0b6bcb); color:#fff; border-radius:14px;
+    padding:28px 32px; margin-bottom:28px; box-shadow:0 8px 24px rgba(11,59,117,.18); }
+  header.docs h1 { margin:0 0 12px; font-size:26px; }
+  header.docs .meta { font-size:13px; opacity:.92; }
+  header.docs .meta span { display:inline-block; margin-right:18px; }
+  header.docs .badge { background:var(--good); color:#fff; padding:2px 10px; border-radius:12px; font-size:12px; }
+  section { background:var(--card); border:1px solid var(--line); border-radius:12px;
+    padding:24px 28px; margin-bottom:22px; }
+  h2 { font-size:20px; margin:0 0 16px; padding-bottom:10px; border-bottom:2px solid var(--accent-soft); color:#0b3a75; }
+  h3 { font-size:16px; margin:22px 0 10px; color:#0b3a75; }
+  table { width:100%; border-collapse:collapse; margin:14px 0; font-size:14px; box-shadow:0 0 0 1px var(--line); border-radius:8px; overflow:hidden; }
+  thead th { background:#f2f6fc; color:#0b3a75; text-align:left; font-weight:600; padding:10px 12px; border-bottom:1px solid var(--line); }
+  tbody td { padding:10px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+  tbody tr:last-child td { border-bottom:none; }
+  blockquote { margin:16px 0; padding:14px 18px; border-left:4px solid var(--accent); background:var(--accent-soft);
+    border-radius:0 8px 8px 0; color:#20456b; font-size:14px; }
+  pre { background:#0b1e33; color:#d6e2f0; padding:16px; border-radius:8px; overflow-x:auto; font-size:13px;
+    font-family:"JetBrains Mono",Consolas,"Courier New",monospace; line-height:1.5; }
+  code { font-family:"JetBrains Mono",Consolas,monospace; font-size:13px; background:#f0f2f5; color:#c0392b; padding:1px 6px; border-radius:4px; }
+  ul,ol { padding-left:22px; margin:10px 0; }
+  li { margin:4px 0; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header class="docs">
+  <h1>蜜罐识别模块 — 落地方案</h1>
+  <div class="meta">
+    <span><b>项目：</b>下一代智能漏洞扫描系统 Pro（AI-VULN）2.1.0</span>
+    <span><b>日期：</b>2026-08-30</span><br>
+    <span class="badge">✅ 已实现并通过单元测试（12 passed）</span>
+  </div>
+</header>
+
+<section>
+  <h2>0. 目标与设计原则</h2>
+  <table>
+    <thead><tr><th>原则</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td><b>识别 → 标记 → 提示</b>（不阻断）</td><td>命中蜜罐只打标，不静默掉线，扫描继续</td></tr>
+      <tr><td><b>纯数据识别可测试</b></td><td>对齐 <code>DeviceFingerprinter.identify_host</code> 的"无网络 IO"设计</td></tr>
+      <tr><td><b>保守不误伤</b></td><td>仅 P0/P1 强信号标记 <code>is_honeypot=True</code>，P2 弱信号只记 evidence 供 AI 二次判断</td></tr>
+      <tr><td><b>零侵入复用 findings</b></td><td>蜜罐发现复用现有漏洞 dict 结构，报告/结果表免改</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>1. 模块架构（新建 <code>honeypot_detector.py</code>）</h2>
+  <p>镜像 <code>device_fingerprint.py</code> 的四段式结构：</p>
+  <pre>honeypot_detector.py
+├── HONEYPOT_SIGNATURES        # 横幅/端口/Web 签名库（第一代）
+├── HONEYPOT_PORT_SIGNATURES   # 端口组合异常（服务组合"过于齐全"）
+├── class HoneypotDetector
+│   ├── detect_host()           # 纯数据识别（无 IO，可测试）
+│   ├── detect_tcp_behavior()   # 第三代：握手/时序异常（预留，默认关）
+│   ├── _build_result()         # 信号聚合 + 置信度择优
+│   └── detect_scan_result()    # 批量识别，回写 host_info['honeypot']
+└── generate_honeypot_findings() # 生成对齐 vuln 结构的发现</pre>
+</section>
+
+<section>
+  <h2>2. 签名库设计（第一代）</h2>
+  <p>每条签名含 <code>honeypot / protocol / field / pattern / confidence</code>，置信度对齐 <code>intel_sources</code> 的 P0/P1/P2 约定：</p>
+  <pre>HONEYPOT_SIGNATURES = [
+    # Cowrie（SSH 蜜罐，默认 banner）
+    {'honeypot': 'Cowrie', 'protocol': 'ssh', 'field': 'banner',
+     'pattern': r'SSH-2\.0-OpenSSH_6\.0p1 Debian-4\+deb7u2', 'confidence': 'P1'},
+    # Conpot（ICS/SCADA 蜜罐，默认 Web 页）
+    {'honeypot': 'Conpot', 'protocol': 'http', 'field': 'http_title',
+     'pattern': r'(?i)conpot|simatic s7-1200|siemens cp', 'confidence': 'P1'},
+    # Glastopf / Dionaea / OpenCanary …（P2 弱信号）
+]</pre>
+  <blockquote><b>来源诚实声明：</b>完整 18 类签名与多步 hex/string/regex 匹配，应从 honeydet 与 Nuclei 的公开签名库移植。当前给出结构示例 + 常见高置信签名。</blockquote>
+</section>
+
+<section>
+  <h2>3. 集成改动（<code>scanner_engine.py</code>）</h2>
+  <p>在 <code>VulnScanner.scan_target</code> 中，紧跟 <code>_identify_devices</code> 之后加一步：</p>
+  <pre># 蜜罐/欺骗资产识别（识别→标记→提示，不阻断扫描）
+honeypots, honeypot_findings = self._detect_honeypots(scan_result)
+vulnerabilities.extend(honeypot_findings)</pre>
+  <p>新增方法 <code>_detect_honeypots()</code>，返回 dict 新增 <code>honeypots</code> / <code>honeypot_count</code> 两键。</p>
+</section>
+
+<section>
+  <h2>4. 数据结构字段</h2>
+  <pre># host_info 内（与 device 字段并列）
+host_info['honeypot'] = {'is_honeypot': True, 'type': 'Cowrie',
+                         'confidence': 'P1', 'signals': [...]}
+
+# findings（对齐 generate_device_findings，走去重/富化/评分流水线）
+finding = {
+    'cve_id': None, 'cvss_score': None, 'severity': 'MEDIUM',
+    'description': '[蜜罐告警] 目标疑似 Cowrie 蜜罐/欺骗资产…',
+    'finding_type': 'honeypot', 'honeypot_type': 'Cowrie',
+}</pre>
+</section>
+
+<section>
+  <h2>5. 三代技术落点</h2>
+  <table>
+    <thead><tr><th>代</th><th>技术</th><th>落点</th><th>状态</th></tr></thead>
+    <tbody>
+      <tr><td>一代</td><td>签名匹配</td><td><code>HONEYPOT_SIGNATURES</code> + <code>detect_host</code></td><td>✅ 已实现</td></tr>
+      <tr><td>二代</td><td>匹配密度/服务组合</td><td><code>HONEYPOT_PORT_SIGNATURES</code></td><td>✅ 已实现</td></tr>
+      <tr><td>三代</td><td>TCP 时序指纹</td><td><code>detect_tcp_behavior()</code> 预留接口</td><td>🔲 预留</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>6. 文件改动清单（已实施）</h2>
+  <table>
+    <thead><tr><th>文件</th><th>改动</th></tr></thead>
+    <tbody>
+      <tr><td><code>honeypot_detector.py</code></td><td>新建（签名库 + 检测器 + findings 生成）</td></tr>
+      <tr><td><code>scanner_engine.py</code></td><td><code>scan_target</code> 集成 <code>_detect_honeypots</code> + 返回两键</td></tr>
+      <tr><td><code>tests/test_honeypot.py</code></td><td>新建，12 个用例</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>7. 风险与保守护栏</h2>
+  <ul>
+    <li><b>误报控制</b>：<code>is_honeypot=True</code> 仅限 P0/P1；P2 只记录 evidence，交给 <code>ai_scan_enhancer</code> 二次判断。</li>
+    <li><b>不阻断扫描</b>：命中蜜罐继续扫，符合"全面扫描 + 提示"定位。</li>
+    <li><b>签名维护</b>：<code>HONEYPOT_SIGNATURES</code> 作为静态情报源，可接入 <code>threat_intel.py</code> 定期更新。</li>
+  </ul>
+</section>
+
+<footer style="text-align:center;color:var(--muted);font-size:12px;">AI-VULN Pro 2.1.0 · 蜜罐识别模块落地方案 · 2026-08-30</footer>
+
+</div>
+</body>
+</html>

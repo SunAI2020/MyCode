@@ -1,0 +1,26 @@
+PyQt5>=5.15
+requests>=2.32
+python-nmap>=0.7
+weasyprint>=68
+python-docx>=1.2
+anthropic>=0.34
+fastapi>=0.115
+uvicorn[standard]>=0.30
+pydantic>=2.0
+psycopg2-binary>=2.9
+matplotlib>=3.7
+
+# ==== 可选增强（P1，非必需）====
+# SSH 弱口令检测
+# paramiko>=3.0
+# MySQL 弱口令检测
+# pymysql>=1.1
+# Redis 弱口令检测
+# redis>=5.0
+# MongoDB 弱口令检测
+# pymongo>=4.6
+# 资产 Excel 批量导入
+# openpyxl>=3.1
+# OWASP ZAP Python 客户端（默认走 REST API，无需安装）
+# python-owasp-zap-v2.4
+

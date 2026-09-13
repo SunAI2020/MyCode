@@ -1,0 +1,1206 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI-PLC 智能控制系统 — 详尽技术方案 V2.0</title>
+<style>
+  :root {
+    --bg: #f8f9fb;
+    --bg2: #ffffff;
+    --ink: #1a1a2e;
+    --muted: #5a6170;
+    --rule: #e2e5ea;
+    --accent: #1a56db;
+    --accent2: #0694a2;
+    --accent-glow: rgba(26,86,219,0.06);
+    --accent2-glow: rgba(6,148,162,0.05);
+    --code-bg: #f0f3f8;
+    --table-stripe: rgba(26,86,219,0.02);
+    --table-hover: rgba(26,86,219,0.04);
+    --callout-bg: rgba(26,86,219,0.04);
+    --callout-bg2: rgba(6,148,162,0.04);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    font-family: "PingFang SC","Microsoft YaHei","Noto Sans CJK SC","Hiragino Sans GB",system-ui,-apple-system,sans-serif;
+    font-size: 15px;
+    line-height: 1.78;
+    color: var(--ink);
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; top: -30%; left: -20%;
+    width: 80%; height: 80%;
+    background: radial-gradient(ellipse at 30% 20%, var(--accent-glow) 0%, transparent 70%);
+    pointer-events: none; z-index: 0;
+  }
+  body::after {
+    content: '';
+    position: fixed; bottom: -20%; right: -15%;
+    width: 70%; height: 70%;
+    background: radial-gradient(ellipse at 70% 80%, var(--accent2-glow) 0%, transparent 70%);
+    pointer-events: none; z-index: 0;
+  }
+
+  main {
+    position: relative; z-index: 1;
+    max-width: 960px; margin: 0 auto;
+    padding: 0 24px 80px;
+  }
+
+  /* Nav */
+  nav.toc {
+    background: rgba(255,255,255,0.82);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(26,86,219,0.08);
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin-bottom: 48px;
+    font-size: 14px;
+  }
+  nav.toc h3 {
+    font-size: 15px; font-weight: 700;
+    margin-bottom: 16px; color: var(--accent);
+  }
+  nav.toc ol {
+    columns: 2; column-gap: 32px;
+    padding-left: 1.4em; line-height: 2.2;
+  }
+  nav.toc ol li a {
+    color: var(--ink); text-decoration: none;
+    transition: color 0.15s;
+  }
+  nav.toc ol li a:hover { color: var(--accent); }
+
+  /* Hero */
+  .hero {
+    text-align: center; padding: 80px 0 56px;
+    position: relative;
+  }
+  .hero .tag {
+    display: inline-block;
+    background: rgba(26,86,219,0.08);
+    color: var(--accent);
+    font-size: 12px; font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 6px 18px; border-radius: 100px;
+    margin-bottom: 24px;
+    border: 1px solid rgba(26,86,219,0.15);
+  }
+  .hero h1 {
+    font-weight: 700; font-size: 42px;
+    line-height: 1.22; color: var(--ink);
+    margin-bottom: 16px; letter-spacing: -0.01em;
+  }
+  .hero h1 em {
+    font-style: normal;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .hero .subtitle {
+    font-size: 17px; color: var(--muted);
+    max-width: 640px; margin: 0 auto 28px;
+    line-height: 1.7;
+  }
+  .hero .meta {
+    display: flex; justify-content: center; gap: 32px;
+    font-size: 13px; color: var(--muted);
+  }
+
+  /* Sections */
+  section { margin-bottom: 56px; }
+  h2 {
+    font-weight: 700; font-size: 26px;
+    color: var(--ink);
+    margin-bottom: 24px; padding-bottom: 14px;
+    border-bottom: 3px solid var(--accent);
+    letter-spacing: -0.01em;
+  }
+  h3 {
+    font-size: 19px; font-weight: 700;
+    color: var(--ink); margin: 30px 0 12px;
+  }
+  h3:first-child { margin-top: 0; }
+  h4 {
+    font-size: 16px; font-weight: 700;
+    color: var(--ink); margin: 22px 0 8px;
+  }
+  p { margin-bottom: 12px; line-height: 1.78; }
+
+  /* Cards */
+  .card {
+    background: rgba(255,255,255,0.78);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(26,86,219,0.08);
+    border-radius: 12px; padding: 24px 28px;
+    margin-bottom: 18px; transition: box-shadow 0.2s;
+  }
+  .card:hover { box-shadow: 0 4px 20px rgba(26,86,219,0.06); }
+  .card h4 { margin-top: 0; font-size: 17px; display: flex; align-items: center; gap: 10px; }
+  .icon-dot {
+    display: inline-block; width: 9px; height: 9px;
+    border-radius: 50%; background: var(--accent); flex-shrink: 0;
+  }
+  .icon-dot.accent2 { background: var(--accent2); }
+
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px,1fr));
+    gap: 18px; margin: 20px 0;
+  }
+  .card-grid.three { grid-template-columns: repeat(3, 1fr); }
+  .card-grid .card { margin-bottom: 0; }
+
+  /* Stats */
+  .stats-row {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 18px; margin: 28px 0;
+  }
+  .stat-card {
+    background: rgba(255,255,255,0.78);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(26,86,219,0.08);
+    border-radius: 12px; padding: 22px 18px;
+    text-align: center;
+  }
+  .stat-card .stat-num {
+    font-size: 32px; font-weight: 700;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .stat-card .stat-label { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  /* Tables */
+  .table-wrap {
+    overflow-x: auto; margin: 20px 0;
+    border: 1px solid var(--rule); border-radius: 10px;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 600px; }
+  thead th {
+    background: rgba(26,86,219,0.06); color: var(--ink);
+    font-weight: 700; font-size: 12px;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    padding: 12px 14px; text-align: left;
+    border-bottom: 2px solid var(--accent); white-space: nowrap;
+  }
+  tbody td { padding: 10px 14px; border-bottom: 1px solid var(--rule); }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:nth-child(even) { background: var(--table-stripe); }
+  tbody tr:hover { background: var(--table-hover); }
+
+  /* Callout */
+  .callout {
+    border-left: 4px solid var(--accent);
+    background: var(--callout-bg);
+    padding: 16px 22px; border-radius: 0 8px 8px 0;
+    margin: 20px 0; font-size: 14px;
+  }
+  .callout.accent2 { border-left-color: var(--accent2); background: var(--callout-bg2); }
+  .callout strong { color: var(--accent); }
+  .callout.accent2 strong { color: var(--accent2); }
+
+  /* Feature list */
+  .feature-list { list-style: none; margin: 14px 0; }
+  .feature-list li {
+    position: relative; padding-left: 22px;
+    margin-bottom: 8px; font-size: 14px;
+  }
+  .feature-list li::before {
+    content: ''; position: absolute; left: 0; top: 8px;
+    width: 7px; height: 7px; border-radius: 50%; background: var(--accent);
+  }
+
+  /* Timeline */
+  .timeline { position: relative; margin: 28px 0; padding-left: 30px; }
+  .timeline::before {
+    content: ''; position: absolute; left: 8px; top: 0; bottom: 0;
+    width: 2px; background: linear-gradient(to bottom, var(--accent), var(--accent2));
+  }
+  .timeline-item { position: relative; margin-bottom: 28px; }
+  .timeline-item:last-child { margin-bottom: 0; }
+  .timeline-item::before {
+    content: ''; position: absolute; left: -26px; top: 5px;
+    width: 13px; height: 13px; border-radius: 50%;
+    background: var(--accent); border: 3px solid var(--bg);
+  }
+  .timeline-item .phase {
+    font-size: 11px; font-weight: 700; color: var(--accent);
+    text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px;
+  }
+  .timeline-item .phase-title { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+  .timeline-item .phase-desc { font-size: 13px; color: var(--muted); }
+
+  /* Code */
+  code {
+    font-family: 'JetBrains Mono','Consolas','Monaco','Courier New',monospace;
+    font-size: 12px; background: var(--code-bg);
+    padding: 2px 6px; border-radius: 4px; color: var(--accent);
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--rule);
+    border-radius: 8px; padding: 16px 20px; overflow-x: auto;
+    font-size: 12px; line-height: 1.6; margin: 16px 0;
+  }
+  pre code { background: none; padding: 0; color: var(--ink); }
+
+  /* Architecture diagram */
+  .arch-diagram {
+    background: rgba(255,255,255,0.7); border: 1px solid var(--rule);
+    border-radius: 12px; padding: 20px 24px; margin: 20px 0;
+    font-family: 'JetBrains Mono','Consolas',monospace;
+    font-size: 12px; line-height: 1.5; overflow-x: auto; white-space: pre;
+  }
+
+  /* Footer */
+  footer {
+    border-top: 1px solid var(--rule); padding-top: 36px;
+    margin-top: 56px; font-size: 13px; color: var(--muted);
+  }
+  footer h2 { font-size: 18px; border-bottom: none; padding-bottom: 0; margin-bottom: 14px; }
+  footer ol { padding-left: 1.2em; line-height: 1.9; }
+  footer li { margin-bottom: 6px; }
+  footer a { color: var(--accent); }
+
+  .stars { color: #e2a010; letter-spacing: 1px; }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .hero h1 { font-size: 28px; }
+    .hero { padding: 40px 0 32px; }
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
+    .card-grid.three { grid-template-columns: 1fr; }
+    .card-grid { grid-template-columns: 1fr; }
+    section { margin-bottom: 40px; }
+    h2 { font-size: 22px; }
+    .card { padding: 18px; }
+    nav.toc ol { columns: 1; }
+  }
+  @media (max-width: 480px) {
+    .stats-row { grid-template-columns: 1fr; }
+    .hero .meta { flex-direction: column; gap: 6px; }
+  }
+
+  @media print {
+    body { background: white; }
+    .card, .stat-card { box-shadow: none; border: 1px solid #ddd; }
+    nav.toc { display: none; }
+    body::before, body::after { display: none; }
+  }
+</style>
+</head>
+<body>
+<main>
+
+<!-- ====== HERO ====== -->
+<div class="hero">
+  <div class="tag">Technical Proposal · V2.0</div>
+  <h1>AI-PLC <em>智能控制系统</em> 详尽技术方案</h1>
+  <p class="subtitle">融合图形化电路设计、多品牌PLC兼容、AI智能编程、工业数据采集与边缘计算的新一代PLC控制平台 — 全球首个打通"电气设计 → PLC编程 → AI辅助 → 数据采集"全链路的统一智能平台</p>
+  <div class="meta">
+    <span>&#x1F4C5; 2026-07-30</span>
+    <span>&#x1F4CB; 版本 V2.0</span>
+    <span>&#x1F512; 内部</span>
+  </div>
+</div>
+
+<!-- ====== TOC ====== -->
+<nav class="toc">
+  <h3>&#x1F4D1; 目录</h3>
+  <ol>
+    <li><a href="#s1">项目概述与愿景</a></li>
+    <li><a href="#s2">系统总体架构</a></li>
+    <li><a href="#s3">核心功能模块详细设计</a></li>
+    <li><a href="#s4">AI 智能引擎深度设计</a></li>
+    <li><a href="#s5">数据库设计</a></li>
+    <li><a href="#s6">API接口设计</a></li>
+    <li><a href="#s7">前端架构与组件树</a></li>
+    <li><a href="#s8">安全架构设计</a></li>
+    <li><a href="#s9">技术选型详表</a></li>
+    <li><a href="#s10">部署架构</a></li>
+    <li><a href="#s11">测试策略</a></li>
+    <li><a href="#s12">实施路线图</a></li>
+    <li><a href="#s13">竞争优势分析</a></li>
+    <li><a href="#s14">风险与应对</a></li>
+    <li><a href="#s15">参考文献</a></li>
+  </ol>
+</nav>
+
+<!-- ====== 1. 项目概述 ====== -->
+<section id="s1">
+<h2>1. 项目概述与愿景</h2>
+
+<h3>1.1 项目背景</h3>
+<p>工业自动化领域长期面临以下痛点：</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>痛点</th><th>现状</th><th>影响</th></tr></thead>
+  <tbody>
+    <tr><td><strong>品牌壁垒</strong></td><td>西门子、罗克韦尔、三菱等PLC使用互不兼容的编程软件</td><td>工程师需学习多套工具，切换成本高</td></tr>
+    <tr><td><strong>电气设计与编程分离</strong></td><td>电气CAD（E3、Capital X）和PLC IDE（TIA Portal、CODESYS）是独立工具</td><td>数据不同步，重复劳动，易出错</td></tr>
+    <tr><td><strong>AI渗透率低</strong></td><td>工业领域AI应用仍以"辅助建议"为主</td><td>未能实现端到端自动化</td></tr>
+    <tr><td><strong>数据孤岛</strong></td><td>PLC数据分散在各设备中，缺乏统一采集分析平台</td><td>数据价值未被充分挖掘</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>1.2 产品愿景</h3>
+<p>构建<strong>全球首个打通"电气设计 → PLC编程 → AI辅助 → 数据采集"全链路的统一智能平台</strong>，让任何水平的工程师都能在数小时内完成传统需要数天的PLC工程项目。</p>
+
+<h3>1.3 核心指标</h3>
+<div class="stats-row">
+  <div class="stat-card"><div class="stat-num">6+</div><div class="stat-label">主流PLC品牌兼容</div></div>
+  <div class="stat-card"><div class="stat-num">&ge;95%</div><div class="stat-label">AI代码生成准确率</div></div>
+  <div class="stat-card"><div class="stat-num">90%+</div><div class="stat-label">工程周期缩短</div></div>
+  <div class="stat-card"><div class="stat-num">20+</div><div class="stat-label">通信协议支持</div></div>
+</div>
+</section>
+
+<!-- ====== 2. 系统总体架构 ====== -->
+<section id="s2">
+<h2>2. 系统总体架构</h2>
+
+<h3>2.1 四层分层架构</h3>
+
+<div class="arch-diagram">
+&#x250C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2510;
+&#x2502;                     &#x8868;&#x73B0;&#x5C42; (Presentation Layer)                    &#x2502;
+&#x2502;  &#x250C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2510; &#x250C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2510; &#x250C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2510; &#x250C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2510;   &#x2502;
+&#x2502;  &#x2502; &#x7535;&#x8DEF;&#x56FE;&#x7F16;&#x8F91;&#x5668; &#x2502; &#x2502; &#x68AF;&#x5F62;&#x56FE;&#x7F16;&#x8F91;&#x5668; &#x2502; &#x2502; &#x6570;&#x636E;&#x4EEA;&#x8868;&#x76D8; &#x2502; &#x2502; &#x9879;&#x76EE;&#x7BA1;&#x7406;/&#x534F;&#x540C;&#x7F16;&#x8F91; &#x2502;   &#x2502;
+&#x2502;  &#x2514;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2518; &#x2514;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2518; &#x2514;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2518; &#x2514;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2518;   &#x2502;
+&#x2502;                      React 18 + TypeScript + Canvas/SVG          &#x2502;
+&#x251C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2524;
+&#x2502;                   &#x6838;&#x5FC3;&#x670D;&#x52A1;&#x5C42; (Core Service Layer)                   &#x2502;
+&#x2502;  &#x250C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2510; &#x250C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2510; &#x250C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2510; &#x250C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2510;   &#x2502;
+&#x2502;  &#x2502; &#x9879;&#x76EE;&#x7BA1;&#x7406; &#x2502; &#x2502; &#x7F16;&#x8BD1;&#x670D;&#x52A1; &#x2502; &#x2502; &#x534F;&#x8BAE;&#x7F51;&#x5173; &#x2502; &#x2502; &#x7528;&#x6237;&#x6743;&#x9650;         &#x2502;   &#x2502;
+&#x2502;  &#x2502; &#x670D;&#x52A1;     &#x2502; &#x2502;(IEC&#x2192;UIR)&#x2502; &#x2502; (&#x591A;&#x534F;&#x8BAE;)  &#x2502; &#x2502; (RBAC/ABAC)     &#x2502;   &#x2502;
+&#x2502;  &#x2514;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2518; &#x2514;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2518; &#x2514;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2518; &#x2514;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2518;   &#x2502;
+&#x2502;                      Go (&#x6838;&#x5FC3;) + gRPC + NATS                      &#x2502;
+&#x251C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2524;
+&#x2502;                     AI&#x5F15;&#x64CE;&#x5C42; (AI Engine Layer)                      &#x2502;
+&#x2502;  &#x250C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2510; &#x250C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2510; &#x250C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2510; &#x250C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2510;   &#x2502;
+&#x2502;  &#x2502; &#x9700;&#x6C42;&#x89E3;&#x6790; &#x2502; &#x2502; &#x4EE3;&#x7801;&#x751F;&#x6210; &#x2502; &#x2502; &#x903B;&#x8F91;&#x5206;&#x6790; &#x2502; &#x2502; &#x9519;&#x8BEF;&#x68C0;&#x6D4B;/&#x4FEE;&#x6B63;    &#x2502;   &#x2502;
+&#x2502;  &#x2502; &#x5F15;&#x64CE;     &#x2502; &#x2502; &#x5F15;&#x64CE;     &#x2502; &#x2502; &#x5F15;&#x64CE;     &#x2502; &#x2502; &#x5F15;&#x64CE;            &#x2502;   &#x2502;
+&#x2502;  &#x2514;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2518; &#x2514;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2518; &#x2514;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2518; &#x2514;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2518;   &#x2502;
+&#x2502;                Python + LangChain + vLLM + Milvus (RAG)           &#x2502;
+&#x251C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2524;
+&#x2502;                    &#x6570;&#x636E;&#x63A5;&#x5165;&#x5C42; (Data Access Layer)                    &#x2502;
+&#x2502;  &#x250C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2510; &#x250C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2510; &#x250C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2510; &#x250C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2510;   &#x2502;
+&#x2502;  &#x2502; OPC UA    &#x2502; &#x2502; MQTT      &#x2502; &#x2502; Modbus    &#x2502; &#x2502; &#x8FB9;&#x7F18;&#x8BA1;&#x7B97;&#x8282;&#x70B9;     &#x2502;   &#x2502;
+&#x2502;  &#x2502; &#x5BA2;&#x6237;&#x7AEF;    &#x2502; &#x2502; Broker    &#x2502; &#x2502; TCP/RTU   &#x2502; &#x2502;                  &#x2502;   &#x2502;
+&#x2502;  &#x2514;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2518; &#x2514;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2518; &#x2514;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2518; &#x2514;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2518;   &#x2502;
+&#x2502;              PostgreSQL + TDengine + Redis + MinIO               &#x2502;
+&#x2514;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2518;
+</div>
+
+<h3>2.2 架构设计原则</h3>
+<ol>
+  <li><strong>模型无关的AI架构</strong> — AI引擎通过抽象LLM接口层隔离具体模型，支持GPT-4o、Claude Opus 4、Gemini 2.5、Llama 4、Qwen 3等模型热切换</li>
+  <li><strong>插件化扩展</strong> — PLC品牌驱动、通信协议、AI模型均以插件形式注册，第三方可通过gRPC插件SDK贡献</li>
+  <li><strong>事件驱动通信</strong> — 核心服务间使用NATS消息队列实现松耦合异步通信</li>
+  <li><strong>边缘-云协同</strong> — 边缘节点处理毫秒级实时任务，云端处理AI推理和长期存储</li>
+  <li><strong>安全纵深防御</strong> — 传输层TLS 1.3、应用层API签名、数据层字段级加密、访问层RBAC+ABAC混合模型</li>
+</ol>
+</section>
+
+<!-- ====== 3. 核心功能模块 ====== -->
+<section id="s3">
+<h2>3. 核心功能模块详细设计</h2>
+
+<h3>3.1 多品牌PLC型号选择与管理</h3>
+
+<h4>3.1.1 PLC型号数据模型</h4>
+<pre><code>interface PlcModel {
+  id: string;                    // UUID
+  brand: PlcBrand;               // 品牌
+  series: string;                // 系列名称
+  modelNumber: string;           // 完整型号
+  cpuType: string;               // CPU型号
+  specifications: {
+    digitalInputs: number;       // 数字量输入点数
+    digitalOutputs: number;      // 数字量输出点数
+    analogInputs: number;        // 模拟量输入通道
+    analogOutputs: number;       // 模拟量输出通道
+    scanTime: number;            // 扫描周期 (μs)
+    programMemory: number;       // 程序内存 (KB)
+    dataMemory: number;          // 数据内存 (KB)
+    communicationPorts: CommPort[];
+  };
+  programmingLanguages: IecLanguage[];
+  protocols: Protocol[];
+  lifecycle: { introduced: Date; endOfSale?: Date; endOfSupport?: Date; };
+  certifications: string[];      // CE, UL, ATEX等
+}</code></pre>
+
+<h4>3.1.2 支持的PLC品牌矩阵</h4>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>品牌</th><th>代表系列</th><th>编程语言</th><th>通信协议</th><th>编程软件</th><th>AI就绪度</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Siemens</strong></td><td>S7-1200, S7-1500, ET 200SP</td><td>LD, FBD, ST, SCL, Graph</td><td>PROFINET, OPC UA, Modbus TCP</td><td>TIA Portal V21</td><td>Copilot (2025)</td></tr>
+    <tr><td><strong>Rockwell</strong></td><td>ControlLogix 5580, CompactLogix 5380</td><td>LD, FBD, ST, SFC</td><td>EtherNet/IP, OPC UA</td><td>Studio 5000</td><td>AI-Orch Eng (2026)</td></tr>
+    <tr><td><strong>Mitsubishi</strong></td><td>MELSEC iQ-R, iQ-F</td><td>LD, FBD, ST, SFC</td><td>CC-Link IE, Modbus TCP, OPC UA</td><td>GX Works3</td><td>部分</td></tr>
+    <tr><td><strong>Schneider</strong></td><td>Modicon M580, M340</td><td>LD, FBD, ST, SFC, IL</td><td>Modbus TCP, OPC UA, EtherNet/IP</td><td>EcoStruxure Control Expert</td><td>Industrial Copilot</td></tr>
+    <tr><td><strong>Beckhoff</strong></td><td>CX系列, C60xx</td><td>LD, FBD, ST, SFC, CFC</td><td>EtherCAT, OPC UA, Modbus TCP</td><td>TwinCAT 3</td><td>TwinCAT CoAgent</td></tr>
+    <tr><td><strong>Omron</strong></td><td>NJ/NX系列</td><td>LD, FBD, ST, SFC</td><td>EtherCAT, OPC UA, Modbus TCP</td><td>Sysmac Studio</td><td>—</td></tr>
+    <tr><td><strong>B&R</strong></td><td>X20, X90</td><td>LD, FBD, ST, CFC, ANSI C</td><td>POWERLINK, OPC UA</td><td>Automation Studio</td><td>—</td></tr>
+    <tr><td><strong>WAGO</strong></td><td>PFC200, PFC100</td><td>LD, FBD, ST, SFC, CFC</td><td>Modbus TCP, OPC UA, EtherNet/IP</td><td>e!COCKPIT</td><td>—</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>3.2 拖拽式PLC电路图设计</h3>
+
+<h4>3.2.1 画布引擎架构</h4>
+<div class="arch-diagram">
+┌──────────────────────────────────────────┐
+│             Canvas Orchestrator           │
+│        (协调渲染、交互、撤销/重做)          │
+├──────────────────────────────────────────┤
+│  ┌──────────┐  ┌──────────┐  ┌─────────┐ │
+│  │ 符号图层 │  │ 连线图层 │  │ 注释图层 │ │
+│  │ (Canvas) │  │ (SVG)    │  │ (DOM)   │ │
+│  └──────────┘  └──────────┘  └─────────┘ │
+├──────────────────────────────────────────┤
+│  交互层 (dnd-kit + 自研电气约束引擎)      │
+│  ┌──────────┐  ┌──────────┐  ┌─────────┐ │
+│  │ 拖拽管理 │  │ 选择管理 │  │ 缩放手势 │ │
+│  └──────────┘  └──────────┘  └─────────┘ │
+├──────────────────────────────────────────┤
+│  数据层 (Yjs CRDT 协同模型)               │
+└──────────────────────────────────────────┘
+</div>
+
+<p><strong>混合渲染策略：</strong></p>
+<ul class="feature-list">
+  <li><strong>Canvas 2D</strong> — 渲染2000+符号实例，利用离屏Canvas做脏矩形局部重绘</li>
+  <li><strong>SVG 叠加层</strong> — 连线的贝塞尔曲线，支持精确点击检测和锚点编辑</li>
+  <li><strong>DOM 叠加层</strong> — 元件标签、引脚编号、注释文字，利用CSS做动画效果</li>
+</ul>
+
+<h4>3.2.2 电气符号库系统</h4>
+<pre><code>interface SymbolDefinition {
+  id: string;
+  category: SymbolCategory;
+  name: string;                   // 符号名称（中/英）
+  iecCode: string;               // IEC 60617 编码
+  tags: string[];                 // 搜索标签
+  geometry: {
+    boundingBox: Rect;
+    paths: PathCommand[];        // 矢量路径
+    texts: SymbolText[];         // 标注文字
+  };
+  pins: PinDefinition[];         // 接线端子
+  properties: PropertySchema[];  // 可配置属性
+  variants: SymbolVariant[];     // 变体（常开/常闭等）
+}
+
+enum SymbolCategory {
+  CONTACTOR_RELAY, SENSOR, CIRCUIT_BREAKER, PLC_MODULE,
+  TERMINAL_BLOCK, POWER_SUPPLY, MOTOR, BUTTON_SWITCH,
+  SIGNAL_LAMP, CUSTOM
+}</code></pre>
+
+<h4>3.2.3 电气规则约束引擎</h4>
+<pre><code>class ElectricalRuleEngine {
+  checkConnection(source: Pin, target: Pin): RuleCheckResult {
+    const checks = [
+      this.checkWireCapacity(source, target),      // 线径容量
+      this.checkVoltageCompatibility(source, target),// 电压兼容
+      this.checkSignalType(source, target),         // 信号类型(DI/DO/AI/AO)
+      this.checkShortCircuit(source, target),       // 短路检测
+      this.checkTerminalAssignment(source, target), // 端子分配
+    ];
+    return this.evaluate(checks);
+  }
+  checkIOAllocation(pin: Pin, channel: IOChannel): RuleCheckResult { ... }
+  checkSafetyLoop(circuit: Circuit): RuleCheckResult { ... }
+  checkPowerBudget(panel: Panel): RuleCheckResult { ... }
+}</code></pre>
+
+<h4>3.2.4 自动布线算法</h4>
+<div class="arch-diagram">
+AutoRouter Pipeline:
+1. 将画布栅格化为离散网格（分辨率可配）
+2. 使用A*算法找最短路径（避免穿越元件）
+3. 使用曼哈顿路由风格（工业标准）
+4. 信号线分层：
+   - Layer 1: 主回路（粗线，红色）
+   - Layer 2: 控制回路（细线，蓝色）
+   - Layer 3: 通信线（虚线，绿色）
+5. 自动添加线号标注
+6. 生成接线端子表
+</div>
+
+<h3>3.3 PLC控制程序编写</h3>
+
+<h4>3.3.1 IEC 61131-3 全语言支持</h4>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>语言</th><th>缩写</th><th>类型</th><th>编辑器实现</th><th>应用场景</th></tr></thead>
+  <tbody>
+    <tr><td>梯形图</td><td>LD</td><td>图形</td><td>Canvas拖拽编辑器</td><td>离散逻辑、维护人员</td></tr>
+    <tr><td>功能块图</td><td>FBD</td><td>图形</td><td>Canvas连线编辑器</td><td>过程控制、PID</td></tr>
+    <tr><td>结构化文本</td><td>ST</td><td>文本</td><td>Monaco Editor</td><td>复杂算法、数据处理</td></tr>
+    <tr><td>顺序功能图</td><td>SFC</td><td>图形</td><td>Canvas步骤编辑器</td><td>顺序控制、批处理</td></tr>
+    <tr><td>指令表</td><td>IL</td><td>文本</td><td>Monaco Editor</td><td>简单逻辑（逐渐淘汰）</td></tr>
+    <tr><td>连续功能图</td><td>CFC</td><td>图形</td><td>Canvas自由连线编辑器</td><td>DCS/过程控制</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h4>3.3.2 统一中间表示（UIR）</h4>
+<div class="arch-diagram">
+   梯形图 (LD)  ──────▶ ┌─────────────┐
+   功能块图 (FBD) ────▶ │             │
+   结构化文本 (ST) ───▶ │ Unified IR  │ ──▶ 西门子 SCL
+   顺序功能图 (SFC) ──▶ │   (UIR)     │ ──▶ AB Ladder
+   指令表 (IL) ───────▶ │             │ ──▶ 三菱 ST
+   连续功能图 (CFC) ──▶ └─────────────┘ ──▶ 倍福 ST / CODESYS ST
+                              │
+                              ▼
+                        ┌─────────────┐
+                        │ 优化器       │
+                        │ (死代码消除, │
+                        │  常量折叠,    │
+                        │  FBD→ST变换) │
+                        └─────────────┘
+</div>
+
+<p><strong>跨品牌指令映射表（片段示例）：</strong></p>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>功能</th><th>AB (RSLogix 5000)</th><th>Siemens (TIA Portal)</th><th>Mitsubishi (GX Works3)</th></tr></thead>
+  <tbody>
+    <tr><td>常开触点</td><td>XIC</td><td><code>--| |--</code></td><td>LD</td></tr>
+    <tr><td>常闭触点</td><td>XIO</td><td><code>--|/|--</code></td><td>LDI</td></tr>
+    <tr><td>输出线圈</td><td>OTE</td><td><code>--( )--</code></td><td>OUT</td></tr>
+    <tr><td>置位</td><td>OTL</td><td><code>--(S)--</code></td><td>SET</td></tr>
+    <tr><td>复位</td><td>OTU</td><td><code>--(R)--</code></td><td>RST</td></tr>
+    <tr><td>定时器</td><td>TON</td><td>TON (IEC)</td><td>OUT T</td></tr>
+    <tr><td>计数器</td><td>CTU</td><td>CTU (IEC)</td><td>OUT C</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>3.4 数据采集与控制信号输出</h3>
+
+<h4>3.4.1 多协议网关架构</h4>
+<div class="arch-diagram">
+                        ┌──────────────────┐
+                        │   协议网关管理器   │
+                        └──────┬───────────┘
+          ┌────────────────────┼────────────────────┐
+    ┌─────▼─────┐      ┌──────▼──────┐     ┌──────▼──────┐
+    │ OPC UA    │      │ MQTT        │     │ Modbus      │
+    │ Connector │      │ Connector   │     │ Connector   │
+    └───────────┘      └─────────────┘     └─────────────┘
+    其他协议: EtherNet/IP, PROFINET, EtherCAT, CC-Link IE, CANopen, BACnet
+</div>
+
+<h4>3.4.2 边缘计算节点</h4>
+<div class="arch-diagram">
+边缘节点功能：
+├─ 协议转换：南向200+协议 → 北向统一MQTT/OPC UA
+├─ 数据预处理：死区过滤、异常值检测(IQR/3σ)、数据插值、滑动窗口聚合
+├─ 本地规则引擎：IF-THEN规则触发、阈值报警、本地联动控制
+├─ 断网续传：本地SQLite缓存(最大7天)、网络恢复后自动同步
+└─ 硬件平台：ARM Cortex-A72 / Intel Atom x6000 / NVIDIA Jetson Orin
+</div>
+</section>
+
+<!-- ====== 4. AI 智能引擎 ====== -->
+<section id="s4">
+<h2>4. AI 智能引擎深度设计</h2>
+
+<p>AI引擎是本系统的核心差异化能力，基于<strong>大语言模型（LLM）+ 检索增强生成（RAG）+ 领域知识图谱</strong>三重技术构建，实现从需求输入到PLC程序部署的全链路智能化。参考西门子、施耐德、罗克韦尔等工业AI产品的最佳实践，同时突破其封闭生态限制。</p>
+
+<h3>4.1 需求自动解析与电路设计 — AI管道5步流程</h3>
+<div class="arch-diagram">
+用户自然语言输入
+  → Step 1: 需求规范化 (LLM提取实体关系 + NER设备识别)
+  → Step 2: 结构化提取 (Schema-guided Generation → ControlSpec JSON)
+  → Step 3: 设备匹配 (RAG检索符号库向量相似度匹配)
+  → Step 4: 电路合成 (主电路/控制电路/I/O接线图 + A*自动布线)
+  → Step 5: 人机协同 (可视化呈现 + 用户拖拽微调 + 强化学习反馈)
+</div>
+
+<h4>4.1.1 ControlSpec结构化需求模型</h4>
+<pre><code>interface ControlSpec {
+  metadata: { name, description, industry?, safetyLevel };
+  devices: SpecDevice[];       // 设备清单
+  ioMapping: IOMapping[];      // I/O映射
+  controlLogic: ControlLogicItem[]; // 控制逻辑
+  sequences: Sequence[];       // 顺序控制
+  alarms: Alarm[];            // 报警
+  interlocks: Interlock[];    // 互锁
+}</code></pre>
+
+<h3>4.2 自动编写PLC控制程序</h3>
+
+<h4>4.2.1 代码生成策略</h4>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>策略</th><th>适用场景</th><th>方法</th><th>准确率</th></tr></thead>
+  <tbody>
+    <tr><td><strong>模板匹配</strong></td><td>标准控制模式（启停、正反转、星三角）</td><td>RAG检索→参数化→填充</td><td>~98%</td></tr>
+    <tr><td><strong>AST生成</strong></td><td>中等复杂度逻辑</td><td>LLM生成UIR AST→验证→编译</td><td>~92%</td></tr>
+    <tr><td><strong>多智能体协同</strong></td><td>复杂系统</td><td>分解→多个Agent并行生成→合并</td><td>~88%</td></tr>
+    <tr><td><strong>混合策略（默认）</strong></td><td>通用场景</td><td>模板优先→无法匹配时退化为AST生成</td><td><strong>~95%</strong></td></tr>
+  </tbody>
+</table>
+</div>
+
+<h4>4.2.2 RAG增强生成流程</h4>
+<div class="arch-diagram">
+用户需求 → Query Encoder → Milvus Vector DB (PLC指令库/模板库)
+  → Top-K 相关指令召回 → Context Window 组装 → LLM Generation
+  → IEC编译器验证 → (通过?) → 输出代码
+                    → (失败?) → 错误反馈→重新生成(最多3次)
+</div>
+
+<div class="callout">
+  <strong>准确率保障：</strong>AI生成的代码自动通过三层验证 — 语法检查（IEC 61131-3编译器）、逻辑等效性检查（SMT求解器）、仿真验证（软PLC运行时）。参考Wipro PARI的方案，目标将代码准确率从85%提升至95%以上。
+</div>
+
+<h3>4.3 PLC逻辑关系分析</h3>
+
+<div class="arch-diagram">
+多维分析引擎：
+├─ 控制流分析: LD/FBD→Petri网模型转换、状态空间枚举、死锁/活锁检测
+├─ 数据流分析: Use-Define链、变量生存期、数据依赖图、扇入/扇出
+├─ 时序分析: 定时器参数合理性、时序冲突检测、响应时间上界计算
+├─ 安全分析: 安全联锁完整性(SIL验证)、FTA/ETA、HAZOP引导
+├─ 合规分析: PackML状态机完整性、ISA-88批处理模式
+└─ 复杂度度量: 圈复杂度、霍尔斯特德度量、可维护性指数
+</div>
+
+<h3>4.4 PLC错误检测与修正 — 三层验证体系</h3>
+
+<div class="card-grid">
+  <div class="card">
+    <h4><span class="icon-dot"></span> Layer 1: 静态分析</h4>
+    <p>检测悬空线圈、未复位定时器、锁存缺失解锁触点、重复输出、除零风险、数组越界、隐式类型转换、未初始化变量、注释与代码不一致（NLP对比）等9类常见编程错误。</p>
+  </div>
+  <div class="card">
+    <h4><span class="icon-dot"></span> Layer 2: 形式化验证</h4>
+    <p>基于Z3 Theorem Prover，将关键安全逻辑转换为SMT公式进行可达性分析和死锁检测。验证"急停后所有电机停止"、"互锁条件成立时禁止同时启动"等安全属性。</p>
+  </div>
+  <div class="card">
+    <h4><span class="icon-dot"></span> Layer 3: 仿真测试</h4>
+    <p>内置软PLC运行时，支持虚拟I/O信号注入、时序波形查看、断点/单步调试、状态快照对比、覆盖率报告（语句/分支/MCDC），集成数字孪生闭环验证。</p>
+  </div>
+  <div class="card">
+    <h4><span class="icon-dot accent2"></span> AI智能修正</h4>
+    <p>检测到错误后自动生成3个候选修正方案，按安全性>正确性>简洁性排序，展示修改前后代码对比和影响范围分析，支持一键应用或手动调整。</p>
+  </div>
+</div>
+
+<div class="callout accent2">
+  <strong>Snap PLC 启示：</strong>系统未来可扩展支持用户拍摄控制柜面板照片，AI自动识别指示灯、继电器、接线端子，推断可能的PLC逻辑，辅助故障排查与逆向工程。
+</div>
+</section>
+
+<!-- ====== 5. 数据库设计 ====== -->
+<section id="s5">
+<h2>5. 数据库设计</h2>
+
+<h3>5.1 核心表结构</h3>
+
+<h4>用户与项目</h4>
+<pre><code>CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    username VARCHAR(64) NOT NULL UNIQUE,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    display_name VARCHAR(128),
+    role VARCHAR(32) NOT NULL DEFAULT 'engineer',
+    organization_id UUID REFERENCES organizations(id),
+    preferences JSONB DEFAULT '{}',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    last_login_at TIMESTAMPTZ
+);
+
+CREATE TABLE projects (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    organization_id UUID REFERENCES organizations(id),
+    target_plc_model_id UUID REFERENCES plc_models(id),
+    status VARCHAR(32) DEFAULT 'draft',
+    version INT DEFAULT 1,
+    settings JSONB DEFAULT '{}',
+    created_by UUID REFERENCES users(id),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);</code></pre>
+
+<h4>PLC型号库</h4>
+<pre><code>CREATE TABLE plc_brands (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(128) NOT NULL UNIQUE,
+    full_name VARCHAR(255), country VARCHAR(64),
+    website VARCHAR(255)
+);
+
+CREATE TABLE plc_models (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    brand_id UUID REFERENCES plc_brands(id),
+    series VARCHAR(128) NOT NULL,
+    model_number VARCHAR(128) NOT NULL UNIQUE,
+    specifications JSONB NOT NULL,
+    languages VARCHAR(32)[] NOT NULL,
+    protocols VARCHAR(64)[] NOT NULL,
+    is_active BOOLEAN DEFAULT true
+);</code></pre>
+
+<h4>电路图数据</h4>
+<pre><code>CREATE TABLE schematics (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    type VARCHAR(32) NOT NULL,
+    canvas_data JSONB NOT NULL,
+    version INT DEFAULT 1,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Yjs协同编辑增量
+CREATE TABLE schematic_updates (
+    id BIGSERIAL PRIMARY KEY,
+    schematic_id UUID REFERENCES schematics(id) ON DELETE CASCADE,
+    update_data BYTEA NOT NULL,
+    client_id BIGINT NOT NULL, clock INT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);</code></pre>
+
+<h4>PLC程序 + AI任务</h4>
+<pre><code>CREATE TABLE program_files (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    language VARCHAR(8) NOT NULL,
+    source_code TEXT,
+    graphical_data JSONB,
+    uir_data JSONB
+);
+
+CREATE TABLE ai_tasks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id UUID REFERENCES projects(id),
+    task_type VARCHAR(64) NOT NULL,
+    status VARCHAR(32) DEFAULT 'pending',
+    input JSONB NOT NULL, output JSONB,
+    model_used VARCHAR(128),
+    tokens_used INT, latency_ms INT,
+    user_feedback JSONB,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE ai_feedback_dataset (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    task_id UUID REFERENCES ai_tasks(id),
+    input TEXT NOT NULL,
+    ai_output TEXT NOT NULL,
+    corrected_output TEXT NOT NULL,
+    feedback_type VARCHAR(32),
+    quality_score FLOAT
+);</code></pre>
+
+<h3>5.2 时序数据（TDengine）</h3>
+<pre><code>CREATE STABLE plc_telemetry (
+    ts TIMESTAMP, project_id BINARY(36),
+    tag_name VARCHAR(255), value DOUBLE, quality INT
+) TAGS (project_tag BINARY(72), data_type VARCHAR(32));
+
+CREATE TABLE t_{tag_id} USING plc_telemetry
+    TAGS ('{project_id}:{tag_name}', '{data_type}');</code></pre>
+</section>
+
+<!-- ====== 6. API接口设计 ====== -->
+<section id="s6">
+<h2>6. API接口设计</h2>
+
+<h3>6.1 REST API 概览</h3>
+<pre><code>Base URL: /api/v1    认证: Bearer Token (JWT) + API Key
+
+通用响应: { "success": bool, "data": {...}, "error": {...}, "meta": {page, pageSize, total} }</code></pre>
+
+<h3>6.2 核心API端点</h3>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>模块</th><th>方法</th><th>路径</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td rowspan="4"><strong>项目管理</strong></td><td>POST</td><td>/api/v1/projects</td><td>创建项目</td></tr>
+    <tr><td>GET</td><td>/api/v1/projects</td><td>项目列表（分页筛选）</td></tr>
+    <tr><td>GET/PUT/DELETE</td><td>/api/v1/projects/{id}</td><td>项目CRUD</td></tr>
+    <tr><td>POST</td><td>/api/v1/projects/{id}/duplicate</td><td>复制项目</td></tr>
+    <tr><td rowspan="2"><strong>PLC型号</strong></td><td>GET</td><td>/api/v1/plc-models</td><td>型号列表（筛选品牌/I/O）</td></tr>
+    <tr><td>POST</td><td>/api/v1/plc-models/recommend</td><td>AI选型推荐</td></tr>
+    <tr><td rowspan="4"><strong>电路图</strong></td><td>POST</td><td>/api/v1/schematics</td><td>创建电路图</td></tr>
+    <tr><td>WS</td><td>/ws/schematics/{id}</td><td>WebSocket协同编辑</td></tr>
+    <tr><td>POST</td><td>/api/v1/schematics/{id}/auto-route</td><td>自动布线</td></tr>
+    <tr><td>GET</td><td>/api/v1/schematics/{id}/export/{format}</td><td>导出DXF/PDF/SVG</td></tr>
+    <tr><td rowspan="3"><strong>PLC程序</strong></td><td>POST</td><td>/api/v1/programs/{id}/compile</td><td>编译→UIR</td></tr>
+    <tr><td>POST</td><td>/api/v1/programs/{id}/convert?target={brand}</td><td>跨品牌转换</td></tr>
+    <tr><td>POST</td><td>/api/v1/programs/{id}/simulate</td><td>仿真运行</td></tr>
+    <tr><td rowspan="6"><strong>AI服务</strong></td><td>POST</td><td>/api/v1/ai/parse-requirements</td><td>需求解析→结构化</td></tr>
+    <tr><td>POST</td><td>/api/v1/ai/generate-circuit</td><td>AI生成电路图</td></tr>
+    <tr><td>POST</td><td>/api/v1/ai/generate-code</td><td>AI生成PLC程序</td></tr>
+    <tr><td>POST</td><td>/api/v1/ai/analyze-logic</td><td>逻辑关系分析</td></tr>
+    <tr><td>POST</td><td>/api/v1/ai/detect-errors</td><td>错误检测</td></tr>
+    <tr><td>POST</td><td>/api/v1/ai/fix-error</td><td>错误修正</td></tr>
+    <tr><td rowspan="3"><strong>数据采集</strong></td><td>POST</td><td>/api/v1/acquisition/configs</td><td>创建采集配置</td></tr>
+    <tr><td>WS</td><td>/ws/acquisition/live</td><td>实时数据推送</td></tr>
+    <tr><td>POST</td><td>/api/v1/acquisition/export</td><td>数据导出CSV/Parquet</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>6.3 gRPC服务定义</h3>
+<pre><code>// 编译服务
+service CompilerService {
+  rpc CompileToUIR (CompileRequest) returns (CompileResponse);
+  rpc GenerateCode (CodeGenRequest) returns (CodeGenResponse);
+  rpc ValidateSyntax (ValidateRequest) returns (ValidateResponse);
+  rpc ConvertBrand (ConvertRequest) returns (ConvertResponse);
+}
+
+// AI引擎服务
+service AIEngineService {
+  rpc ParseRequirements (ParseRequest) returns (ParseResponse);
+  rpc GenerateCircuit (CircuitGenRequest) returns (CircuitGenResponse);
+  rpc GenerateCode (AICodeGenRequest) returns (AICodeGenResponse);
+  rpc AnalyzeLogic (LogicAnalyzeRequest) returns (LogicAnalyzeResponse);
+  rpc DetectErrors (ErrorDetectRequest) returns (ErrorDetectResponse);
+  rpc FixError (ErrorFixRequest) returns (ErrorFixResponse);
+  rpc StreamCompletion (CompletionRequest) returns (stream CompletionChunk);
+}
+
+// 协议网关服务
+service GatewayService {
+  rpc ConnectDevice (ConnectRequest) returns (ConnectResponse);
+  rpc ReadTags (ReadRequest) returns (ReadResponse);
+  rpc WriteTags (WriteRequest) returns (WriteResponse);
+  rpc SubscribeTags (SubscribeRequest) returns (stream TagUpdate);
+}</code></pre>
+</section>
+
+<!-- ====== 7. 前端架构 ====== -->
+<section id="s7">
+<h2>7. 前端架构与组件树</h2>
+
+<h3>7.1 技术栈</h3>
+<div class="arch-diagram">
+前端技术栈：
+├─ 核心框架: React 18.3 + TypeScript 5.5
+├─ 状态管理: Zustand（编辑器状态）+ TanStack Query（服务端状态）
+├─ 路由: React Router 6（项目管理/编辑器/仪表盘三大模块）
+├─ UI组件库: 自研组件库（Tailwind CSS + shadcn/ui范式）
+├─ 图形渲染: Canvas 2D API + SVG + PixiJS(可选WebGL加速)
+├─ 拖拽: dnd-kit + 自研电气约束引擎
+├─ 代码编辑器: Monaco Editor（VS Code内核）
+├─ 图表: ECharts 5（仪表盘可视化）
+├─ 协同编辑: Yjs + y-websocket
+├─ 构建: Vite 6
+└─ 测试: Vitest + Playwright + Storybook
+</div>
+
+<h3>7.2 核心组件树</h3>
+<pre><code>&lt;App&gt;
+├─ &lt;AppShell&gt;
+│   ├─ &lt;Sidebar&gt;
+│   │   ├─ &lt;ProjectTree&gt;              // 项目文件树
+│   │   ├─ &lt;DevicePalette&gt;            // 设备面板
+│   │   └─ &lt;NavigationMenu&gt;
+│   └─ &lt;MainContent&gt;
+│       ├─ [电路图编辑器] &lt;SchematicEditor&gt;
+│       │   ├─ &lt;TopToolbar&gt;           // 绘图工具/缩放/撤销重做
+│       │   ├─ &lt;CanvasArea&gt;
+│       │   │   ├─ &lt;Canvas2DLayer&gt;    // 元件渲染层
+│       │   │   ├─ &lt;SVGInteractionLayer&gt;// 连线交互层
+│       │   │   └─ &lt;DOMLabelLayer&gt;    // 标签注释层
+│       │   ├─ &lt;PropertiesPanel&gt;      // 属性面板
+│       │   ├─ &lt;SymbolBrowser&gt;        // 符号浏览器
+│       │   ├─ &lt;AIAssistantPanel&gt;     // AI助手（Chat/Preview/Diff）
+│       │   └─ &lt;StatusBar&gt;
+│       │
+│       ├─ [PLC程序编辑器] &lt;ProgramEditor&gt;
+│       │   ├─ &lt;LadderEditor&gt;         // 梯形图Canvas编辑器
+│       │   ├─ &lt;STEditor&gt;             // Monaco ST编辑器
+│       │   │   ├─ &lt;AIInlineCompletion&gt; // AI内联补全
+│       │   │   └─ &lt;DiagnosticsGutter&gt;  // 诊断装订线
+│       │   ├─ &lt;VariableTable&gt;        // 变量表/标签数据库
+│       │   └─ &lt;SimulationPanel&gt;      // 仿真面板
+│       │
+│       └─ [数据仪表盘] &lt;DataDashboard&gt;
+│           ├─ &lt;LiveMetricsGrid&gt;
+│           ├─ &lt;TimeSeriesChart&gt;
+│           ├─ &lt;AlarmPanel&gt;
+│           └─ &lt;KPICards&gt;</code></pre>
+
+<h3>7.3 状态管理架构</h3>
+<pre><code>// Zustand Store 设计
+interface EditorStore {
+  canvas: { offset, zoom, gridSize, snapToGrid };
+  selection: { selectedIds, selectionBox, clipboard };
+  editing: { activeTool, placingSymbol, wireInProgress };
+  history: { undoStack: Command[], redoStack: Command[] };
+}
+
+// 命令模式（撤销/重做）
+interface Command {
+  type: string;
+  execute: () => void;
+  undo: () => void;
+  timestamp: number;
+}</code></pre>
+</section>
+
+<!-- ====== 8. 安全架构 ====== -->
+<section id="s8">
+<h2>8. 安全架构设计</h2>
+
+<h3>8.1 纵深防御模型</h3>
+<div class="card-grid">
+  <div class="card">
+    <h4><span class="icon-dot"></span> Layer 1: 传输安全</h4>
+    <p>TLS 1.3（AES-256-GCM）、mTLS服务间通信、WSS、证书自动化管理。</p>
+  </div>
+  <div class="card">
+    <h4><span class="icon-dot"></span> Layer 2: 认证授权</h4>
+    <p>JWT (RS256, 15min+7d)、MFA(TOTP/WebAuthn)、RBAC+ABAC混合、SSO(SAML/OIDC)。</p>
+  </div>
+  <div class="card">
+    <h4><span class="icon-dot"></span> Layer 3: 应用安全</h4>
+    <p>API限流(Token Bucket)、CSP+XSS防护、CSRF防护、文件上传白名单+病毒扫描。</p>
+  </div>
+  <div class="card">
+    <h4><span class="icon-dot"></span> Layer 4: 数据安全</h4>
+    <p>AES-256静态加密、字段级加密(PLC密码)、HashiCorp Vault密钥管理、不可变审计日志。</p>
+  </div>
+  <div class="card">
+    <h4><span class="icon-dot accent2"></span> Layer 5: 基础设施</h4>
+    <p>VPC网络隔离、WAF、DDoS防护、容器非root运行、Trivy镜像扫描、季度渗透测试。</p>
+  </div>
+</div>
+
+<h3>8.2 工业特有安全</h3>
+<ul class="feature-list">
+  <li><strong>OPC UA Security:</strong> Basic256Sha256安全策略强制启用</li>
+  <li><strong>单向数据二极管:</strong> SIL3场景可选硬件隔离</li>
+  <li><strong>PLC程序签名:</strong> 数字签名防篡改 + 安全启动 + 固件哈希验证</li>
+  <li><strong>数据主权:</strong> 分级存储（GDPR/中国数据安全法合规）、跨境传输加密+法律审查</li>
+</ul>
+</section>
+
+<!-- ====== 9. 技术选型 ====== -->
+<section id="s9">
+<h2>9. 技术选型详表</h2>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>技术域</th><th>选型</th><th>版本</th><th>选型理由</th></tr></thead>
+  <tbody>
+    <tr><td><strong>前端框架</strong></td><td>React + TypeScript</td><td>18.3 / 5.5</td><td>生态成熟，适合复杂编辑器</td></tr>
+    <tr><td><strong>图形渲染</strong></td><td>Canvas + SVG + PixiJS</td><td>—</td><td>Canvas批量渲染，SVG精确交互</td></tr>
+    <tr><td><strong>拖拽引擎</strong></td><td>dnd-kit + 自研电气规则</td><td>6.x</td><td>基础拖拽+电气约束叠加</td></tr>
+    <tr><td><strong>代码编辑器</strong></td><td>Monaco Editor</td><td>0.47</td><td>VS Code内核，ST语法高亮</td></tr>
+    <tr><td><strong>协同编辑</strong></td><td>Yjs (CRDT)</td><td>13.x</td><td>无冲突复制数据类型</td></tr>
+    <tr><td><strong>后端-核心</strong></td><td>Go</td><td>1.23</td><td>高并发，低内存，单一二进制</td></tr>
+    <tr><td><strong>后端-AI</strong></td><td>Python</td><td>3.12</td><td>丰富ML/DL生态</td></tr>
+    <tr><td><strong>API网关</strong></td><td>APISIX</td><td>3.x</td><td>高性能，插件化，gRPC代理</td></tr>
+    <tr><td><strong>服务通信</strong></td><td>gRPC + NATS</td><td>—</td><td>同步RPC + 异步事件</td></tr>
+    <tr><td><strong>MQTT Broker</strong></td><td>EMQX</td><td>5.x</td><td>百万级连接，内置规则引擎</td></tr>
+    <tr><td><strong>时序数据库</strong></td><td>TDengine</td><td>3.x</td><td>百万写入/s，10-20x压缩比</td></tr>
+    <tr><td><strong>关系数据库</strong></td><td>PostgreSQL</td><td>16.x</td><td>JSONB支持，成熟稳定</td></tr>
+    <tr><td><strong>向量数据库</strong></td><td>Milvus</td><td>2.4</td><td>RAG检索，PLC指令库向量化</td></tr>
+    <tr><td><strong>LLM框架</strong></td><td>LangChain/LangGraph</td><td>0.3</td><td>AI管道编排，多Agent工作流</td></tr>
+    <tr><td><strong>LLM推理</strong></td><td>vLLM (私有化)</td><td>0.6</td><td>PagedAttention高效推理</td></tr>
+    <tr><td><strong>形式化验证</strong></td><td>Z3 Theorem Prover</td><td>4.13</td><td>SMT求解，安全属性验证</td></tr>
+    <tr><td><strong>容器编排</strong></td><td>Kubernetes + Helm</td><td>1.30</td><td>弹性伸缩，灰度发布</td></tr>
+    <tr><td><strong>边缘运行时</strong></td><td>K3s/Docker Compose</td><td>—</td><td>轻量K8s适合边缘</td></tr>
+    <tr><td><strong>CI/CD</strong></td><td>GitLab CI + ArgoCD</td><td>—</td><td>GitOps持续交付</td></tr>
+    <tr><td><strong>监控/追踪</strong></td><td>Prometheus+Grafana+Loki / OTEL+Jaeger</td><td>—</td><td>指标+可视化+日志+链路追踪</td></tr>
+  </tbody>
+</table>
+</div>
+</section>
+
+<!-- ====== 10. 部署架构 ====== -->
+<section id="s10">
+<h2>10. 部署架构</h2>
+<p>系统支持<strong>三种部署模式</strong>，满足不同规模与安全等级的企业需求：</p>
+
+<div class="card-grid three">
+  <div class="card">
+    <h4><span class="icon-dot"></span> SaaS 云端模式</h4>
+    <p>适合中小型制造企业，按需订阅，零运维成本。AI能力基于云端大模型持续更新。数据TLS加密传输，SOC 2合规。</p>
+    <p style="font-size:12px;color:var(--muted)">架构：CDN → ALB → APISIX → K8s(Go Core + Python AI) → PostgreSQL RDS + TDengine Cloud</p>
+  </div>
+  <div class="card">
+    <h4><span class="icon-dot accent2"></span> 混合部署模式</h4>
+    <p>适合中大型企业，边缘节点部署在工厂侧处理实时数据，核心AI和可视化在云端。关键数据不出厂区。</p>
+    <p style="font-size:12px;color:var(--muted)">边缘：K3s+NeuronEX+TDengine Edge(7天) → MQTT/TLS → 云端AI+长期存储</p>
+  </div>
+  <div class="card">
+    <h4><span class="icon-dot"></span> 私有化部署模式</h4>
+    <p>适合军工、制药、核电等高安全行业。全部组件本地部署，AI引擎基于开源模型（Llama 4、Qwen 3）私有化运行，完全离线。</p>
+    <p style="font-size:12px;color:var(--muted)">支持国产化：ARM(鲲鹏/飞腾)+麒麟OS+达梦DB，Docker Compose/Helm一键部署</p>
+  </div>
+</div>
+</section>
+
+<!-- ====== 11. 测试策略 ====== -->
+<section id="s11">
+<h2>11. 测试策略</h2>
+
+<h3>11.1 测试金字塔</h3>
+<div class="arch-diagram">
+                    ╱─────╲
+                   ╱  E2E  ╲            20-30个核心流程 (Playwright)
+                  ╱  测试   ╲
+                 ╱──────────╲
+                ╱  集成测试   ╲         200+ API测试 (Go test + pytest)
+               ╱  (API + DB)  ╲
+              ╱────────────────╲
+             ╱    单元测试       ╲      80%+ 覆盖率 (Vitest + Go + pytest)
+            ╱  (函数/组件级别)   ╲
+           ╱──────────────────────╲
+</div>
+
+<h3>11.2 专项测试矩阵</h3>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>测试类型</th><th>工具</th><th>频率</th><th>目标</th></tr></thead>
+  <tbody>
+    <tr><td>AI代码生成准确性</td><td>人工评估 + CodeBLEU</td><td>每次模型更新</td><td>&ge;95%</td></tr>
+    <tr><td>电路图渲染性能</td><td>Lighthouse + 自研bench</td><td>每次PR</td><td>1000元件&ge;30fps</td></tr>
+    <tr><td>PLC通信可靠性</td><td>物理PLC测试台</td><td>每周</td><td>24h无丢包</td></tr>
+    <tr><td>安全渗透测试</td><td>OWASP ZAP + 第三方</td><td>每季度</td><td>0高危漏洞</td></tr>
+    <tr><td>故障恢复</td><td>Chaos Mesh</td><td>每月</td><td>RTO&lt;5min, RPO&lt;1min</td></tr>
+    <tr><td>兼容性</td><td>BrowserStack</td><td>每次发布</td><td>4大浏览器</td></tr>
+    <tr><td>负载测试</td><td>k6</td><td>每次大版本</td><td>1000并发P95&lt;2s</td></tr>
+  </tbody>
+</table>
+</div>
+</section>
+
+<!-- ====== 12. 实施路线图 ====== -->
+<section id="s12">
+<h2>12. 实施路线图</h2>
+<p>项目分四个阶段实施，总周期约<strong>18个月</strong>，团队配置<strong>17人</strong>：</p>
+
+<div class="timeline">
+  <div class="timeline-item">
+    <div class="phase">Phase 1 · 第1-4个月</div>
+    <div class="phase-title">基础平台搭建</div>
+    <div class="phase-desc">React骨架 + Canvas渲染引擎MVP + 电路图编辑器核心功能（连线/属性/符号浏览器200+符号）+ PLC编程编辑器MVP（LD/ST）+ PLC型号数据库（6品牌核心型号）+ 项目管理CRUD</div>
+  </div>
+  <div class="timeline-item">
+    <div class="phase">Phase 2 · 第5-8个月</div>
+    <div class="phase-title">AI引擎 v1.0</div>
+    <div class="phase-desc">Python AI服务 + RAG管道（Milvus+PLC指令库向量化）+ 需求解析引擎（NLP→ControlSpec JSON）+ 代码自动生成（NL→LD/ST）+ 模板匹配引擎 + AI代码补全 + 静态代码分析 + 反馈闭环</div>
+  </div>
+  <div class="timeline-item">
+    <div class="phase">Phase 3 · 第9-14个月</div>
+    <div class="phase-title">数据平台与高级AI</div>
+    <div class="phase-desc">协议网关（OPC UA/MQTT/Modbus）+ TDengine时序采集 + 实时仪表盘 + 边缘计算节点 + 逻辑分析引擎（Petri网+Z3形式化验证）+ 仿真测试 + 错误自动修正 + 跨品牌代码转换 + Yjs协同编辑</div>
+  </div>
+  <div class="timeline-item">
+    <div class="phase">Phase 4 · 第15-18个月</div>
+    <div class="phase-title">产品化与生态建设</div>
+    <div class="phase-desc">RBAC+ABAC权限管理 + 三种部署模式全支持 + SSO集成 + 审计日志 + 插件市场 + 开放API/SDK + 用户文档 + 性能优化 + 国产化适配 + GA正式发布</div>
+  </div>
+</div>
+</section>
+
+<!-- ====== 13. 竞争优势分析 ====== -->
+<section id="s13">
+<h2>13. 竞争优势分析</h2>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>能力维度</th><th>本系统</th><th>Siemens TIA V21</th><th>CODESYS</th><th>Rockwell Studio 5000</th><th>PLC Copilot</th></tr></thead>
+  <tbody>
+    <tr><td><strong>跨品牌兼容</strong></td><td><span class="stars">★★★★★</span> 6+品牌</td><td><span class="stars">★</span> 仅西门子</td><td><span class="stars">★★★</span> 硬件无关</td><td><span class="stars">★</span> 仅AB</td><td><span class="stars">★★</span> 部分</td></tr>
+    <tr><td><strong>拖拽电路图设计</strong></td><td><span class="stars">★★★★★</span> 完整电气设计</td><td><span class="stars">★</span> 仅PLC逻辑</td><td><span class="stars">★</span> 仅PLC逻辑</td><td><span class="stars">★</span> 仅PLC逻辑</td><td>—</td></tr>
+    <tr><td><strong>AI需求解析</strong></td><td><span class="stars">★★★★★</span> NL→电路+程序</td><td><span class="stars">★★</span> Copilot仅代码</td><td>—</td><td><span class="stars">★★★</span> AI工程化(2026)</td><td>—</td></tr>
+    <tr><td><strong>AI代码生成</strong></td><td><span class="stars">★★★★★</span> 多语言+多品牌</td><td><span class="stars">★★★</span> SCL生成</td><td>—</td><td><span class="stars">★★★</span> LD/ST</td><td><span class="stars">★★★</span> 梯形图</td></tr>
+    <tr><td><strong>AI逻辑分析</strong></td><td><span class="stars">★★★★★</span> Petri网+形式化</td><td><span class="stars">★★</span> 基础</td><td>—</td><td><span class="stars">★★</span> 基础</td><td><span class="stars">★★</span> 代码审查</td></tr>
+    <tr><td><strong>AI错误修正</strong></td><td><span class="stars">★★★★★</span> 自动检测+修正</td><td><span class="stars">★</span> 仅检测</td><td>—</td><td><span class="stars">★★</span> 建议</td><td><span class="stars">★★</span> 检测+建议</td></tr>
+    <tr><td><strong>多协议数据采集</strong></td><td><span class="stars">★★★★★</span> 20+协议</td><td><span class="stars">★★★</span> OPC+PROFINET</td><td><span class="stars">★★</span> 第三方</td><td><span class="stars">★★★</span> OPC+EIP</td><td>—</td></tr>
+    <tr><td><strong>边缘计算</strong></td><td><span class="stars">★★★★★</span> 内置</td><td><span class="stars">★★★</span> 另购Edge</td><td>—</td><td><span class="stars">★★</span> 另购</td><td>—</td></tr>
+    <tr><td><strong>协同编辑</strong></td><td><span class="stars">★★★★</span> CRDT实时协同</td><td><span class="stars">★★★</span> Multi-user</td><td>—</td><td><span class="stars">★★</span> 有限</td><td>—</td></tr>
+    <tr><td><strong>部署灵活性</strong></td><td><span class="stars">★★★★★</span> SaaS/混合/私有</td><td><span class="stars">★★</span> 仅本地</td><td><span class="stars">★★</span> 仅本地</td><td><span class="stars">★★</span> 仅本地</td><td><span class="stars">★★★</span> SaaS</td></tr>
+    <tr><td><strong>开放性</strong></td><td><span class="stars">★★★★★</span> API+插件+SDK</td><td><span class="stars">★</span> 封闭</td><td><span class="stars">★★★★</span> 开放</td><td><span class="stars">★</span> 封闭</td><td><span class="stars">★</span> 封闭</td></tr>
+    <tr><td><strong>国产化适配</strong></td><td><span class="stars">★★★★★</span> 完全支持</td><td><span class="stars">★★</span> 有限</td><td><span class="stars">★★</span> 有限</td><td><span class="stars">★</span> 受限</td><td>—</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="callout">
+  <strong>核心差异化：</strong>本系统是<strong>唯一同时覆盖"电气原理图设计 + PLC编程 + AI辅助 + 数据采集"全链路的统一平台</strong>。当前市场上，电气CAD工具和PLC编程软件是分离的，本系统将二者整合，填补了市场空白。
+</div>
+</section>
+
+<!-- ====== 14. 风险与应对 ====== -->
+<section id="s14">
+<h2>14. 风险与应对策略</h2>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>风险</th><th>影响</th><th>概率</th><th>应对策略</th><th>缓解后</th></tr></thead>
+  <tbody>
+    <tr><td><strong>AI代码准确率不足</strong></td><td>高</td><td>中</td><td>三层验证+人工审核+持续反馈微调+模板优先保底</td><td>中</td></tr>
+    <tr><td><strong>PLC厂商协议兼容</strong></td><td>高</td><td>中</td><td>优先开放协议(OPC UA/Modbus)+逆向工程+厂商合作</td><td>中</td></tr>
+    <tr><td><strong>实时性不满足</strong></td><td>中</td><td>低</td><td>边缘计算处理毫秒级任务+AI仅离线分析</td><td>低</td></tr>
+    <tr><td><strong>数据安全合规</strong></td><td>高</td><td>低</td><td>私有化离线部署+TLS 1.3+字段加密+SOC2/ISO27001</td><td>低</td></tr>
+    <tr><td><strong>用户学习成本</strong></td><td>中</td><td>中</td><td>交互式教程+模板库+AI向导+兼容主流操作习惯</td><td>低</td></tr>
+    <tr><td><strong>LLM供应商依赖</strong></td><td>中</td><td>中</td><td>模型无关架构+开源私有化+自研小模型fallback+缓存</td><td>低</td></tr>
+    <tr><td><strong>市场规模不足</strong></td><td>中</td><td>中</td><td>MVP验证+细分切入(系统集成商)+厂商合作+SaaS低门槛</td><td>中</td></tr>
+    <tr><td><strong>竞品快速跟进</strong></td><td>中</td><td>高</td><td>18月先发窗口+数据网络效应+专利布局+持续创新</td><td>中</td></tr>
+  </tbody>
+</table>
+</div>
+</section>
+
+<!-- ====== 15. 参考文献 ====== -->
+<section id="s15">
+<h2>15. 参考文献</h2>
+<ol style="font-size:13px; line-height:2.1; padding-left:1.4em;">
+  <li><strong>Siemens, TIA Portal V21 Engineering Copilot</strong> — 集成AI工程助手，自然语言生成SCL代码和WinCC画面。<br><a href="https://controlbyte.tech/blog/tia-portal-v21-new-features/">controlbyte.tech/blog/tia-portal-v21-new-features/</a></li>
+  <li><strong>Schneider Electric, Industrial Copilot (2025)</strong> — EcoStruxure平台AI代码生成，开发时间缩短30-50%。<br><a href="https://blog.se.com/digital-transformation/artificial-intelligence/2025/11/14/">blog.se.com/.../engineering-at-scale-how-ai-is-transforming-plc-coding/</a></li>
+  <li><strong>Beckhoff, TwinCAT CoAgent</strong> — 双版本AI代理，代码建议+I/O配置+故障诊断，MCP开放架构。<br><a href="https://www.beckhoff.com.cn/zh-cn/company/news/">beckhoff.com.cn/zh-cn/company/news/</a></li>
+  <li><strong>Rockwell Automation, AI-Orchestrated Factory Engineering (2026)</strong> — 数字孪生+AI代码生成+仿真验证闭环。<br><a href="https://www.rockwellautomation.com/en-tr/company/news/press-releases/">rockwellautomation.com/.../ai-orchestrated-factory-engineering-at-hannover.html</a></li>
+  <li><strong>CODESYS Development System</strong> — 硬件无关IEC 61131-3平台，6语言，数百OEM。<br><a href="https://us.codesys.com/products/engineering/development-system/">us.codesys.com/products/engineering/development-system/</a></li>
+  <li><strong>Spec2Control (ACM 2025)</strong> — 自然语言→PLC/DCS控制逻辑，正确率超97%，节省95%工作量。<br><a href="https://dl.acm.org/doi/10.1145/3786583.3786897">dl.acm.org/doi/10.1145/3786583.3786897</a></li>
+  <li><strong>AutoPLC (arXiv 2024)</strong> — 多智能体框架，自然语言→IEC 61131-3结构化文本。<br><a href="https://arxiv.org/pdf/2412.02410v1">arxiv.org/pdf/2412.02410v1</a></li>
+  <li><strong>PLC Copilot</strong> — 自然语言→梯形图，代码审查，跨平台翻译，遗留代码分析。<br><a href="https://plccopilot.com/blogs/ai-for-plc-programming">plccopilot.com/blogs/ai-for-plc-programming</a></li>
+  <li><strong>Wipro PARI + AWS Bedrock</strong> — PLC代码生成3-4天→10分钟，准确率85%。<br><a href="https://aws.amazon.com/blogs/machine-learning/">aws.amazon.com/blogs/machine-learning/</a></li>
+  <li><strong>MuFBDTester & ST-Petri</strong> — 基于变异的FBD测试生成，Petri网ST形式化语义模型。</li>
+  <li><strong>NVIDIA Cosmos-Reason1-7B</strong> — 多PLC协同安全逻辑推理。</li>
+  <li><strong>PLCs.ai</strong> — AI驱动PLC逻辑分析平台，PackML状态机分析。<br><a href="https://www.plcs.ai/">plcs.ai</a></li>
+  <li><strong>Snap PLC</strong> — 全球首个图片到逻辑生成器，控制柜照片→梯形图。<br><a href="https://www.snapplc.com/">snapplc.com</a></li>
+  <li><strong>TDengine</strong> — 国产高性能时序数据库，百万写入/s，10-20x压缩比。</li>
+  <li><strong>IEC 61131-3:2013</strong> — PLC编程语言国际标准。</li>
+  <li><strong>IEC 60617</strong> — 电气简图用图形符号国际标准。</li>
+  <li><strong>PackML (ISA-TR88.00.02)</strong> — 包装机械语言标准。</li>
+</ol>
+</section>
+
+<footer>
+  <p><strong>文档说明：</strong>本文档为AI-PLC智能控制系统V2.0详尽技术方案，涵盖系统架构、功能模块、AI引擎、数据库设计、API规范、安全架构、测试策略及实施路线图等完整技术内容。方案基于2026年7月最新行业态势和技术栈编写，实际实施时应根据具体情况进行适当调整。</p>
+  <p style="margin-top:16px;"><strong>作者：</strong>AI-PLC 技术团队 &nbsp;|&nbsp; <strong>日期：</strong>2026-07-30 &nbsp;|&nbsp; <strong>版本：</strong>V2.0</p>
+</footer>
+
+</main>
+</body>
+</html>

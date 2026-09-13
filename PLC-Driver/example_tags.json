@@ -1,0 +1,74 @@
+[
+  {
+    "name": "主电机电流",
+    "address": 100,
+    "data_type": "uint16",
+    "read_only": true,
+    "scale": 0.1,
+    "offset": 0,
+    "unit": "A"
+  },
+  {
+    "name": "反应温度",
+    "address": 101,
+    "data_type": "int16",
+    "read_only": true,
+    "scale": 0.1,
+    "offset": 0,
+    "unit": "℃"
+  },
+  {
+    "name": "液位高度",
+    "address": 102,
+    "data_type": "uint16",
+    "read_only": true,
+    "scale": 0.01,
+    "offset": 0,
+    "unit": "m"
+  },
+  {
+    "name": "压力传感器",
+    "address": 103,
+    "data_type": "uint16",
+    "read_only": true,
+    "scale": 0.01,
+    "offset": 0,
+    "unit": "MPa"
+  },
+  {
+    "name": "转速设定",
+    "address": 200,
+    "data_type": "uint16",
+    "read_only": false,
+    "scale": 1,
+    "offset": 0,
+    "unit": "rpm"
+  },
+  {
+    "name": "产量计数",
+    "address": 201,
+    "data_type": "uint32",
+    "read_only": true,
+    "scale": 1,
+    "offset": 0,
+    "unit": "件"
+  },
+  {
+    "name": "pH值",
+    "address": 104,
+    "data_type": "uint16",
+    "read_only": true,
+    "scale": 0.01,
+    "offset": 0,
+    "unit": "pH"
+  },
+  {
+    "name": "泵启停",
+    "address": 500,
+    "data_type": "bool",
+    "read_only": false,
+    "scale": 1,
+    "offset": 0,
+    "unit": ""
+  }
+]

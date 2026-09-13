@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>代码修改报告 — 0day 漏洞风险增强</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; line-height: 1.7; max-width: 900px; margin: 0 auto; padding: 24px; color: #24292f; background: #fff; }
+  h1 { border-bottom: 3px solid #b71c1c; padding-bottom: 10px; color: #b71c1c; }
+  h2 { margin-top: 32px; border-left: 5px solid #b71c1c; padding-left: 12px; }
+  h3 { margin-top: 24px; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+  th, td { border: 1px solid #d0d7de; padding: 8px 12px; text-align: left; }
+  th { background: #f6f8fa; }
+  code { background: #f6f8fa; padding: 2px 6px; border-radius: 4px; font-family: "SFMono-Regular", Consolas, monospace; font-size: 0.92em; }
+  pre { background: #f6f8fa; padding: 14px; border-radius: 8px; overflow-x: auto; border: 1px solid #d0d7de; }
+  pre code { background: transparent; padding: 0; }
+  .meta { color: #57606a; font-size: 0.95em; }
+  .badge { display: inline-block; background: #b71c1c; color: #fff; padding: 1px 8px; border-radius: 4px; font-size: 0.85em; }
+</style>
+</head>
+<body>
+
+<h1>代码修改报告 — 0day 漏洞风险增强</h1>
+<p class="meta">
+  <strong>项目：</strong>AI-VULN 下一代智能漏洞扫描系统 Pro（v2.1.0）<br>
+  <strong>日期：</strong>2026-08-22<br>
+  <strong>修改范围：</strong>0day 专项扫描的 4 项增强 <span class="badge">最高优先级</span>
+</p>
+
+<h2>一、需求背景</h2>
+<p>上一版已落地「0day 漏洞专项扫描」，对 CISA KEV 目录做产品级交叉比对，标记 <code>is_0day</code> 并在结果表深红高亮。本版在其基础上补齐 4 项 0day 风险增强，进一步扩大在野利用识别覆盖、突出「最高优先级立即处置」清单：</p>
+<ol>
+  <li>0day 专项扫描结果在「AI 安全报告」中<strong>单独成节</strong>，突出「最高优先级立即处置」清单；</li>
+  <li>接入 <strong>EPSS 高分（&gt;0.9）</strong> 作为 0day 风险的第二判据，扩大在野利用识别覆盖；</li>
+  <li>对 <strong>known_ransomware</strong>（已知勒索软件利用）标记的 KEV 条目追加更醒目的红色警示；</li>
+  <li>《下一代智能漏洞扫描系统 Pro - 安全扫描报告》汇总项增加 <strong>0day 漏洞数量</strong>，详情部分标注「0day 漏洞」。</li>
+</ol>
+
+<h2>二、修改概述</h2>
+<table>
+  <tr><th>文件</th><th>修改内容</th></tr>
+  <tr><td><code>database.py</code></td><td><code>ThreatIntelDB</code> 新增 <code>get_kev_by_cve()</code>；<code>Database</code> 门面新增 <code>get_kev_by_cve()</code>、<code>get_epss()</code></td></tr>
+  <tr><td><code>scanner_engine.py</code></td><td><code>_flag_zero_day()</code> 重写为「KEV + EPSS&gt;0.9」双判据；<code>_flag_zero_day_focus()</code> 产品级匹配追加 <code>known_ransomware</code> 标记</td></tr>
+  <tr><td><code>ai_security.py</code></td><td><code>generate_ai_report_html()</code> 新增「0day/在野利用专项」红色章节；<code>_generate_findings()</code> 增加 EPSS 高危、勒索软件关键发现</td></tr>
+  <tr><td><code>main_window.py</code></td><td>结果表严重度列区分「⛔ 勒索软件 / ⚠ EPSS高危 / ⚠ 0DAY」；悬浮提示追加勒索软件/EPSS 行</td></tr>
+  <tr><td><code>report_generator.py</code></td><td>汇总统计格新增「0day漏洞」红色统计块；详情表格与风险卡片标注「0day漏洞」「⛔已知勒索软件利用」徽章；<code>_generate_risk_analysis()</code> 填充 EPSS 概率与勒索/EPSS 紧急度</td></tr>
+</table>
+
+<h2>三、详细修改内容</h2>
+
+<h3>3.1 database.py — 数据访问层</h3>
+<h4>（1）<code>ThreatIntelDB.get_kev_by_cve()</code> 新增</h4>
+<pre><code>def get_kev_by_cve(self, cve_id):
+    """按 CVE 编号查询单条 KEV 记录（含 known_ransomware / required_action / due_date）。"""
+    c = self.conn.cursor()
+    c.execute('SELECT * FROM cisa_kev WHERE cve_id=?', (cve_id,))
+    r = c.fetchone()
+    return dict(r) if r else None</code></pre>
+
+<h4>（2）<code>Database</code> 门面暴露 EPSS 与单条 KEV 查询</h4>
+<pre><code>def get_kev_by_cve(self, cve_id):
+    return self.intel.get_kev_by_cve(cve_id)
+
+def get_epss(self, cve_id):
+    return self.intel.get_epss(cve_id)</code></pre>
+<p><code>ThreatIntelDB</code> 原本已有 <code>get_epss()</code>，仅缺少门面透传；<code>get_kev_by_cve()</code> 为新增，供 <code>_flag_zero_day()</code> 读取 <code>known_ransomware</code>/<code>due_date</code>/<code>required_action</code>。</p>
+
+<h3>3.2 scanner_engine.py — 0day 双判据 + 勒索软件标记</h3>
+<h4>（1）<code>_flag_zero_day()</code> 重写为双判据</h4>
+<pre><code>def _flag_zero_day(self, vulnerabilities: List[Dict]) -&gt; int:
+    """0day/高危利用风险标记（最高优先级，重点提示）。
+    判据一：CISA KEV（正被攻击者活跃利用）；
+    判据二：EPSS 利用概率 &gt; 0.9（高分，扩大在野利用识别覆盖）。
+    任一命中即标记 is_0day 并提升至 CRITICAL；KEV 中
+    known_ransomware 条目追加「已知勒索软件利用」警示。
+    """
+    if not self.db:
+        return 0
+    flagged = 0
+    for v in vulnerabilities:
+        cve_id = v.get('cve_id')
+        if not cve_id:
+            continue
+        is_kev = bool(self.db.is_kev(cve_id)) if hasattr(self.db, 'is_kev') else False
+        kev_rec = None
+        epss_score = None
+        if is_kev:
+            kev_rec = self.db.get_kev_by_cve(cve_id) if hasattr(self.db, 'get_kev_by_cve') else None
+        else:
+            ep = self.db.get_epss(cve_id) if hasattr(self.db, 'get_epss') else None
+            epss_score = ep.get('epss_score') if ep else None
+        epss_high = epss_score is not None and epss_score &gt; 0.9
+        if not is_kev and not epss_high:
+            continue
+        v['is_0day'] = True
+        v['kev'] = bool(is_kev)
+        v['epss_high'] = epss_high
+        if epss_score is not None:
+            v['epss_score'] = epss_score
+        ransomware = False
+        if kev_rec:
+            ransomware = bool(kev_rec.get('known_ransomware'))
+            v['known_ransomware'] = ransomware
+            v['kev_due_date'] = kev_rec.get('due_date') or ''
+            v['kev_required_action'] = kev_rec.get('required_action') or ''
+        if v.get('severity') not in ('CRITICAL',):
+            v['severity'] = 'CRITICAL'
+        # 前缀按最高优先级来源生成（勒索软件 &gt; KEV &gt; EPSS）
+        if is_kev and ransomware:
+            prefix = '【已知勒索软件利用】'
+        elif is_kev:
+            prefix = '【0day/活跃利用】'
+        else:
+            prefix = '【0day/高危利用概率(EPSS)】'
+        if not (v.get('description') or '').startswith(prefix):
+            v['description'] = prefix + (v.get('description', '') or '')
+        flagged += 1
+    return flagged</code></pre>
+
+<ul>
+  <li><strong>EPSS 第二判据</strong>：原仅 <code>is_kev</code> 命中才标记，现当 <code>EPSS &gt; 0.9</code> 也标记 <code>is_0day</code>、<code>epss_high=True</code>，并写入 <code>epss_score</code>，捕获未被 KEV 收录但极可能被利用的 CVE。</li>
+  <li><strong>勒索软件警示</strong>：KEV 命中时读取 <code>known_ransomware</code>，命中者描述前缀升级为 <code>【已知勒索软件利用】</code>，并附带 <code>known_ransomware</code>/<code>kev_due_date</code>/<code>kev_required_action</code> 字段。</li>
+  <li><strong>查询优化</strong>：KEV 命中走 <code>get_kev_by_cve</code>（顺带取勒索标记），未命中才查 EPSS，避免双查；<code>hasattr</code> 防御向后兼容。</li>
+</ul>
+
+<h4>（2）<code>_flag_zero_day_focus()</code> 产品级匹配追加勒索软件标记</h4>
+<pre><code>ransomware = bool(kev.get('known_ransomware'))
+prefix = '【已知勒索软件利用】' if ransomware else '【0day/活跃利用】'
+vulnerabilities.append({
+    'host': host, 'port': port,
+    'protocol': 'tcp', 'service': service, 'version': '',
+    'product': prod, 'cve_id': cve_id,
+    'cvss_score': '', 'severity': 'CRITICAL',
+    'description': (
+        f"{prefix}{kev.get('vulnerability_name') or cve_id}"
+        f"（CISA KEV，{kev.get('date_added') or '在野利用中'}"
+        f"{'，已知勒索软件利用' if ransomware else ''}）。"
+        f"处置要求: {kev.get('required_action') or '请立即打补丁'}"
+    ),
+    'is_0day': True, 'kev': True, 'zero_day_match': 'product',
+    'known_ransomware': ransomware,
+})</code></pre>
+
+<h3>3.3 ai_security.py — AI 安全报告 0day 单独成节</h3>
+<h4>（1）<code>_generate_findings()</code> 增加 EPSS / 勒索软件关键发现</h4>
+<pre><code>epss_high_count = sum(1 for v in vulnerabilities if v.get('epss_high'))
+if epss_high_count &gt; 0:
+    findings.append(f'[紧急] 发现{epss_high_count}个EPSS利用概率&gt;0.9的高危漏洞，极可能被攻击者利用，需立即处置。')
+
+ransomware_count = sum(1 for v in vulnerabilities if v.get('known_ransomware'))
+if ransomware_count &gt; 0:
+    findings.append(f'[最高优先级] 发现{ransomware_count}个已知勒索软件利用漏洞(known_ransomware)，请立即隔离并处置！')</code></pre>
+
+<h4>（2）<code>generate_ai_report_html()</code> 新增「0day/在野利用专项」章节</h4>
+<p>在报告头部之后、攻击面分析之前插入红色边框独立章节：</p>
+<pre><code>zero_day_list = [v for v in scan_result.get('vulnerabilities', []) if v.get('is_0day')]
+if zero_day_list:
+    for v in zero_day_list:
+        badges = []
+        if v.get('known_ransomware'): badges.append('&lt;span class="badge-ransom"&gt;⛔ 已知勒索软件利用&lt;/span&gt;')
+        if v.get('kev'):              badges.append('&lt;span class="badge-kev"&gt;CISA KEV 在野利用&lt;/span&gt;')
+        if v.get('epss_high'):        badges.append('&lt;span class="badge-epss"&gt;EPSS … 高危&lt;/span&gt;')
+        ...
+    zero_day_html = '''
+    &lt;div class="section zero-day"&gt;
+        &lt;h2&gt;🚨 0day/在野利用专项 — 最高优先级立即处置清单&lt;/h2&gt;
+        &lt;p class="zero-day-summary"&gt;共 N 项 0day/高危在野利用风险，请立即组织处置。&lt;/p&gt;
+        &lt;table&gt;
+            &lt;tr&gt;&lt;th&gt;CVE&lt;/th&gt;&lt;th&gt;目标&lt;/th&gt;&lt;th&gt;服务&lt;/th&gt;&lt;th&gt;风险判据&lt;/th&gt;&lt;th&gt;处置要求&lt;/th&gt;&lt;/tr&gt;
+            ...
+        &lt;/table&gt;
+    &lt;/div&gt;'''</code></pre>
+<p>CSS 新增 <code>.zero-day</code>（红色 2px 边框 + 浅红底）、<code>.badge-ransom</code>（深红 <code>#7b0000</code> 加粗）、<code>.badge-kev</code>、<code>.badge-epss</code>。</p>
+
+<h3>3.4 main_window.py — 结果表与悬浮提示</h3>
+<h4>（1）结果表严重度列区分 0day 来源</h4>
+<pre><code>if vuln.get('is_0day'):
+    sev_item = self.result_table.item(row, 6)
+    if sev_item:
+        if vuln.get('known_ransomware'):
+            sev_item.setText('⛔ 勒索软件')
+        elif vuln.get('epss_high') and not vuln.get('kev'):
+            sev_item.setText('⚠ EPSS高危')
+        else:
+            sev_item.setText('⚠ 0DAY')</code></pre>
+
+<h4>（2）<code>_build_vuln_tooltip()</code> 追加勒索软件 / EPSS 行</h4>
+<pre><code>if vuln.get('known_ransomware'):
+    lines.append("⛔ 已知勒索软件利用 — 最高优先级立即处置")
+if vuln.get('epss_high'):
+    lines.append(f"⚠ EPSS 高危利用概率: {vuln.get('epss_score', '')}")</code></pre>
+
+<h3>3.5 report_generator.py — 扫描报告汇总 + 详情标注</h3>
+<h4>（1）汇总统计格新增「0day漏洞」红色统计块</h4>
+<pre><code>zero_day_count = scan_data.get('zero_day_count', 0) or sum(
+    1 for v in vulnerabilities if v.get('is_0day'))</code></pre>
+<pre><code>&lt;div class="stat-box zero-day"&gt;&lt;div class="stat-num"&gt;{zero_day_count}&lt;/div&gt;&lt;div class="stat-label"&gt;0day漏洞&lt;/div&gt;&lt;/div&gt;</code></pre>
+<p>统计格由 5 列扩展为 6 列（<code>repeat(6, 1fr)</code>）；新增 <code>.stat-box.zero-day</code> 深红渐变样式。</p>
+
+<h4>（2）漏洞详情表格与风险卡片标注「0day漏洞」</h4>
+<pre><code>zero_day_badge = ' &lt;span ...&gt;0day漏洞&lt;/span&gt;' if vuln.get('is_0day') else ''
+ransomware_badge = ' &lt;span ...&gt;⛔勒索软件&lt;/span&gt;' if vuln.get('known_ransomware') else ''</code></pre>
+<p>详情表格 CVE 单元格追加 <code>0day漏洞</code>（深红加粗）+ <code>⛔勒索软件</code> 徽章；风险卡片头部追加 <code>0day漏洞</code> 与 <code>⛔已知勒索软件利用</code> 徽章。</p>
+
+<h4>（3）<code>_generate_risk_analysis()</code> 填充 EPSS 与勒索/EPSS 紧急度</h4>
+<pre><code>if vuln.get('known_ransomware'):
+    analysis['exploit_difficulty'] = '已知勒索软件利用 - 最高优先级'
+    analysis['urgency'] = '立即处置! (勒索软件)'
+elif vuln.get('epss_high'):
+    analysis['exploit_difficulty'] = '高利用概率 - 极可能被攻击'
+    analysis['urgency'] = '立即修复! (EPSS高危)'
+
+if vuln.get('epss_score') is not None:
+    analysis['epss'] = f"{vuln.get('epss_score'):.2%}"</code></pre>
+
+<h2>四、0day 风险识别算法</h2>
+<pre><code>常规 CVE 匹配（VulnMatcher / 数据库搜索）
+        │
+        ▼
+_flag_zero_day()  双判据标记
+        ├─ 判据一：CISA KEV 命中（is_kev）
+        │           └─ known_ransomware=1 → 【已知勒索软件利用】红警
+        │           └─ 否则 → 【0day/活跃利用】
+        ├─ 判据二：EPSS 利用概率 &gt; 0.9 → 【0day/高危利用概率(EPSS)】
+        ▼
+_flag_zero_day_focus()（zero_day_focus 开启时）
+        产品级 KEV 交叉比对 → 追加 known_ransomware 标记
+        ▼
+结果表深红高亮 + ⛔勒索软件 / ⚠EPSS高危 / ⚠0DAY
+        ▼
+AI 安全报告「0day/在野利用专项」章节 + 扫描报告「0day漏洞」汇总/徽章</code></pre>
+
+<p><strong>双判据设计</strong>：EPSS &gt; 0.9 捕获「未被 CISA KEV 收录、但利用概率极高」的 CVE（新近披露、PoC 已公开但尚未进入 KEV 目录），与 KEV 互补，扩大在野利用识别覆盖；两者均标记 <code>is_0day</code>、提升 CRITICAL，统一纳入 <code>zero_day_count</code>。</p>
+<p><strong>误报控制</strong>：EPSS 阈值取 0.9（而非 0.5 等更宽阈值），只在高利用概率区间升级为 0day，避免中等分值批量误标，守住「行业最低误报率」定位。</p>
+
+<h2>五、验证结果</h2>
+<ol>
+  <li><strong>语法检查</strong>：<code>python -m py_compile database.py scanner_engine.py main_window.py report_generator.py ai_security.py</code> 通过。</li>
+  <li><strong>单元测试</strong>：<code>test_database.py</code> + <code>test_report_render.py</code> + <code>test_risk_scoring.py</code>（101 项）全绿；<code>test_scanner_ai.py</code>（23 项）全绿。</li>
+  <li><strong><code>_flag_zero_day()</code> 双判据单测</strong>（桩 DB）：KEV+勒索 → <code>【已知勒索软件利用】</code>；仅 KEV → <code>【0day/活跃利用】</code>；EPSS 0.97 → <code>epss_high=True</code> + <code>【0day/高危利用概率(EPSS)】</code>；EPSS 0.5 → 不标记。</li>
+  <li><strong>报告渲染冒烟测试</strong>：AI 安全报告含「0day/在野利用专项 — 最高优先级立即处置清单」章节；扫描报告含「0day漏洞」统计块与「0day漏洞」「⛔勒索软件」徽章。</li>
+  <li><strong>向后兼容</strong>：<code>_flag_zero_day()</code> 签名不变；所有新字段均为新增写入，未开启相关能力时行为与改动前一致。</li>
+</ol>
+
+<h2>六、影响范围与兼容性</h2>
+<table>
+  <tr><th>影响面</th><th>说明</th></tr>
+  <tr><td>调用方</td><td><code>_flag_zero_day()</code> / <code>_flag_zero_day_focus()</code> 均为 <code>VulnScanner</code> 内部方法，签名不变；<code>Database</code> 门面仅新增方法，无破坏性变更</td></tr>
+  <tr><td>数据库</td><td>仅读 <code>cisa_kev</code>（含 <code>known_ransomware</code>）与 <code>epss_scores</code>，无 schema 变更</td></tr>
+  <tr><td>报告</td><td>AI 安全报告与扫描报告均为新增章节/徽章/统计块，无既有内容移除</td></tr>
+  <tr><td>AI 核验</td><td>0day/KEV/EPSS 标记在 AI 核验前完成，且 AI 核验对 KEV 标记「倾向确认真实」，不会误删</td></tr>
+  <tr><td>误报定位</td><td>EPSS 阈值 0.9 取高值，仅高分区间升级为 0day，避免误报率上升</td></tr>
+</table>
+
+<div class="footer" style="text-align:center;color:#999;font-size:12px;margin-top:40px;padding-top:20px;border-top:1px solid #eee;">
+  山西有信网安科技有限公司 &copy; 2026 | 报告由 AI 自动生成，仅供参考
+</div>
+</body>
+</html>

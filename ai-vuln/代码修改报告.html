@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>代码修改报告</title>
+<style>
+  :root {
+    --accent: #0078d4;
+    --accent-dark: #005a9e;
+    --border: #e0e0e0;
+    --text: #333;
+    --muted: #666;
+    --bg: #ffffff;
+    --code-bg: #f5f7f9;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+    color: var(--text);
+    background: #f3f4f6;
+    line-height: 1.7;
+    font-size: 15px;
+  }
+  .container {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 32px 24px 64px;
+    background: var(--bg);
+    box-shadow: 0 0 24px rgba(0,0,0,.06);
+  }
+  h1 {
+    font-size: 28px;
+    margin: 0 0 4px;
+    padding-bottom: 12px;
+    border-bottom: 3px solid var(--accent);
+  }
+  h2 {
+    font-size: 21px;
+    margin: 32px 0 12px;
+    padding-left: 10px;
+    border-left: 4px solid var(--accent);
+  }
+  h3 {
+    font-size: 17px;
+    margin: 22px 0 8px;
+    color: var(--accent-dark);
+  }
+  p { margin: 8px 0; }
+  ul, ol { margin: 8px 0; padding-left: 24px; }
+  li { margin: 4px 0; }
+  strong { color: #111; }
+  code {
+    font-family: "SFMono-Regular", Consolas, "Courier New", monospace;
+    background: var(--code-bg);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+    color: #c7254e;
+  }
+  pre {
+    background: var(--code-bg);
+    padding: 14px 16px;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  pre code { background: none; padding: 0; color: #24292e; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0;
+    font-size: 14px;
+  }
+  th, td {
+    border: 1px solid var(--border);
+    padding: 8px 12px;
+    text-align: left;
+    vertical-align: top;
+  }
+  th {
+    background: #eef4fb;
+    font-weight: 600;
+  }
+  tr:nth-child(even) td { background: #fafbfc; }
+  blockquote {
+    margin: 12px 0;
+    padding: 10px 16px;
+    background: #fff8e6;
+    border-left: 4px solid #f0b400;
+    color: #6b5b00;
+    border-radius: 0 4px 4px 0;
+  }
+  .meta {
+    color: var(--muted);
+    font-size: 14px;
+    margin-bottom: 24px;
+  }
+  hr { border: none; border-top: 1px solid var(--border); margin: 28px 0; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>代码修改报告</h1>
+<div class="meta">
+  <strong>下一代智能漏洞扫描系统 Pro</strong> · 修改日期 2026-08-24 · 分支 <code>feat/0day-scan</code>
+</div>
+
+<h2>基本信息</h2>
+<table>
+  <tr><th>项目</th><th>内容</th></tr>
+  <tr><td>项目名称</td><td>下一代智能漏洞扫描系统 Pro</td></tr>
+  <tr><td>修改日期</td><td>2026-08-24</td></tr>
+  <tr><td>当前分支</td><td>feat/0day-scan</td></tr>
+  <tr><td>修改范围</td><td>仪表盘图表、Web 扫描停止、工作状态生命周期跟踪</td></tr>
+</table>
+
+<h2>修改概述</h2>
+<p>本次修改主要围绕仪表盘可视化改造与「今日工作」状态跟踪能力补齐，共涉及 5 个源文件：</p>
+<ol>
+  <li><strong>仪表盘三张图表改造</strong>：扫描任务饼图、今日工作堆叠柱状图、漏洞等级饼图。</li>
+  <li><strong>Web 扫描停止修复</strong>：点击停止后立即中断探测并隐藏进度条。</li>
+  <li><strong>工作状态生命周期跟踪</strong>：为资产管理、Web扫描、AI代码审计、AI代码质量检测、漏洞库更新、威胁情报等类型补齐「进行中 / 被终止 / 已完成」全程埋点。</li>
+  <li><strong>定时扫描「计划中」跟踪</strong>：添加定时任务后计入「计划中」，触发/取消时正确转移。</li>
+</ol>
+
+<h2>详细修改</h2>
+
+<h3>1. 仪表盘三张图表改造（<code>main_window.py</code>）</h3>
+<p><strong>扫描任务（卡片2）</strong> —— 由「按扫描类型（快速/完整/自定义）」改为按 5 类任务次数画饼状图：</p>
+<ul>
+  <li>漏洞扫描、Web扫描、AI代码审计、AI代码质量检测、威胁情报。</li>
+</ul>
+<p><strong>今日工作（卡片3）</strong> —— 由「按工作类型计数」的饼图改为四段堆叠柱状图：</p>
+<ul>
+  <li>横轴：资产管理、漏洞扫描、Web扫描、AI代码审计、AI代码质量检测、漏洞库更新、威胁情报（7 项）。</li>
+  <li>纵轴（分段）：已完成（绿）、进行中（橙）、计划中（蓝）、被终止（红）。</li>
+  <li>新增 <code>_draw_stacked_bar()</code> 绘制方法，卡片类型新增 <code>stack</code>。</li>
+</ul>
+<p><strong>高危/严重漏洞 → 漏洞等级（卡片8）</strong> —— 标题改为「漏洞等级」，数据源由 CVE 库改为扫描发现的漏洞 <code>scan_results</code>，按严重/高危/中危/低危四级画饼图。</p>
+
+<h3>2. Web 扫描停止修复（<code>web_scanner.py</code> + <code>main_window.py</code>）</h3>
+<p><strong>问题</strong>：点击停止后仅置位停止标志，但「高危敏感路径探测」和「目录枚举」阶段不检查该标志，导致扫描继续运行、进度条不消失。</p>
+<p><strong>修复</strong>：</p>
+<ul>
+  <li><code>HTTPProber.probe_high_risk_paths()</code> 新增 <code>stop_event</code> 参数，逐路径检查、命中即中断。</li>
+  <li><code>DirectoryEnumerator.enumerate()</code> 新增 <code>stop_event</code> 参数，循环内检查并用 <code>shutdown(wait=False, cancel_futures=True)</code> 立即退出线程池。</li>
+  <li><code>WebSecurityScanner.scan()</code> 将 <code>stop_event</code> 传入上述两阶段，并在指纹识别后增加停止检查。</li>
+  <li><code>_stop_web_scan()</code> 点击后立即隐藏进度条。</li>
+</ul>
+
+<h3>3. 今日工作状态生命周期跟踪（<code>database.py</code> + 多文件）</h3>
+<p><strong>数据层</strong>（<code>database.py</code>）：</p>
+<ul>
+  <li><code>work_log</code> 表新增 <code>status</code> 列（默认「已完成」），带 <code>ALTER TABLE</code> 迁移兼容旧库。</li>
+  <li>新增会话式方法：
+    <ul>
+      <li><code>start_work(work_type) -&gt; id</code>：插入「进行中」记录并返回会话 ID。</li>
+      <li><code>finish_work(id, status)</code>：更新会话终态。</li>
+      <li><code>delete_work(id)</code>：删除记录（如计划中任务转交实际执行）。</li>
+      <li><code>log_work(work_type, status='已完成') -&gt; id</code>：瞬时操作直接以终态记录。</li>
+    </ul>
+  </li>
+  <li>新增聚合方法 <code>get_today_work_status_matrix()</code>：返回 7 类型 × 4 状态的今日工作矩阵。</li>
+</ul>
+
+<p><strong>各工作类型埋点</strong>：</p>
+<table>
+  <tr><th>工作类型</th><th>启动（进行中）</th><th>完成（已完成）</th><th>停止/出错（被终止）</th></tr>
+  <tr><td>资产管理</td><td>—（瞬时）</td><td><code>log_work('资产管理')</code></td><td>—</td></tr>
+  <tr><td>Web扫描</td><td><code>start_work</code></td><td><code>finish_work(已完成)</code></td><td><code>finish_work(被终止)</code></td></tr>
+  <tr><td>AI代码审计</td><td><code>start_work</code></td><td><code>finish_work(已完成)</code></td><td><code>finish_work(被终止)</code></td></tr>
+  <tr><td>AI代码质量检测</td><td><code>start_work</code></td><td><code>finish_work(已完成)</code></td><td><code>finish_work(被终止)</code></td></tr>
+  <tr><td>漏洞库更新（更新按钮）</td><td><code>start_work</code></td><td><code>finish_work(已完成)</code></td><td><code>finish_work(被终止)</code></td></tr>
+  <tr><td>漏洞库更新（CVE修复）</td><td><code>start_work</code></td><td><code>finish_work(已完成)</code></td><td><code>finish_work(被终止)</code></td></tr>
+  <tr><td>威胁情报</td><td><code>start_work</code></td><td><code>finish_work(已完成)</code></td><td><code>finish_work(被终止)</code></td></tr>
+  <tr><td>漏洞扫描（手动）</td><td colspan="3">沿用 <code>scan_tasks.status</code>（pending→计划中 / running→进行中 / completed→已完成 / failed·stopped→被终止）</td></tr>
+</table>
+
+<blockquote>AI代码审计 / AI代码质量检测的统计源由 <code>audit_history</code>/<code>reports</code> 切换为 <code>work_log</code>，避免与生命周期埋点重复计数。</blockquote>
+
+<h3>4. 定时扫描「计划中」跟踪（<code>main_window.py</code>）</h3>
+<ul>
+  <li><code>_add_scheduled_scan()</code>：添加任务时 <code>log_work('漏洞扫描', '计划中')</code>，记录 work_id 至 <code>self._scheduled_work_ids</code>。</li>
+  <li><code>_on_scheduled_scan()</code>：任务触发执行时 <code>delete_work()</code> 删除「计划中」标记，改由扫描任务自身跟踪。</li>
+  <li><code>_cancel_scheduled()</code>：取消任务时 <code>finish_work(被终止)</code>。</li>
+</ul>
+
+<h3>5. 漏洞库更新覆盖修复（<code>vuln_db_manager.py</code>）</h3>
+<p>该线程会同时发出 <code>error</code>+<code>finished</code> 或 <code>stop</code>+<code>finished</code>，导致「被终止」被 <code>finished</code> 回写为「已完成」。新增 <code>_search_stopped</code> 标志，完成后不再覆盖终态。</p>
+
+<h2>数据库变更</h2>
+<h3><code>assets_system.db</code> → <code>work_log</code> 表</h3>
+<table>
+  <tr><th>字段</th><th>类型</th><th>说明</th></tr>
+  <tr><td>id</td><td>INTEGER PK</td><td>自增主键</td></tr>
+  <tr><td>work_type</td><td>TEXT</td><td>工作类型（7 类之一）</td></tr>
+  <tr><td>status</td><td>TEXT DEFAULT '已完成'</td><td>状态：已完成/进行中/计划中/被终止</td></tr>
+  <tr><td>created_at</td><td>TEXT</td><td>记录时间（<code>datetime('now','localtime')</code>）</td></tr>
+</table>
+<p>迁移语句（自动执行）：</p>
+<pre><code>ALTER TABLE work_log ADD COLUMN status TEXT DEFAULT '已完成';</code></pre>
+
+<h2>修改文件清单</h2>
+<table>
+  <tr><th>文件</th><th>修改内容</th></tr>
+  <tr><td><code>database.py</code></td><td>work_log 状态列 + 会话式方法 + 矩阵聚合</td></tr>
+  <tr><td><code>main_window.py</code></td><td>三张图表 + 7 类工作生命周期 + 定时扫描跟踪</td></tr>
+  <tr><td><code>web_scanner.py</code></td><td>stop_event 贯穿路径探测/目录枚举</td></tr>
+  <tr><td><code>vuln_db_manager.py</code></td><td>漏洞库更新生命周期 + 覆盖修复</td></tr>
+  <tr><td><code>cve_db_repair.py</code></td><td>CLI 漏洞库更新生命周期（含 Ctrl+C 被终止）</td></tr>
+</table>
+
+<h2>验证情况</h2>
+<ul>
+  <li>全部修改文件通过 <code>python -m py_compile</code> 语法检查。</li>
+  <li>通过临时 SQLite 库冒烟测试验证：列迁移、start/finish 状态更新、<code>GROUP BY (type, status)</code> 聚合语义均正确。</li>
+</ul>
+
+<h2>注意事项</h2>
+<ol>
+  <li><strong>「进行中」为瞬态值</strong>：仅在任务运行期间切到仪表盘刷新才可见，结束后归入「已完成/被终止」。</li>
+  <li><strong>「计划中」仅漏洞扫描产生</strong>：其余 6 类是一次性操作，无排队队列，故「计划中」恒为 0。</li>
+  <li><strong>x 轴标签用「Web扫描」</strong>（大写 W），与代码库既有 <code>log_work('Web扫描')</code> 及 UI 文案保持一致。</li>
+  <li>AI代码审计 / 质量检测的「已完成」统计源已切换至 <code>work_log</code>，本次代码上线前的历史「今日」审计记录不会计入（仅影响当天首次切换的瞬时窗口）。</li>
+</ol>
+
+</div>
+</body>
+</html>

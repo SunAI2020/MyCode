@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>威胁情报报告对比分析 — 2026 H1</title>
+<style>
+  :root {
+    --bg: #f5f5f5; --card-bg: #ffffff; --text: #1a1a2e; --text-secondary: #555;
+    --accent: #2563eb; --accent-light: #dbeafe; --border: #e2e8f0;
+    --red: #dc2626; --orange: #ea580c; --green: #16a34a; --amber: #f59e0b;
+    --r1-bar: #64748b; --r2-bar: #2563eb;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.7; padding: 2rem;
+  }
+  .container { max-width: 1100px; margin: 0 auto; }
+  .header {
+    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    color: #fff; padding: 2.5rem 3rem; border-radius: 12px; margin-bottom: 2rem;
+  }
+  .header h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+  .header .meta { color: #94a3b8; font-size: 0.95rem; }
+  .header .reports { margin-top: 1rem; display: flex; gap: 2rem; flex-wrap: wrap; }
+  .header .report-tag {
+    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 8px; padding: 0.6rem 1rem; font-size: 0.9rem;
+  }
+  .header .report-tag strong { color: #60a5fa; }
+  .card {
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1.75rem 2rem; margin-bottom: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .card h2 {
+    font-size: 1.35rem; margin-bottom: 1rem; padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--accent-light);
+  }
+  .card h3 { font-size: 1.1rem; margin: 1.25rem 0 0.75rem; color: #334155; }
+  table {
+    width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.93rem;
+  }
+  th, td { border: 1px solid var(--border); padding: 0.6rem 0.85rem; text-align: left; }
+  th { background: #f8fafc; font-weight: 600; color: #475569; }
+  tr:nth-child(even) { background: #fafbfc; }
+  /* Score bars */
+  .cmp-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.3rem 0; }
+  .cmp-label { width: 80px; flex-shrink: 0; font-size: 0.85rem; color: var(--text-secondary); }
+  .cmp-bar-wrap {
+    flex: 1; height: 28px; background: #f1f5f9; border-radius: 6px; position: relative; overflow: hidden;
+  }
+  .cmp-bar {
+    height: 100%; border-radius: 6px; display: flex; align-items: center; padding-left: 0.5rem;
+    color: #fff; font-size: 0.8rem; font-weight: 600; transition: width 0.4s ease;
+  }
+  .cmp-bar.r1 { background: linear-gradient(90deg, #94a3b8, #64748b); }
+  .cmp-bar.r2 { background: linear-gradient(90deg, #3b82f6, #2563eb); }
+  .score-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin: 1rem 0;
+  }
+  .score-card {
+    border: 2px solid var(--border); border-radius: 10px; padding: 1.25rem; text-align: center;
+  }
+  .score-card.r2-card { border-color: #93c5fd; background: #eff6ff; }
+  .score-card .score-num { font-size: 2.5rem; font-weight: 800; }
+  .score-card.r2-card .score-num { color: var(--accent); }
+  .score-card .score-label { color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.25rem; }
+  .tag {
+    display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px;
+    font-size: 0.8rem; font-weight: 600;
+  }
+  .tag-red { background: #fee2e2; color: #991b1b; }
+  .tag-green { background: #dcfce7; color: #166534; }
+  .tag-amber { background: #fef3c7; color: #92400e; }
+  .alert {
+    border-left: 4px solid var(--red); background: #fef2f2; padding: 0.75rem 1rem;
+    border-radius: 0 6px 6px 0; margin: 0.75rem 0; font-size: 0.9rem;
+  }
+  .alert-title { font-weight: 700; color: var(--red); }
+  ul, ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+  li { margin: 0.25rem 0; }
+  .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+  @media (max-width: 768px) { .summary-grid { grid-template-columns: 1fr; } }
+  .pro { color: var(--green); font-weight: 600; }
+  .con { color: var(--red); font-weight: 600; }
+  .verdict {
+    background: linear-gradient(135deg, #eff6ff, #dbeafe); border: 2px solid #93c5fd;
+    border-radius: 12px; padding: 1.5rem 2rem; margin: 1.5rem 0;
+  }
+  .footer { text-align: center; color: #94a3b8; font-size: 0.85rem; margin-top: 2rem; padding: 1rem; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- Header -->
+<div class="header">
+  <h1>&#x1F4CA; 两份威胁情报报告详细对比分析</h1>
+  <div class="meta">分析日期：2026 年 8 月 5 日</div>
+  <div class="reports">
+    <div class="report-tag">
+      <strong>报告一</strong><br>
+      《2026 年上半年全球威胁情报分析报告》<br>
+      作者：未署名 ｜ ~524 行 ｜ 10 章
+    </div>
+    <div class="report-tag">
+      <strong>报告二</strong><br>
+      《threat-intelligence-2026-h1.md》<br>
+      作者：小龙虾 &#x1F99E; ｜ ~1086 行 ｜ 14 章
+    </div>
+  </div>
+</div>
+
+<!-- Section 1 -->
+<div class="card">
+  <h2>一、基本信息对比</h2>
+  <table>
+    <tr><th>维度</th><th>报告一</th><th>报告二</th></tr>
+    <tr><td>作者</td><td>未署名</td><td>小龙虾 &#x1F99E; (AI 网络安全专家)</td></tr>
+    <tr><td>覆盖时间</td><td>2026.1.1 — 2026.8.5</td><td>2026.1.1 — 2026.7.31</td></tr>
+    <tr><td>篇幅</td><td>~524 行</td><td>~1086 行</td></tr>
+    <tr><td>章节数</td><td>10 章 + 附录</td><td>14 章 + 目录</td></tr>
+    <tr><td>目录</td><td><span class="tag tag-red">无</span></td><td><span class="tag tag-green">有完整跳转目录</span></td></tr>
+  </table>
+</div>
+
+<!-- Section 2: Dimensions -->
+<div class="card">
+  <h2>二、逐维度详细对比</h2>
+
+  <h3>1. 威胁情报数量（权重 15%）</h3>
+  <table>
+    <tr><th>子项</th><th>报告一</th><th>报告二</th></tr>
+    <tr><td>深度分析 0day 漏洞</td><td>9 个（+5 个表格简列）</td><td><strong>10 个（+19 个表格简列）</strong></td></tr>
+    <tr><td>重大安全事件</td><td>~8 个</td><td><strong>20+ 个</strong></td></tr>
+    <tr><td>恶意软件家族</td><td>~6 个</td><td><strong>12+ 个</strong></td></tr>
+    <tr><td>威胁行为者</td><td>少量提及</td><td><strong>11 APT + 8 勒索团伙 + 3 新兴</strong></td></tr>
+    <tr><td>统计数据指标</td><td>~5 个</td><td><strong>20+ 个（含同比/环比）</strong></td></tr>
+  </table>
+  <div class="cmp-row"><span class="cmp-label">报告一</span><div class="cmp-bar-wrap"><div class="cmp-bar r1" style="width:72%">72</div></div></div>
+  <div class="cmp-row"><span class="cmp-label">报告二</span><div class="cmp-bar-wrap"><div class="cmp-bar r2" style="width:92%">92</div></div></div>
+
+  <h3>2. 准确度（权重 18%）</h3>
+  <table>
+    <tr><th>子项</th><th>报告一</th><th>报告二</th></tr>
+    <tr><td>CVE 编号准确性</td><td><span class="tag tag-green">&#x2705; 基本准确</span></td><td><span class="tag tag-green">&#x2705; 基本准确</span></td></tr>
+    <tr><td>CVSS 评分一致性</td><td><span class="tag tag-green">&#x2705; 一致</span></td><td><span class="tag tag-green">&#x2705; 一致</span></td></tr>
+    <tr><td>数据内部一致性</td><td><span class="tag tag-red">&#x26A0; 矛盾</span>：标题"24亿"，正文"240亿"</td><td><span class="tag tag-green">&#x2705; 一致</span>："24亿条 (8.3TB)"</td></tr>
+    <tr><td>技术细节精确度</td><td>一般（"高危"替代具体 CVSS）</td><td><strong>较高</strong>（版本号表、IP、时间线）</td></tr>
+    <tr><td>攻击归因精确性</td><td>较模糊（"俄语威胁行为者"）</td><td><strong>精确</strong>（"Storm-1175 (中国)"等）</td></tr>
+  </table>
+  <div class="alert">
+    <span class="alert-title">&#x26A0; 关键发现：</span>报告一存在数据矛盾——标题"24 亿条" vs 正文"240 亿条"。报告二一致为"24亿条凭证记录 (8.3TB)"。
+  </div>
+  <div class="cmp-row"><span class="cmp-label">报告一</span><div class="cmp-bar-wrap"><div class="cmp-bar r1" style="width:70%">70</div></div></div>
+  <div class="cmp-row"><span class="cmp-label">报告二</span><div class="cmp-bar-wrap"><div class="cmp-bar r2" style="width:87%">87</div></div></div>
+
+  <h3>3. 精细度（权重 17%）<span class="tag tag-red">&#x26A0; 差距最大维度</span></h3>
+  <table>
+    <tr><th>子项</th><th>报告一</th><th>报告二</th></tr>
+    <tr><td>漏洞分析深度</td><td>结构化表格，7-10 个字段</td><td><strong>超深度</strong>：攻击机制、时间线、C2 IP、关联漏洞、检测方法、修复版本表</td></tr>
+    <tr><td>事件分析深度</td><td>事件描述 + 影响规模</td><td><strong>事件描述 + 攻击链图 + 战术拆解 + 行业影响评估</strong></td></tr>
+    <tr><td>修复建议粒度</td><td>通用原则</td><td><strong>四级时限 + CVE 优先级表 + 具体 IP 封禁</strong></td></tr>
+    <tr><td>统计数据</td><td>孤立数据点</td><td><strong>带同比/环比/趋势分析</strong></td></tr>
+  </table>
+  <p><strong>典型案例 — CVE-2026-50751 (Check Point VPN)：</strong></p>
+  <ul>
+    <li><strong>报告一</strong>：CVSS、影响版本、利用方式、修复方案等基础字段（~25 行）</li>
+    <li><strong>报告二</strong>：基础字段 + 最早利用日期 (2026.5.7) + C2 云服务商 + 10 个恶意 IP + 关联漏洞 CVE-2026-50752 + 分级缓解措施表（~80 行）</li>
+  </ul>
+  <div class="cmp-row"><span class="cmp-label">报告一</span><div class="cmp-bar-wrap"><div class="cmp-bar r1" style="width:65%">65</div></div></div>
+  <div class="cmp-row"><span class="cmp-label">报告二</span><div class="cmp-bar-wrap"><div class="cmp-bar r2" style="width:91%">91</div></div></div>
+
+  <h3>4. 结构组织（权重 10%）</h3>
+  <table>
+    <tr><th>子项</th><th>报告一</th><th>报告二</th></tr>
+    <tr><td>目录/导航</td><td><span class="tag tag-red">&#x274C; 无</span></td><td><span class="tag tag-green">&#x2705; 完整 14 章跳转目录</span></td></tr>
+    <tr><td>层级编号</td><td>有，但部分混乱</td><td><span class="tag tag-green">&#x2705; 清晰多级编号</span></td></tr>
+    <tr><td>表格使用</td><td>适中</td><td><strong>丰富</strong>（统计、版本、排名、优先级）</td></tr>
+    <tr><td>逻辑流</td><td>事件&#x2192;漏洞&#x2192;AI&#x2192;恶意软件&#x2192;供应链&#x2192;趋势</td><td><strong>统计&#x2192;漏洞&#x2192;事件&#x2192;恶意软件&#x2192;勒索&#x2192;AI&#x2192;供应链&#x2192;行为者&#x2192;趋势&#x2192;防御</strong></td></tr>
+  </table>
+  <div class="cmp-row"><span class="cmp-label">报告一</span><div class="cmp-bar-wrap"><div class="cmp-bar r1" style="width:70%">70</div></div></div>
+  <div class="cmp-row"><span class="cmp-label">报告二</span><div class="cmp-bar-wrap"><div class="cmp-bar r2" style="width:90%">90</div></div></div>
+
+  <h3>5. 覆盖广度（权重 12%）</h3>
+  <table>
+    <tr><th>子项</th><th>报告一</th><th>报告二</th></tr>
+    <tr><td>地理覆盖</td><td>以美国为主</td><td><strong>全球</strong>：美、日、南非、巴西、伊朗、中东、印度、泰、欧</td></tr>
+    <tr><td>行业覆盖</td><td>医疗、教育、电信、政府</td><td><strong>更广</strong>：+制造业、金融、游戏、评级机构</td></tr>
+    <tr><td>APT 归因覆盖</td><td>少量（APT28）</td><td><strong>11 个</strong>命名 APT 组织</td></tr>
+    <tr><td>OT/工业覆盖</td><td><span class="tag tag-red">未涉及</span></td><td><span class="tag tag-green">&#x2705; 专门分析</span></td></tr>
+    <tr><td>防御端 AI 覆盖</td><td><span class="tag tag-red">未涉及</span></td><td><span class="tag tag-green">&#x2705; MDASH, BLAST</span></td></tr>
+  </table>
+  <div class="cmp-row"><span class="cmp-label">报告一</span><div class="cmp-bar-wrap"><div class="cmp-bar r1" style="width:75%">75</div></div></div>
+  <div class="cmp-row"><span class="cmp-label">报告二</span><div class="cmp-bar-wrap"><div class="cmp-bar r2" style="width:89%">89</div></div></div>
+
+  <h3>6. 可操作性（权重 13%）<span class="tag tag-red">&#x26A0; 差距第二大维度</span></h3>
+  <table>
+    <tr><th>报告一</th><th>报告二</th></tr>
+    <tr><td>8 个防御类别，通用建议</td><td><strong>4 个时间框架 + 具体优先级表</strong></td></tr>
+    <tr><td>"升级至最新版本"</td><td><strong>"Arista VCO 升级至 5.2.3.14 / 6.1.3.4"</strong></td></tr>
+    <tr><td>"部署防钓鱼 MFA"</td><td><strong>具体封禁 IP 列表（含回溯搜索指令）</strong></td></tr>
+    <tr><td>无时限要求</td><td><strong>0-30d / 30-90d / 90-180d / 180d+</strong></td></tr>
+  </table>
+  <div class="cmp-row"><span class="cmp-label">报告一</span><div class="cmp-bar-wrap"><div class="cmp-bar r1" style="width:70%">70</div></div></div>
+  <div class="cmp-row"><span class="cmp-label">报告二</span><div class="cmp-bar-wrap"><div class="cmp-bar r2" style="width:94%">94</div></div></div>
+
+  <h3>7. 来源质量（权重 8%）</h3>
+  <table>
+    <tr><th>子项</th><th>报告一</th><th>报告二</th></tr>
+    <tr><td>来源数量</td><td><strong>20 个</strong></td><td>15 个</td></tr>
+    <tr><td>可信度标注</td><td><span class="tag tag-green">&#x2705; P0/P1/P1-P2 分级</span></td><td><span class="tag tag-red">&#x274C; 无分级</span></td></tr>
+    <tr><td>来源具体性</td><td>一般</td><td><strong>较具体</strong>（含报告名称）</td></tr>
+    <tr><td>来源多样性</td><td>含中国来源（FreeBuf, CSDN）</td><td>以英文权威来源为主</td></tr>
+  </table>
+  <div class="cmp-row"><span class="cmp-label">报告一</span><div class="cmp-bar-wrap"><div class="cmp-bar r1" style="width:74%">74</div></div></div>
+  <div class="cmp-row"><span class="cmp-label">报告二</span><div class="cmp-bar-wrap"><div class="cmp-bar r2" style="width:80%">80</div></div></div>
+
+  <h3>8. 独特见解（权重 7%）</h3>
+  <p><strong>报告一独有的高价值内容：</strong></p>
+  <ul>
+    <li>&#x1F525; <strong>JADEPUFFER 深度分析</strong>（31 秒攻击周期、1342 个数据库配置加密）——业界首个 AI 智能体勒索攻击详细记录</li>
+    <li>&#x1F525; <strong>后量子密码迁移建议</strong>（FIPS 203/204/205、QKD 部署）</li>
+    <li>&#x1F525; <strong>FortiBleed 详细机制</strong>（43 万台防火墙、1.1 亿凭证收割）</li>
+    <li>&#x1F525; <strong>Shai-Hulud 蠕虫生态系统</strong>（v3、Mini、ChainDrop 家族图谱）</li>
+  </ul>
+  <p><strong>报告二独有的高价值内容：</strong></p>
+  <ul>
+    <li>&#x1F525; <strong>"Living off the Edge" 概念</strong>——APT 优先攻击网络管理层面的趋势总结</li>
+    <li>&#x1F525; <strong>勒索软件"碎片化&#x2192;整合"悖论</strong>（团伙 85&#x2192;71，头部集中度 57%&#x2192;71.1%）</li>
+    <li>&#x1F525; <strong>安全设计失败范式转变</strong>——CISA 对 CVE-2026-16812 的判断</li>
+    <li>&#x1F525; <strong>The Gentlemen 崛起故事</strong>（$48,000 佣金纠纷 &#x2192; 独立建团 &#x2192; 315% 增长）</li>
+    <li>&#x1F525; <strong>Klue OAuth 级联链图</strong>（Klue &#x2192; Salesforce &#x2192; LastPass）</li>
+    <li>&#x1F525; <strong>凭证即武器概念</strong></li>
+  </ul>
+  <div class="cmp-row"><span class="cmp-label">报告一</span><div class="cmp-bar-wrap"><div class="cmp-bar r1" style="width:82%">82</div></div></div>
+  <div class="cmp-row"><span class="cmp-label">报告二</span><div class="cmp-bar-wrap"><div class="cmp-bar r2" style="width:86%">86</div></div></div>
+</div>
+
+<!-- Section 3: Scores -->
+<div class="card">
+  <h2>三、综合评分</h2>
+  <table>
+    <tr><th>维度</th><th>权重</th><th>报告一</th><th>报告二</th><th>差距</th></tr>
+    <tr><td>威胁情报数量</td><td>15%</td><td>72</td><td>92</td><td style="color:var(--red)">-20</td></tr>
+    <tr><td>准确度</td><td>18%</td><td>70</td><td>87</td><td style="color:var(--red)">-17</td></tr>
+    <tr><td>精细度</td><td>17%</td><td>65</td><td>91</td><td style="color:var(--red);font-weight:700">-26</td></tr>
+    <tr><td>结构组织</td><td>10%</td><td>70</td><td>90</td><td style="color:var(--red)">-20</td></tr>
+    <tr><td>覆盖广度</td><td>12%</td><td>75</td><td>89</td><td style="color:var(--red)">-14</td></tr>
+    <tr><td>可操作性</td><td>13%</td><td>70</td><td>94</td><td style="color:var(--red);font-weight:700">-24</td></tr>
+    <tr><td>来源质量</td><td>8%</td><td>74</td><td>80</td><td style="color:var(--red)">-6</td></tr>
+    <tr><td>独特见解</td><td>7%</td><td>82</td><td>86</td><td style="color:var(--red)">-4</td></tr>
+    <tr style="font-weight:700;background:#f8fafc"><td>加权总分</td><td>100%</td><td style="font-size:1.1rem">70.9</td><td style="font-size:1.1rem;color:var(--accent)">88.6</td><td style="color:var(--red)">-17.7</td></tr>
+  </table>
+
+  <h3>评分可视化</h3>
+  <div style="margin:1rem 0;font-family:monospace;background:#1e293b;color:#e2e8f0;padding:1.5rem;border-radius:8px">
+    <div style="margin-bottom:0.5rem">
+      <span style="background:#64748b;color:#fff;padding:2px 8px;border-radius:4px;margin-right:12px">报告一 70.9</span>
+      <span style="display:inline-block;background:#64748b;height:18px;width:355px;border-radius:4px"></span>
+    </div>
+    <div>
+      <span style="background:#2563eb;color:#fff;padding:2px 8px;border-radius:4px;margin-right:12px">报告二 88.6</span>
+      <span style="display:inline-block;background:#2563eb;height:18px;width:443px;border-radius:4px"></span>
+    </div>
+    <div style="margin-top:0.5rem;display:flex;justify-content:space-between;font-size:0.75rem;color:#94a3b8">
+      <span>0</span><span>20</span><span>40</span><span>60</span><span>80</span><span>100</span>
+    </div>
+  </div>
+
+  <div class="score-grid">
+    <div class="score-card">
+      <div class="score-num" style="color:#64748b">70.9</div>
+      <div class="score-label">报告一 加权总分</div>
+      <div style="margin-top:0.5rem"><span class="tag tag-amber">良好</span></div>
+    </div>
+    <div class="score-card r2-card">
+      <div class="score-num">88.6</div>
+      <div class="score-label">报告二 加权总分</div>
+      <div style="margin-top:0.5rem"><span class="tag tag-green">优秀</span></div>
+    </div>
+    <div class="score-card">
+      <div class="score-num" style="color:#dc2626">-17.7</div>
+      <div class="score-label">分差</div>
+      <div style="margin-top:0.5rem">报告二领先</div>
+    </div>
+  </div>
+</div>
+
+<!-- Section 4: Summary -->
+<div class="card">
+  <h2>四、总结评价</h2>
+  <div class="summary-grid">
+    <div style="border:1px solid var(--border);border-radius:8px;padding:1.25rem">
+      <h3 style="margin-top:0">报告一：《2026 年上半年全球威胁情报分析报告》</h3>
+      <p style="font-size:1.2rem;font-weight:700;color:#64748b">总分：71/100 — 良好</p>
+      <p><span class="pro">优势：</span></p>
+      <ul>
+        <li>JADEPUFFER 独家深度分析——全行业最有价值的 AI 攻击案例</li>
+        <li>后量子密码迁移建议具有前瞻性</li>
+        <li>来源可信度分级（P0-P2）增加透明度</li>
+        <li>FortiBleed、Shai-Hulud 生态分析视角独特</li>
+      </ul>
+      <p><span class="con">短板：</span></p>
+      <ul>
+        <li>数据矛盾（24 亿 vs 240 亿）</li>
+        <li>精细度不足——缺 IP、版本号表、时间线</li>
+        <li>防御建议停留在原则层面</li>
+        <li>无目录、缺少 APT 归因、OT/制造业等维度</li>
+      </ul>
+    </div>
+    <div style="border:2px solid #93c5fd;border-radius:8px;padding:1.25rem;background:#eff6ff">
+      <h3 style="margin-top:0">报告二：《threat-intelligence-2026-h1.md》（小龙虾）</h3>
+      <p style="font-size:1.2rem;font-weight:700;color:#2563eb">总分：89/100 — 优秀</p>
+      <p><span class="pro">优势：</span></p>
+      <ul>
+        <li>精细度行业级——攻击机制、C2 IP、修复版本表全覆盖</li>
+        <li>可操作性极高——四级时限 + 优先级表 + 具体 IP</li>
+        <li>覆盖全面——11 APT + 8 勒索团 + 29 漏洞 + 20+ 事件</li>
+        <li>概念化能力强——"Living off the Edge"、碎片化&#x2192;整合悖论</li>
+        <li>结构专业、数据一致</li>
+      </ul>
+      <p><span class="con">短板：</span></p>
+      <ul>
+        <li>缺少 JADEPUFFER 具体案例数据（31 秒攻击等）</li>
+        <li>缺少后量子密码内容</li>
+        <li>来源未标注可信度等级</li>
+        <li>篇幅较长（1086 行）</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="verdict">
+    <h3 style="margin-top:0">&#x1F3C6; 综合判断</h3>
+    <p>报告二在<strong>数量、精细度、可操作性</strong>三个核心维度上显著领先，是一份更专业、更完整的威胁情报产品。报告一在 <strong>AI 攻击实战案例</strong>（JADEPUFFER）、<strong>后量子密码</strong>等前沿话题上有独特价值。</p>
+    <p style="margin-top:0.75rem">两者具有很强的互补性——报告一是<strong>"深度专题型"</strong>，报告二是<strong>"广度全景型"</strong>。</p>
+    <p style="margin-top:0.75rem;padding:0.75rem;background:#fff;border-radius:6px">
+      <strong>&#x1F4A1; 最佳使用建议：</strong>将两份报告结合使用，报告二作为主体框架，报告一的内容作为 AI 威胁和后量子密码领域的补充深度阅读。
+    </p>
+  </div>
+</div>
+
+<div class="footer">
+  分析完成于 2026 年 8 月 5 日
+</div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FR-11 多类型设备专项检测能力升级报告</title>
+<style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Microsoft YaHei", sans-serif; line-height: 1.7; max-width: 1100px; margin: 0 auto; padding: 20px; background: #f0f2f5; color: #333; }
+    .container { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    .header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); color: white; padding: 30px 40px; border-radius: 8px 8px 0 0; margin: -40px -40px 30px -40px; }
+    .header h1 { color: white; border: none; margin: 0; font-size: 21pt; }
+    .meta { color: rgba(255,255,255,0.85); font-size: 13px; margin-top: 12px; line-height: 1.9; }
+    h1 { color: #1a1a2e; border-bottom: 3px solid #0f3460; padding-bottom: 10px; font-size: 17pt; margin-top: 38px; }
+    h2 { color: #16213e; border-bottom: 2px solid #0f3460; padding-bottom: 8px; margin-top: 30px; }
+    h3 { color: #16213e; margin-top: 24px; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 10pt; }
+    th, td { border: 1px solid #d0d5dd; padding: 8px 11px; text-align: left; vertical-align: top; }
+    th { background: #0f3460; color: white; font-weight: 600; }
+    tr:nth-child(even) { background: #f8f9fa; }
+    code { font-family: "Consolas","Monaco","Courier New",monospace; background: #f0f0f0; padding: 1px 5px; border-radius: 3px; font-size: 9pt; color: #c7254e; }
+    pre { background: #1e1e1e; color: #d4d4d4; padding: 15px; border-radius: 6px; overflow-x: auto; font-size: 9pt; line-height: 1.5; }
+    pre code { background: transparent; padding: 0; color: #d4d4d4; }
+    blockquote { border-left: 4px solid #0f3460; margin: 15px 0; padding: 10px 20px; background: #eef3fb; }
+    .badge { background: #e8f5e9; color: #2e7d32; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
+    footer { margin-top: 30px; padding: 15px; text-align: center; color: #999; border-top: 1px solid #ddd; font-size: 11px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+    <h1>FR-11 多类型设备专项检测能力升级报告</h1>
+    <div class="meta">
+        <strong>文档编号:</strong> VSS-FR11-2026-001 | <strong>日期:</strong> 2026-08-20<br>
+        <strong>项目:</strong> AI-VULN 下一代智能漏洞扫描系统 Pro<br>
+        <strong>依据:</strong> 《漏洞扫描系统需求规格说明书 v1.1》FR-11、《软件架构设计说明书 v1.0》、《研发需求差距分析与开发计划 v2.0》
+    </div>
+</div>
+
+<h1>一、概述</h1>
+<p>本次升级对照需求规格说明书 FR-11「多类型资产漏洞扫描」，补齐五类资产的专项检测能力，将系统检测覆盖从「通用 OS + 端口 + Web」扩展至设备级专项识别与风险发现。</p>
+<table>
+<tr><th>类别</th><th>分类代码</th><th>覆盖范围</th></tr>
+<tr><td>网络设备</td><td><code>NETWORK_DEVICE</code></td><td>各品牌路由器 / 交换机 / 负载均衡</td></tr>
+<tr><td>网络安全设备</td><td><code>SECURITY_DEVICE</code></td><td>各厂家防火墙 / IPS / WAF / UTM</td></tr>
+<tr><td>物联网设备</td><td><code>IOT</code></td><td>摄像头 / 打印机 / 智能家居</td></tr>
+<tr><td>工控设备</td><td><code>OT</code></td><td>PLC / SCADA / DCS / 工业协议</td></tr>
+<tr><td>国产化系统</td><td><code>DOMESTIC_OS</code></td><td>麒麟 / 统信 / 达梦 / 金仓 / 欧拉 等</td></tr>
+</table>
+
+<h1>二、涉及文件清单</h1>
+<table>
+<tr><th>文件</th><th>操作</th><th>说明</th></tr>
+<tr><td><code>device_fingerprint.py</code></td><td><span class="badge">新增</span></td><td>设备指纹识别引擎 + 签名库 + 风险规则库</td></tr>
+<tr><td><code>scanner_engine.py</code></td><td>修改</td><td><code>VulnScanner.scan_target</code> 接入 <code>_identify_devices</code></td></tr>
+<tr><td><code>tests/test_device_fingerprint.py</code></td><td><span class="badge">新增</span></td><td>35 项单元测试</td></tr>
+<tr><td><code>CLAUDE.md</code></td><td>修改</td><td>架构图 + 参考文档 + 模块影响映射</td></tr>
+<tr><td><code>漏洞扫描系统需求规格说明书v1.1.html</code></td><td>修改</td><td>补全参考文献 + 修复版本号</td></tr>
+</table>
+
+<h1>三、检测能力详情</h1>
+
+<h2>3.1 网络设备（FR-11-02）</h2>
+<table>
+<tr><th>厂商</th><th>识别特征</th></tr>
+<tr><td>Cisco</td><td><code>cisco ios</code> / <code>ios-xe</code> / <code>nx-os</code> / <code>asa</code> / 端口 4786 (Smart Install)</td></tr>
+<tr><td>Juniper</td><td><code>juniper</code> / <code>junos</code></td></tr>
+<tr><td>华为</td><td><code>huawei</code> / <code>vrp</code> / <code>usg</code> / 端口 10001</td></tr>
+<tr><td>H3C</td><td><code>h3c</code> / <code>comware</code></td></tr>
+<tr><td>F5</td><td><code>big-ip</code> / <code>f5 networks</code></td></tr>
+<tr><td>锐捷</td><td><code>ruijie</code></td></tr>
+<tr><td>中兴</td><td><code>zte</code> / <code>zxr10</code></td></tr>
+<tr><td>MikroTik</td><td><code>mikrotik</code> / <code>routeros</code></td></tr>
+<tr><td>TP-Link / D-Link / Netgear</td><td><code>tp-link</code> / <code>d-link</code> / <code>netgear</code></td></tr>
+<tr><td>Ubiquiti</td><td><code>ubiquiti</code> / <code>edgeos</code></td></tr>
+<tr><td>Aruba / Brocade</td><td><code>aruba</code> / <code>brocade</code></td></tr>
+</table>
+
+<h2>3.2 网络安全设备（FR-11-03）</h2>
+<table>
+<tr><th>厂商</th><th>识别特征</th></tr>
+<tr><td>Fortinet</td><td><code>fortigate</code> / <code>fortios</code> / <code>fortinet</code></td></tr>
+<tr><td>Palo Alto</td><td><code>palo alto</code> / <code>pan-os</code></td></tr>
+<tr><td>Check Point</td><td><code>check point</code> / <code>checkpoint</code></td></tr>
+<tr><td>SonicWall</td><td><code>sonicwall</code></td></tr>
+<tr><td>深信服</td><td><code>sangfor</code> / <code>深信服</code></td></tr>
+<tr><td>天融信</td><td><code>topsec</code> / <code>天融信</code></td></tr>
+<tr><td>山石网科</td><td><code>hillstone</code> / <code>山石</code></td></tr>
+<tr><td>绿盟科技</td><td><code>nsfocus</code> / <code>绿盟</code></td></tr>
+<tr><td>启明星辰</td><td><code>venustech</code> / <code>启明星辰</code></td></tr>
+<tr><td>奇安信</td><td><code>qianxin</code> / <code>奇安信</code></td></tr>
+<tr><td>赛门铁克</td><td><code>symantec</code> / <code>赛门铁克</code></td></tr>
+<tr><td>Sophos / WatchGuard / Barracuda / Imperva</td><td><code>sophos</code> / <code>watchguard</code> / <code>barracuda</code> / <code>imperva</code></td></tr>
+</table>
+
+<h2>3.3 物联网设备（FR-11-04）</h2>
+<table>
+<tr><th>类型</th><th>识别特征</th></tr>
+<tr><td>海康威视</td><td><code>hikvision</code> / <code>海康威视</code> / 端口 8000 / 9000</td></tr>
+<tr><td>大华</td><td><code>dahua</code> / <code>大华</code> / 端口 37777 / 34567</td></tr>
+<tr><td>宇视</td><td><code>uniview</code> / <code>宇视</code></td></tr>
+<tr><td>Axis</td><td><code>axis</code></td></tr>
+<tr><td>通用摄像头</td><td>端口 554 (RTSP)</td></tr>
+<tr><td>打印机</td><td>端口 9100 / 515 / 631；<code>jetdirect</code> / <code>canon</code> / <code>epson</code> 等</td></tr>
+<tr><td>智能家居</td><td><code>xiaomi</code> / <code>tuya</code> / <code>sonoff</code> / <code>broadlink</code></td></tr>
+</table>
+
+<h2>3.4 工控设备（FR-11-05）</h2>
+<table>
+<tr><th>类型</th><th>协议 / 端口</th><th>识别特征</th></tr>
+<tr><td>PLC</td><td>Modbus</td><td>端口 502</td></tr>
+<tr><td>PLC</td><td>西门子 S7comm</td><td>端口 102；<code>simatic</code> / <code>s7-</code></td></tr>
+<tr><td>PLC</td><td>EtherNet/IP</td><td>端口 44818；<code>rockwell</code> / <code>allen-bradley</code></td></tr>
+<tr><td>PLC</td><td>三菱 MELSEC / Omron / ABB</td><td><code>melsec</code> / <code>omron</code> / <code>abb</code></td></tr>
+<tr><td>SCADA</td><td>DNP3</td><td>端口 20000</td></tr>
+<tr><td>SCADA</td><td>IEC 61850 (MMS)</td><td><code>iec 61850</code> / <code>61850</code></td></tr>
+<tr><td>SCADA</td><td>IEC 60870-5-104</td><td>端口 2404</td></tr>
+<tr><td>DCS</td><td>Profibus / Foundation Fieldbus</td><td><code>profibus</code> / <code>foundation fieldbus</code></td></tr>
+<tr><td>DCS</td><td>OPC UA / PROFINET / BACnet</td><td>端口 4840 / 34962 / 47808</td></tr>
+<tr><td>其他</td><td>Schneider / Beckhoff / 研华 / Moxa</td><td><code>modicon</code> / <code>beckhoff</code> / <code>advantech</code> / <code>moxa</code></td></tr>
+</table>
+
+<h2>3.5 国产化系统（FR-11-06）</h2>
+<table>
+<tr><th>类型</th><th>名称</th><th>识别特征</th></tr>
+<tr><td>国产 OS</td><td>中标麒麟 / 银河麒麟</td><td><code>麒麟</code> / <code>kylin</code></td></tr>
+<tr><td>国产 OS</td><td>统信 UOS / 深度</td><td><code>统信</code> / <code>uos</code> / <code>deepin</code></td></tr>
+<tr><td>国产 OS</td><td>欧拉 openEuler</td><td><code>euler</code> / <code>openeuler</code> / <code>欧拉</code></td></tr>
+<tr><td>国产 OS</td><td>龙蜥 Anolis</td><td><code>anolis</code> / <code>龙蜥</code></td></tr>
+<tr><td>国产 OS</td><td>凝思 Linx</td><td><code>凝思</code> / <code>linx</code></td></tr>
+<tr><td>国产 OS</td><td>红旗 RedFlag</td><td><code>红旗</code> / <code>redflag</code></td></tr>
+<tr><td>国产 OS</td><td>中兴新支点 NewStart</td><td><code>中兴新支点</code> / <code>newstart</code></td></tr>
+<tr><td>国产 DB</td><td>达梦 DM</td><td>端口 5236；<code>达梦</code> / <code>dm8</code></td></tr>
+<tr><td>国产 DB</td><td>人大金仓 KingbaseES</td><td>端口 54321；<code>kingbase</code> / <code>人大金仓</code></td></tr>
+<tr><td>国产 DB</td><td>神通 OSCAR</td><td><code>神通</code> / <code>oscar</code></td></tr>
+<tr><td>国产 DB</td><td>南大通用 GBase</td><td><code>南大通用</code> / <code>gbase</code></td></tr>
+</table>
+
+<h1>四、检测手段</h1>
+<p>采用三重检测手段（由强到弱，保守原则，降低误报）：</p>
+<ol>
+<li><strong>端口签名</strong> —— 工业协议 / 私有 SDK 端口等强特征端口（约 28 项），仅收录协议特异性强、误报率低的端口；SNMP/SSH/Telnet 等通用端口不单独判定设备。</li>
+<li><strong>横幅关键字</strong> —— 匹配 nmap <code>-sV</code> 返回的 <code>product</code> / <code>version</code> / <code>service</code> 字段（约 60 项厂商/协议关键字）。</li>
+<li><strong>Web 管理界面指纹</strong> —— 设备管理页 title / body / Server 头（约 17 项，可选实时探测增强）。</li>
+</ol>
+<p>置信度分级：<code>high</code> / <code>medium</code> / <code>low</code>，多信号聚合时取最高置信度。</p>
+
+<h1>五、设备专项风险规则</h1>
+
+<h2>5.1 端口暴露风险（13 项）</h2>
+<table>
+<tr><th>端口</th><th>风险</th><th>严重度</th></tr>
+<tr><td>502</td><td>Modbus TCP 未授权读写</td><td>HIGH</td></tr>
+<tr><td>102</td><td>西门子 S7comm PLC 暴露</td><td>HIGH</td></tr>
+<tr><td>44818</td><td>EtherNet/IP 工业协议暴露</td><td>HIGH</td></tr>
+<tr><td>20000</td><td>DNP3 SCADA 协议暴露</td><td>HIGH</td></tr>
+<tr><td>2404</td><td>IEC 104 电力远动协议暴露</td><td>HIGH</td></tr>
+<tr><td>4786</td><td>Cisco Smart Install 未授权访问</td><td>HIGH</td></tr>
+<tr><td>5236</td><td>达梦数据库端口暴露</td><td>HIGH</td></tr>
+<tr><td>47808</td><td>BACnet/IP 楼宇自控暴露</td><td>MEDIUM</td></tr>
+<tr><td>4840</td><td>OPC UA 工业协议暴露</td><td>MEDIUM</td></tr>
+<tr><td>554</td><td>RTSP 视频流暴露</td><td>MEDIUM</td></tr>
+<tr><td>9100</td><td>打印机 raw 端口暴露</td><td>MEDIUM</td></tr>
+<tr><td>515 / 631</td><td>打印机 LPR / IPP 暴露</td><td>LOW</td></tr>
+</table>
+
+<h2>5.2 厂商默认口令提示（8 项）</h2>
+<p>海康威视 / 大华 / Cisco / 华为 / Siemens / TP-Link / D-Link / Netgear —— 仅作「需核验」提示（不直接判漏洞，避免误报），真实爆破交由既有 <code>weak_password_scanner.py</code>。</p>
+
+<h1>六、集成方式</h1>
+<p><code>VulnScanner.scan_target</code> 在 CVE 匹配之后调用 <code>_identify_devices</code>：</p>
+<pre><code>网络扫描 → CVE 匹配 → 设备识别 + 设备专项风险 → 合并结果</code></pre>
+<ul>
+<li>设备分类回写至 <code>scan_result.hosts[*].device</code>，并在结果顶层输出 <code>devices</code> 列表。</li>
+<li>设备专项风险发现与漏洞列表结构对齐，直接进入 GUI 结果表与 <code>scan_results</code> 库。</li>
+<li>扫描热路径仅跑纯数据识别（零额外网络 IO），Web 界面探测为可选增强。</li>
+</ul>
+
+<h1>七、测试覆盖</h1>
+<ul>
+<li><code>tests/test_device_fingerprint.py</code> —— 35 项测试，覆盖五类设备的端口签名 / 横幅识别 / 置信度聚合 / 风险规则 / 批量回写 / 签名库一致性。</li>
+<li>全量回归：<code>python -m pytest tests/ -q</code> → <strong>231 passed</strong>（无回归）。</li>
+</ul>
+
+<h1>八、需求规格说明书完善</h1>
+<ul>
+<li><strong>参考文献（1.4）补全</strong>：由空表补全为标准参考表（NVD / CVE / CVSS v3.1 / GB/T 22239-2019 / OWASP Top 10 / 软件架构设计说明书 V1.0）。</li>
+<li><strong>版本号统一</strong>：页眉 <code>V1.0</code> → <code>V1.1</code>，与文件名、页脚一致。</li>
+</ul>
+
+<h1>九、后续建议</h1>
+<ol>
+<li>国产 OS 精确识别：麒麟/统信等 OS 难以通过 <code>-sV</code> banner 直接区分，建议接 nmap <code>-O</code> OS 指纹并解析 <code>osmatch</code>。</li>
+<li>设备识别结果回填资产 <code>type</code> 字段（<code>NETWORK_DEVICE</code> / <code>SECURITY_DEVICE</code> / <code>IOT_DEVICE</code> 等），与资产类型下拉对齐。</li>
+<li>新增 <code>/api/v1/devices</code> 端点，暴露设备识别与专项发现结果。</li>
+<li>工控离线扫描模式与扫描时间窗口（FR-11-05 安全约束）作为调度层能力后续实现。</li>
+</ol>
+
+<footer>
+<p><strong>文档结束</strong></p>
+<p>© 2026 山西有信网安科技有限公司</p>
+</footer>
+
+</div>
+</body>
+</html>

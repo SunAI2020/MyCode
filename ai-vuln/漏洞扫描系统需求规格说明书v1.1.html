@@ -1,0 +1,2254 @@
+<!DOCTYPE html>
+<!-- saved from url=(0222)file:///C:/Users/sun/AppData/Local/Temp/MicrosoftEdgeDownloads/84ea6203-3994-4572-a0af-6e2954778d97/%E6%BC%8F%E6%B4%9E%E6%89%AB%E6%8F%8F%E7%B3%BB%E7%BB%9F%E9%9C%80%E6%B1%82%E8%A7%84%E6%A0%BC%E8%AF%B4%E6%98%8E%E4%B9%A6.html -->
+<html lang="zh-CN"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>漏洞扫描系统需求规格说明书</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 10px; }
+        h2 { color: #34495e; border-bottom: 2px solid #3498db; padding-bottom: 8px; margin-top: 40px; }
+        h3 { color: #34495e; margin-top: 30px; }
+        h4 { color: #34495e; }
+        h5, h6 { color: #34495e; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background: #3498db;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+        tr:hover {
+            background: #f1f1f1;
+        }
+        pre {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        code {
+            font-family: "Consolas", "Monaco", monospace;
+        }
+        blockquote {
+            border-left: 4px solid #3498db;
+            margin: 20px 0;
+            padding: 10px 20px;
+            background: #f9f9f9;
+            color: #666;
+        }
+        a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .toc {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .toc ul {
+            list-style: none;
+            padding-left: 20px;
+        }
+        .toc > ul {
+            padding-left: 0;
+        }
+        hr {
+            border: none;
+            border-top: 2px solid #ddd;
+            margin: 40px 0;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 8px 8px 0 0;
+            margin: -40px -40px 30px -40px;
+        }
+        .header h1 {
+            color: white;
+            border: none;
+            margin: 0;
+        }
+        .meta {
+            color: rgba(255,255,255,0.8);
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        @media print {
+            body {
+                background: white;
+            }
+            .container {
+                box-shadow: none;
+                padding: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🛡️ 漏洞扫描系统需求规格说明书</h1>
+            <div class="meta">
+                <p><strong>文档编号:</strong> VSS-SRS-2026-001 | <strong>版本:</strong> V1.1 | <strong>日期:</strong> 2026 年 3 月 21 日</p>
+            </div>
+        </div>
+        <h1>漏洞扫描系统软件开发需求规格说明书</h1>
+
+<h2>Software Requirements Specification (SRS)</h2>
+
+<h3>Next-Generation Vulnerability Scanning System</h3>
+
+<hr>
+
+<strong>文档编号</strong>: VSS-SRS-2026-001  
+<strong>版本号</strong>: V1.1  
+<strong>密级</strong>: 内部机密  
+<strong>编制日期</strong>: 2026 年 3 月 21 日  
+
+<hr>
+
+<table><tbody><tr><th>版本</th><th>作者</th><th>审核状态</th></tr><tr><td>V1.0</td><td>网络安全专家团队</td><td>待审核</td></tr><tr><td>V1.1</td><td>网络安全专家团队</td><td>待审核</td></tr></tbody></table>
+
+<hr>
+
+<h1>目录</h1>
+
+1. <a href="file:///C:/Users/sun/AppData/Local/Temp/MicrosoftEdgeDownloads/84ea6203-3994-4572-a0af-6e2954778d97/%E6%BC%8F%E6%B4%9E%E6%89%AB%E6%8F%8F%E7%B3%BB%E7%BB%9F%E9%9C%80%E6%B1%82%E8%A7%84%E6%A0%BC%E8%AF%B4%E6%98%8E%E4%B9%A6.html#1-%E5%BC%95%E8%A8%80">引言</a>
+2. <a href="file:///C:/Users/sun/AppData/Local/Temp/MicrosoftEdgeDownloads/84ea6203-3994-4572-a0af-6e2954778d97/%E6%BC%8F%E6%B4%9E%E6%89%AB%E6%8F%8F%E7%B3%BB%E7%BB%9F%E9%9C%80%E6%B1%82%E8%A7%84%E6%A0%BC%E8%AF%B4%E6%98%8E%E4%B9%A6.html#2-%E7%B3%BB%E7%BB%9F%E6%A6%82%E8%BF%B0">系统概述</a>
+3. <a href="file:///C:/Users/sun/AppData/Local/Temp/MicrosoftEdgeDownloads/84ea6203-3994-4572-a0af-6e2954778d97/%E6%BC%8F%E6%B4%9E%E6%89%AB%E6%8F%8F%E7%B3%BB%E7%BB%9F%E9%9C%80%E6%B1%82%E8%A7%84%E6%A0%BC%E8%AF%B4%E6%98%8E%E4%B9%A6.html#3-%E5%8A%9F%E8%83%BD%E9%9C%80%E6%B1%82">功能需求</a>
+4. <a href="file:///C:/Users/sun/AppData/Local/Temp/MicrosoftEdgeDownloads/84ea6203-3994-4572-a0af-6e2954778d97/%E6%BC%8F%E6%B4%9E%E6%89%AB%E6%8F%8F%E7%B3%BB%E7%BB%9F%E9%9C%80%E6%B1%82%E8%A7%84%E6%A0%BC%E8%AF%B4%E6%98%8E%E4%B9%A6.html#4-%E9%9D%9E%E5%8A%9F%E8%83%BD%E9%9C%80%E6%B1%82">非功能需求</a>
+5. <a href="file:///C:/Users/sun/AppData/Local/Temp/MicrosoftEdgeDownloads/84ea6203-3994-4572-a0af-6e2954778d97/%E6%BC%8F%E6%B4%9E%E6%89%AB%E6%8F%8F%E7%B3%BB%E7%BB%9F%E9%9C%80%E6%B1%82%E8%A7%84%E6%A0%BC%E8%AF%B4%E6%98%8E%E4%B9%A6.html#5-%E5%A4%96%E9%83%A8%E6%8E%A5%E5%8F%A3">外部接口</a>
+6. <a href="file:///C:/Users/sun/AppData/Local/Temp/MicrosoftEdgeDownloads/84ea6203-3994-4572-a0af-6e2954778d97/%E6%BC%8F%E6%B4%9E%E6%89%AB%E6%8F%8F%E7%B3%BB%E7%BB%9F%E9%9C%80%E6%B1%82%E8%A7%84%E6%A0%BC%E8%AF%B4%E6%98%8E%E4%B9%A6.html#6-%E6%95%B0%E6%8D%AE%E9%9C%80%E6%B1%82">数据需求</a>
+7. <a href="file:///C:/Users/sun/AppData/Local/Temp/MicrosoftEdgeDownloads/84ea6203-3994-4572-a0af-6e2954778d97/%E6%BC%8F%E6%B4%9E%E6%89%AB%E6%8F%8F%E7%B3%BB%E7%BB%9F%E9%9C%80%E6%B1%82%E8%A7%84%E6%A0%BC%E8%AF%B4%E6%98%8E%E4%B9%A6.html#7-%E7%BA%A6%E6%9D%9F%E6%9D%A1%E4%BB%B6">约束条件</a>
+8. <a href="file:///C:/Users/sun/AppData/Local/Temp/MicrosoftEdgeDownloads/84ea6203-3994-4572-a0af-6e2954778d97/%E6%BC%8F%E6%B4%9E%E6%89%AB%E6%8F%8F%E7%B3%BB%E7%BB%9F%E9%9C%80%E6%B1%82%E8%A7%84%E6%A0%BC%E8%AF%B4%E6%98%8E%E4%B9%A6.html#8-%E7%94%A8%E6%88%B7%E7%95%8C%E9%9D%A2">用户界面</a>
+9. <a href="file:///C:/Users/sun/AppData/Local/Temp/MicrosoftEdgeDownloads/84ea6203-3994-4572-a0af-6e2954778d97/%E6%BC%8F%E6%B4%9E%E6%89%AB%E6%8F%8F%E7%B3%BB%E7%BB%9F%E9%9C%80%E6%B1%82%E8%A7%84%E6%A0%BC%E8%AF%B4%E6%98%8E%E4%B9%A6.html#9-%E8%B4%A8%E9%87%8F%E5%B1%9E%E6%80%A7">质量属性</a>
+10. <a href="file:///C:/Users/sun/AppData/Local/Temp/MicrosoftEdgeDownloads/84ea6203-3994-4572-a0af-6e2954778d97/%E6%BC%8F%E6%B4%9E%E6%89%AB%E6%8F%8F%E7%B3%BB%E7%BB%9F%E9%9C%80%E6%B1%82%E8%A7%84%E6%A0%BC%E8%AF%B4%E6%98%8E%E4%B9%A6.html#10-%E9%99%84%E5%BD%95">附录</a>
+
+<hr>
+
+<h1>1. 引言</h1>
+
+<h2>1.1 目的</h2>
+
+本文档旨在定义下一代漏洞扫描系统（Vulnerability Scanning System，简称 VSS）的完整软件需求规格，为系统设计、开发、测试和验收提供明确的依据和标准。
+
+本文档的读者包括：
+<li>项目管理人员</li>
+<li>系统架构师</li>
+<li>软件开发工程师</li>
+<li>测试工程师</li>
+<li>质量保证人员</li>
+<li>运维工程师</li>
+<li>最终用户代表</li>
+
+<h2>1.2 范围</h2>
+
+本系统是一款基于国际前沿安全理念设计的业界领先漏洞扫描系统，主要功能包括：
+
+<li><strong>资产发现与管理</strong>: 自动发现和管理网络资产</li>
+<li><strong>漏洞检测</strong>: 多维度漏洞扫描和检测</li>
+<li><strong>风险评估</strong>: 智能化风险评分和优先级排序</li>
+<li><strong>修复建议</strong>: 自动生成可执行的修复方案</li>
+<li><strong>报告生成</strong>: 多维度安全报告</li>
+<li><strong>工作流集成</strong>: 与第三方系统深度集成</li>
+
+<h3>系统边界</h3>
+
+<pre><code class="language-">┌─────────────────────────────────────────────────────────────────┐
+│                        漏洞扫描系统 (VSS)                        │
+│  ┌───────────┐  ┌───────────┐  ┌───────────┐  ┌───────────┐   │
+│  │ 资产管理  │  │ 漏洞扫描  │  │ 风险分析  │  │ 报告中心  │   │
+│  └───────────┘  └───────────┘  └───────────┘  └───────────┘   │
+│  ┌───────────┐  ┌───────────┐  ┌───────────┐  ┌───────────┐   │
+│  │ 插件引擎  │  │ AI 分析   │  │ 工作流    │  │ API 网关   │   │
+│  └───────────┘  └───────────┘  └───────────┘  └───────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+         ┌────────────────────┼────────────────────┐
+         ▼                    ▼                    ▼
+   ┌──────────┐        ┌──────────┐        ┌──────────┐
+   │ 目标资产  │        │ 第三方系统 │        │ 用户终端  │
+   └──────────┘        └──────────┘        └──────────┘
+</code></pre>
+
+<h2>1.3 定义、首字母缩写词和缩略语</h2>
+
+<table><tbody><tr><th>术语/缩写</th><th>定义</th></tr><tr><td>VSS</td><td>漏洞扫描系统</td></tr><tr><td>CVE</td><td>通用漏洞披露</td></tr><tr><td>CVSS</td><td>通用漏洞评分系统</td></tr><tr><td>OWASP</td><td>开放式 Web 应用程序安全项目</td></tr><tr><td>SAST</td><td>静态应用安全测试</td></tr><tr><td>DAST</td><td>动态应用安全测试</td></tr><tr><td>SCA</td><td>软件成分分析</td></tr><tr><td>SBOM</td><td>软件物料清单</td></tr><tr><td>BAS</td><td>漏洞攻击模拟</td></tr><tr><td>API</td><td>应用程序编程接口</td></tr><tr><td>RBAC</td><td>基于角色的访问控制</td></tr><tr><td>MFA</td><td>多因素认证</td></tr><tr><td>SLA</td><td>服务级别协议</td></tr><tr><td>UI</td><td>用户界面</td></tr><tr><td>UX</td><td>用户体验</td></tr></tbody></table>
+
+<h2>1.4 参考文献</h2>
+
+<table><tbody><tr><th>编号</th><th>标准 / 文档名称</th><th>版本 / 年份</th></tr>
+<tr><td>[1]</td><td>NIST NVD (National Vulnerability Database) 漏洞库</td><td>2026</td></tr>
+<tr><td>[2]</td><td>CVE (Common Vulnerabilities and Exposures) 通用漏洞披露</td><td>1998</td></tr>
+<tr><td>[3]</td><td>CVSS (Common Vulnerability Scoring System) 通用漏洞评分系统</td><td>v3.1 (2019)</td></tr>
+<tr><td>[4]</td><td>GB/T 22239-2019 信息安全技术 网络安全等级保护基本要求</td><td>GB/T 22239-2019</td></tr>
+<tr><td>[5]</td><td>OWASP Top 10 应用安全风险</td><td>2021</td></tr>
+<tr><td>[6]</td><td>《漏洞扫描系统软件架构设计说明书》</td><td>V1.0</td></tr>
+</tbody></table>
+
+<h2>1.5 文档概述</h2>
+
+本文档共分为 10 个章节：
+
+<li><strong>第 1 章 引言</strong>: 说明文档目的、范围、术语定义</li>
+<li><strong>第 2 章 系统概述</strong>: 描述系统背景、目标和主要功能</li>
+<li><strong>第 3 章 功能需求</strong>: 详细列出所有功能需求</li>
+<li><strong>第 4 章 非功能需求</strong>: 说明性能、安全、可靠性等要求</li>
+<li><strong>第 5 章 外部接口</strong>: 描述与外部系统的接口</li>
+<li><strong>第 6 章 数据需求</strong>: 定义数据类型、结构和存储</li>
+<li><strong>第 7 章 约束条件</strong>: 列出设计和实现的限制</li>
+<li><strong>第 8 章 用户界面</strong>: 提供 UI 原型和描述</li>
+<li><strong>第 9 章 质量属性</strong>: 明确质量标准和评估方法</li>
+<li><strong>第 10 章 附录</strong>: 补充材料</li>
+
+<hr>
+
+<h1>2. 系统概述</h1>
+
+<h2>2.1 系统背景</h2>
+
+<h3>2.1.1 行业现状</h3>
+
+当前网络安全形势日益严峻，根据权威统计：
+
+<li>2025 年全球披露的漏洞数量超过 25,000 个</li>
+<li>平均漏洞修复周期长达 100+ 天</li>
+<li>传统扫描器误报率高达 15-30%</li>
+<li>60% 的数据泄露源于已知未修复漏洞</li>
+
+<h3>2.1.2 现有系统局限性</h3>
+
+<table><tbody><tr><th>问题领域</th><th>痛点</th></tr><tr><td>检测精度</td><td>误报率高，人工复核成本大</td></tr><tr><td>扫描速度</td><td>耗时长，影响业务</td></tr><tr><td>修复支持</td><td>缺乏可执行方案</td></tr><tr><td>集成能力</td><td>难以融入 DevSecOps</td></tr><tr><td>智能化</td><td>无法适应新型攻击</td></tr></tbody></table>
+
+<h3>2.1.3 建设必要性</h3>
+
+基于国际前沿理念，设计新一代漏洞扫描系统，实现：
+
+<li><strong>精准检测</strong>: AI 辅助，误报率&lt;5%</li>
+<li><strong>快速扫描</strong>: 增量扫描，分钟级完成</li>
+<li><strong>闭环管理</strong>: 发现→修复→验证全流程</li>
+<li><strong>智能运营</strong>: 自动化、智能化、可视化</li>
+
+<h2>2.2 系统目标</h2>
+
+<h3>2.2.1 总体目标</h3>
+
+构建一款业界领先的漏洞扫描系统，实现从"漏洞发现"到"风险降低"的转变。
+
+<h3>2.2.2 具体目标</h3>
+
+<table><tbody><tr><th>目标类别</th><th>目标值</th></tr><tr><td>检测能力</td><td>≥ 95%</td></tr><tr><td>检测精度</td><td>&lt; 5%</td></tr><tr><td>检测精度</td><td>&lt; 3%</td></tr><tr><td>扫描性能</td><td>≥ 10,000 端口/分钟</td></tr><tr><td>扫描性能</td><td>≤ 30 分钟</td></tr><tr><td>修复效率</td><td>≤ 72 小时</td></tr><tr><td>系统可用性</td><td>≥ 99.9%</td></tr><tr><td>用户满意度</td><td>≥ 50</td></tr></tbody></table>
+
+<h2>2.3 用户特征</h2>
+
+<h3>2.3.1 用户角色</h3>
+
+<table><tbody><tr><th>角色</th><th>技能要求</th></tr><tr><td>安全管理员</td><td>网络安全专业，3 年 + 经验</td></tr><tr><td>安全分析师</td><td>安全分析能力，2 年 + 经验</td></tr><tr><td>运维工程师</td><td>系统运维能力</td></tr><tr><td>开发人员</td><td>编程能力</td></tr><tr><td>管理层</td><td>管理能力</td></tr><tr><td>审计人员</td><td>审计资质</td></tr></tbody></table>
+
+<h3>2.3.2 用户规模</h3>
+
+<table><tbody><tr><th>部署规模</th><th>资产数</th></tr><tr><td>小型</td><td>≤ 500</td></tr><tr><td>中型</td><td>500-5,000</td></tr><tr><td>大型</td><td>5,000-50,000</td></tr><tr><td>超大型</td><td>&gt; 50,000</td></tr></tbody></table>
+
+<h2>2.4 假设和依赖</h2>
+
+<h3>2.4.1 假设</h3>
+
+1. 目标网络可达且允许扫描
+2. 用户具有合法授权进行安全测试
+3. 系统运行环境满足最低配置要求
+4. 第三方服务（如漏洞情报源）可用
+
+<h3>2.4.2 依赖</h3>
+
+<table><tbody><tr><th>依赖项</th><th>说明</th></tr><tr><td>Kubernetes</td><td>容器编排平台</td></tr><tr><td>PostgreSQL</td><td>主数据存储</td></tr><tr><td>Redis</td><td>会话和临时数据</td></tr><tr><td>Elasticsearch</td><td>日志和检索</td></tr><tr><td>漏洞情报源</td><td>NVD/CNVD 等</td></tr></tbody></table>
+
+<h2>2.5 主要功能概述</h2>
+
+<pre><code class="language-">┌────────────────────────────────────────────────────────────┐
+│                      漏洞扫描系统                           │
+├────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐                                           │
+│  │  资产管理   │── 资产发现、分类、标签、生命周期管理       │
+│  └─────────────┘                                           │
+│  ┌─────────────┐                                           │
+│  │  漏洞扫描   │── 策略管理、任务调度、插件执行、结果收集   │
+│  └─────────────┘                                           │
+│  ┌─────────────┐                                           │
+│  │  风险分析   │── AI 辅助验证、风险评分、优先级排序        │
+│  └─────────────┘                                           │
+│  ┌─────────────┐                                           │
+│  │  修复管理   │── 修复建议、工单集成、复测验证            │
+│  └─────────────┘                                           │
+│  ┌─────────────┐                                           │
+│  │  报告中心   │── 多模板报告、可视化、合规报告            │
+│  └─────────────┘                                           │
+│  ┌─────────────┐                                           │
+│  │  系统集成   │── API、Webhook、第三方对接                │
+│  └─────────────┘                                           │
+└────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<hr>
+
+<h1>3. 功能需求</h1>
+
+<h2>3.1 功能需求总览</h2>
+
+<table><tbody><tr><th>模块编号</th><th>优先级</th></tr><tr><td>FR-01</td><td>P0</td></tr><tr><td>FR-02</td><td>P0</td></tr><tr><td>FR-03</td><td>P0</td></tr><tr><td>FR-04</td><td>P0</td></tr><tr><td>FR-05</td><td>P1</td></tr><tr><td>FR-06</td><td>P1</td></tr><tr><td>FR-07</td><td>P1</td></tr><tr><td>FR-08</td><td>P0</td></tr><tr><td>FR-09</td><td>P1</td></tr><tr><td>FR-10</td><td>P2</td></tr></tbody></table>
+
+<h2>3.2 资产管理 (FR-01)</h2>
+
+<h3>3.2.1 资产发现 (FR-01-01)</h3>
+
+<strong>功能描述</strong>: 自动发现网络中的资产，包括主机、服务、应用等。
+
+<strong>输入</strong>:
+<li>网段范围 (CIDR 格式)</li>
+<li>发现方式 (ICMP/ARP/端口扫描)</li>
+<li>发现深度 (快速/标准/深度)</li>
+
+<strong>处理逻辑</strong>:
+<pre><code class="language-">1. 解析输入的网段范围
+2. 根据发现方式执行探测
+   - ICMP: 发送 Ping 请求
+   - ARP: 发送 ARP 请求 (局域网)
+   - 端口扫描: 探测常见端口
+3. 收集响应信息
+   - IP 地址、MAC 地址
+   - 开放端口、运行服务
+   - 操作系统指纹
+4. 去重并生成资产列表
+5. 存储到资产数据库
+</code></pre>
+
+<strong>输出</strong>:
+<li>资产列表 (JSON 格式)</li>
+<li>发现统计报告</li>
+
+<strong>用例</strong>:
+<pre><code class="language-">前置条件: 用户具有资产管理权限
+主流程:
+  1. 用户进入资产发现页面
+  2. 输入网段范围 192.168.1.0/24
+  3. 选择发现方式：标准
+  4. 点击"开始发现"
+  5. 系统执行发现任务
+  6. 显示发现结果
+后置条件: 新资产已录入系统
+</code></pre>
+
+<h3>3.2.2 资产录入 (FR-01-02)</h3>
+
+<strong>功能描述</strong>: 支持手动录入和批量导入资产。
+
+<strong>输入</strong>:
+<li>资产信息 (IP、名称、类型、负责人等)</li>
+<li>导入文件 (CSV/Excel 格式)</li>
+
+<strong>处理逻辑</strong>:
+<pre><code class="language-">1. 验证输入数据格式
+2. 检查资产唯一性 (IP/MAC)
+3. 如已存在，提示更新或跳过
+4. 如不存在，创建新资产记录
+5. 触发资产基线扫描
+</code></pre>
+
+<strong>输出</strong>:
+<li>录入结果 (成功/失败)</li>
+<li>导入统计报告</li>
+
+<h3>3.2.3 资产分类 (FR-01-03)</h3>
+
+<strong>功能描述</strong>: 对资产进行分类和标签管理。
+
+<strong>输入</strong>:
+<li>资产 ID 列表</li>
+<li>分类/标签信息</li>
+
+<strong>处理逻辑</strong>:
+<pre><code class="language-">1. 验证分类/标签有效性
+2. 批量更新资产属性
+3. 记录操作日志
+4. 触发相关策略匹配
+</code></pre>
+
+<strong>输出</strong>:
+<li>更新结果</li>
+<li>资产分类视图</li>
+
+<h3>3.2.4 资产生命周期 (FR-01-04)</h3>
+
+<strong>功能描述</strong>: 管理资产的全生命周期状态。
+
+<strong>状态流转</strong>:
+<pre><code class="language-">发现 → 待确认 → 已确认 → 运行中 → 维护中 → 已下线
+         ↑          ↓
+         └──────────┘
+</code></pre>
+
+<strong>输入</strong>:
+<li>资产 ID</li>
+<li>状态变更请求</li>
+
+<strong>处理逻辑</strong>:
+<pre><code class="language-">1. 验证状态变更合法性
+2. 更新资产状态
+3. 如变更为"已下线"，归档相关数据
+4. 通知相关人员
+</code></pre>
+
+<strong>输出</strong>:
+<li>状态变更结果</li>
+<li>生命周期历史记录</li>
+
+<h2>3.3 扫描策略 (FR-02)</h2>
+
+<h3>3.3.1 策略创建 (FR-02-01)</h3>
+
+<strong>功能描述</strong>: 创建自定义扫描策略。
+
+<strong>输入</strong>:
+<li>策略名称</li>
+<li>策略描述</li>
+<li>扫描插件选择</li>
+<li>扫描参数配置</li>
+<li>扫描强度 (低/中/高)</li>
+
+<strong>处理逻辑</strong>:
+<pre><code class="language-">1. 验证策略名称唯一性
+2. 验证插件兼容性
+3. 保存策略配置
+4. 生成策略版本
+5. 记录创建日志
+</code></pre>
+
+<strong>输出</strong>:
+<li>策略 ID</li>
+<li>策略配置详情</li>
+
+<h3>3.3.2 策略模板 (FR-02-02)</h3>
+
+<strong>功能描述</strong>: 提供预定义的扫描策略模板。
+
+<strong>内置模板</strong>:
+
+<table><tbody><tr><th>模板名称</th><th>扫描插件</th></tr><tr><td>快速扫描</td><td>高危漏洞、弱口令</td></tr><tr><td>标准扫描</td><td>全量漏洞检测</td></tr><tr><td>深度扫描</td><td>全量+fuzzing</td></tr><tr><td>等保合规</td><td>等保要求检测项</td></tr><tr><td>PCI-DSS</td><td>PCI-DSS 检测项</td></tr><tr><td>Web 专项</td><td>OWASP Top 10</td></tr></tbody></table>
+
+<strong>输入</strong>:
+<li>模板选择</li>
+<li>自定义参数 (可选)</li>
+
+<strong>处理逻辑</strong>:
+<pre><code class="language-">1. 加载模板配置
+2. 应用用户自定义参数
+3. 生成可执行策略
+</code></pre>
+
+<strong>输出</strong>:
+<li>策略配置</li>
+
+<h3>3.3.3 策略版本管理 (FR-02-03)</h3>
+
+<strong>功能描述</strong>: 管理策略的版本和变更历史。
+
+<strong>输入</strong>:
+<li>策略 ID</li>
+<li>操作类型 (查看/回滚/对比)</li>
+
+<strong>处理逻辑</strong>:
+<pre><code class="language-">1. 查询策略版本历史
+2. 根据操作类型执行
+   - 查看：显示版本详情
+   - 回滚：恢复指定版本
+   - 对比：显示版本差异
+3. 记录操作日志
+</code></pre>
+
+<strong>输出</strong>:
+<li>版本历史列表</li>
+<li>版本详情/对比结果</li>
+
+<h2>3.4 扫描任务 (FR-03)</h2>
+
+<h3>3.4.1 任务创建 (FR-03-01)</h3>
+
+<strong>功能描述</strong>: 创建扫描任务。
+
+<strong>输入</strong>:
+<li>任务名称</li>
+<li>目标资产 (单个/组/网段)</li>
+<li>扫描策略</li>
+<li>执行时间 (立即/定时)</li>
+<li>通知设置</li>
+
+<strong>处理逻辑</strong>:
+<pre><code class="language-">1. 验证输入完整性
+2. 验证目标资产可达性
+3. 验证扫描策略有效性
+4. 创建任务记录
+5. 如为定时任务，加入调度队列
+6. 如为立即任务，加入执行队列
+</code></pre>
+
+<strong>输出</strong>:
+<li>任务 ID</li>
+<li>任务状态</li>
+
+<h3>3.4.2 任务调度 (FR-03-02)</h3>
+
+<strong>功能描述</strong>: 管理和调度扫描任务执行。
+
+<strong>处理逻辑</strong>:
+<pre><code class="language-">1. 从调度队列获取待执行任务
+2. 检查系统资源 (CPU/内存/并发)
+3. 检查目标资产状态
+4. 分配扫描节点
+5. 下发任务到扫描节点
+6. 监控任务执行状态
+7. 处理任务异常 (超时/失败)
+</code></pre>
+
+<strong>调度算法</strong>:
+<pre><code class="language-">优先级 = 基础优先级 + 时间因子 + 资产重要性因子
+
+基础优先级:
+<li>紧急任务: 100</li>
+<li>高危漏洞复测: 80</li>
+<li>定期扫描: 50</li>
+<li>临时扫描: 30</li>
+
+时间因子:
+<li>超过计划时间: +20</li>
+<li>即将超时: +10</li>
+
+资产重要性因子:
+<li>核心资产: +30</li>
+<li>重要资产: +20</li>
+<li>一般资产: +10</li>
+</code></pre>
+
+<strong>输出</strong>:
+<li>任务执行状态</li>
+<li>资源分配结果</li>
+
+<h3>3.4.3 任务执行 (FR-03-03)</h3>
+
+<strong>功能描述</strong>: 在扫描节点执行扫描任务。
+
+<strong>处理逻辑</strong>:
+<pre><code class="language-">1. 接收任务配置
+2. 加载扫描插件
+3. 对每个目标资产执行
+   a. 端口扫描
+   b. 服务识别
+   c. 漏洞检测
+   d. 结果收集
+4. 实时上报进度
+5. 完成后提交结果
+</code></pre>
+
+<strong>输出</strong>:
+<li>扫描结果</li>
+<li>执行日志</li>
+
+<h3>3.4.4 任务监控 (FR-03-04)</h3>
+
+<strong>功能描述</strong>: 实时监控任务执行状态。
+
+<strong>输入</strong>:
+<li>任务 ID (可选，为空则显示全部)</li>
+
+<strong>处理逻辑</strong>:
+<pre><code class="language-">1. 查询任务状态
+2. 收集执行指标
+   - 进度百分比
+   - 已扫描资产数
+   - 发现漏洞数
+   - 剩余时间估算
+3. 实时刷新显示
+</code></pre>
+
+<strong>输出</strong>:
+<li>任务状态 (等待/执行中/完成/失败)</li>
+<li>执行进度</li>
+<li>实时统计</li>
+
+<h3>3.4.5 任务控制 (FR-03-05)</h3>
+
+<strong>功能描述</strong>: 控制任务执行 (暂停/恢复/停止)。
+
+<strong>输入</strong>:
+<li>任务 ID</li>
+<li>控制命令 (暂停/恢复/停止)</li>
+
+<strong>处理逻辑</strong>:
+<pre><code class="language-">1. 验证任务状态允许控制
+2. 发送控制命令到扫描节点
+3. 等待节点响应
+4. 更新任务状态
+5. 记录操作日志
+</code></pre>
+
+<strong>输出</strong>:
+<li>控制结果</li>
+
+<h2>3.5 漏洞管理 (FR-04)</h2>
+
+<h3>3.5.1 漏洞列表 (FR-04-01)</h3>
+
+<strong>功能描述</strong>: 展示漏洞列表，支持筛选和排序。
+
+<strong>输入</strong>:
+<li>筛选条件 (状态/ severity/资产/时间等)</li>
+<li>排序字段</li>
+<li>分页参数</li>
+
+<strong>处理逻辑</strong>:
+<pre><code class="language-">1. 解析筛选条件
+2. 构建查询语句
+3. 执行数据库查询
+4. 应用排序和分页
+5. 返回结果
+</code></pre>
+
+<strong>输出</strong>:
+<li>漏洞列表</li>
+<li>总数统计</li>
+
+<h3>3.5.2 漏洞详情 (FR-04-02)</h3>
+
+<strong>功能描述</strong>: 展示漏洞详细信息。
+
+<strong>输入</strong>:
+<li>漏洞 ID</li>
+
+<strong>处理逻辑</strong>:
+<pre><code class="language-">1. 查询漏洞基本信息
+2. 查询关联资产信息
+3. 查询扫描证据
+4. 查询处置历史
+5. 整合返回
+</code></pre>
+
+<strong>输出</strong>:
+<pre><code class="language-json">{
+  "vuln_id": "VULN-2026-00001",
+  "cve_id": "CVE-2026-1234",
+  "title": "Apache Log4j 远程代码执行漏洞",
+  "severity": "CRITICAL",
+  "cvss_score": 9.8,
+  "risk_score": 95,
+  "asset": {
+    "id": "ASSET-001",
+    "name": "app-server-01",
+    "ip": "192.168.1.100"
+  },
+  "evidence": {
+    "request": "GET /api/test HTTP/1.1...",
+    "response": "HTTP/1.1 200 OK..."
+  },
+  "remediation": {
+    "description": "升级 Log4j 到 2.17.0 或更高版本",
+    "steps": ["步骤 1", "步骤 2"],
+    "script": "升级脚本内容"
+  },
+  "status": "OPEN",
+  "created_at": "2026-03-21T10:00:00Z",
+  "updated_at": "2026-03-21T10:00:00Z"
+}
+</code></pre>
+
+<h3>3.5.3 漏洞处置 (FR-04-03)</h3>
+
+<strong>功能描述</strong>: 管理漏洞处置流程。
+
+<strong>处置状态</strong>:
+<pre><code class="language-">发现 → 确认 → 分派 → 修复中 → 待验证 → 已修复 → 关闭
+                ↓
+              误报/接受风险
+</code></pre>
+
+<strong>输入</strong>:
+<li>漏洞 ID 列表</li>
+<li>处置动作 (确认/分派/标记误报/接受风险/关闭)</li>
+<li>处理人</li>
+<li>备注</li>
+
+<strong>处理逻辑</strong>:
+<pre><code class="language-">1. 验证处置动作合法性
+2. 更新漏洞状态
+3. 如分派，创建工单
+4. 如关闭，触发复测
+5. 记录处置历史
+6. 发送通知
+</code></pre>
+
+<strong>输出</strong>:
+<li>处置结果</li>
+<li>工单信息 (如创建)</li>
+
+<h3>3.5.4 漏洞去重 (FR-04-04)</h3>
+
+<strong>功能描述</strong>: 自动识别和合并重复漏洞。
+
+<strong>处理逻辑</strong>:
+<pre><code class="language-">1. 提取漏洞特征
+   - 资产 IP
+   - 漏洞类型
+   - 漏洞位置
+   - 证据哈希
+2. 计算相似度
+3. 如相似度 &gt; 阈值，标记为重复
+4. 合并重复漏洞记录
+5. 保留最早发现记录
+</code></pre>
+
+<strong>输出</strong>:
+<li>去重结果</li>
+<li>合并统计</li>
+
+<h2>3.6 风险分析 (FR-05)</h2>
+
+<h3>3.6.1 AI 辅助验证 (FR-05-01)</h3>
+
+<strong>功能描述</strong>: 使用 AI 模型辅助验证漏洞真实性。
+
+<strong>输入</strong>:
+<li>漏洞 ID</li>
+<li>扫描证据 (请求/响应)</li>
+
+<strong>处理逻辑</strong>:
+<pre><code class="language-">1. 提取漏洞上下文
+2. 构建 AI 分析请求
+3. 调用 AI 模型分析
+4. 解析分析结果
+5. 更新漏洞置信度
+</code></pre>
+
+<strong>AI 分析请求示例</strong>:
+<pre><code class="language-json">{
+  "vuln_type": "SQL Injection",
+  "request": "GET /user?id=1' OR '1'='1",
+  "response": "...error in SQL syntax...",
+  "context": {
+    "technology": "MySQL",
+    "framework": "Spring"
+  }
+}
+</code></pre>
+
+<strong>输出</strong>:
+<li>验证结果 (真实/疑似/误报)</li>
+<li>置信度 (0-100%)</li>
+<li>分析说明</li>
+
+<h3>3.6.2 风险评分 (FR-05-02)</h3>
+
+<strong>功能描述</strong>: 计算漏洞风险分数。
+
+<strong>计算公式</strong>:
+<pre><code class="language-">风险分数 = 基础 CVSS × 环境因子 × 威胁因子 × 业务因子
+
+环境因子 = 资产重要性 × 暴露面 × 防护强度
+威胁因子 = 在野利用 × 利用难度 × 影响范围
+业务因子 = 数据敏感度 × 合规要求 × 停机成本
+</code></pre>
+
+<strong>输入</strong>:
+<li>漏洞基本信息</li>
+<li>资产信息</li>
+<li>威胁情报</li>
+<li>业务上下文</li>
+
+<strong>处理逻辑</strong>:
+<pre><code class="language-">1. 获取基础 CVSS 分数
+2. 计算环境因子 (0.5-2.0)
+3. 计算威胁因子 (0.5-2.0)
+4. 计算业务因子 (0.5-2.0)
+5. 计算最终风险分数
+6. 映射到风险等级
+</code></pre>
+
+<strong>输出</strong>:
+<li>风险分数 (0-100)</li>
+<li>风险等级 (严重/高危/中危/低危)</li>
+<li>因子明细</li>
+
+<h3>3.6.3 优先级排序 (FR-05-03)</h3>
+
+<strong>功能描述</strong>: 根据风险分数对漏洞进行优先级排序。
+
+<strong>输入</strong>:
+<li>漏洞列表</li>
+<li>排序规则</li>
+
+<strong>处理逻辑</strong>:
+<pre><code class="language-">1. 计算每个漏洞的风险分数
+2. 考虑额外因素
+   - SLA 剩余时间
+   - 资产重要性
+   - 修复难度
+3. 综合排序
+4. 返回排序结果
+</code></pre>
+
+<strong>输出</strong>:
+<li>排序后的漏洞列表</li>
+<li>优先级建议</li>
+
+<h2>3.7 修复管理 (FR-06)</h2>
+
+<h3>3.7.1 修复建议 (FR-06-01)</h3>
+
+<strong>功能描述</strong>: 生成漏洞修复建议。
+
+<strong>输入</strong>:
+<li>漏洞 ID</li>
+
+<strong>处理逻辑</strong>:
+<pre><code class="language-">1. 分析漏洞类型和原因
+2. 查询修复知识库
+3. 生成修复步骤
+4. 根据环境生成脚本
+5. 提供验证方法
+6. 提供回滚方案
+</code></pre>
+
+<strong>输出</strong>:
+<pre><code class="language-markdown">## 修复建议
+
+<h3>漏洞信息</h3>
+<li>名称：Apache Log4j RCE</li>
+<li>CVE: CVE-2021-44228</li>
+<li>风险等级：严重</li>
+
+<h3>修复步骤</h3>
+1. 备份当前版本
+2. 下载 Log4j 2.17.0
+3. 替换旧版本
+4. 重启服务
+5. 验证修复
+
+<h3>修复脚本</h3>
+[可执行脚本内容]
+
+<h3>验证方法</h3>
+[验证命令]
+
+<h3>回滚方案</h3>
+[回滚步骤]
+</code></pre>
+
+<h3>3.7.2 工单集成 (FR-06-02)</h3>
+
+<strong>功能描述</strong>: 与工单系统集成，自动创建修复工单。
+
+<strong>输入</strong>:
+<li>漏洞 ID 列表</li>
+<li>工单系统配置</li>
+<li>分派规则</li>
+
+<strong>处理逻辑</strong>:
+<pre><code class="language-">1. 根据分派规则确定处理人
+2. 调用工单系统 API
+3. 创建工单
+4. 关联漏洞信息
+5. 设置 SLA
+6. 记录工单 ID
+</code></pre>
+
+<strong>输出</strong>:
+<li>工单 ID</li>
+<li>工单详情</li>
+
+<h3>3.7.3 复测验证 (FR-06-03)</h3>
+
+<strong>功能描述</strong>: 对已修复漏洞进行复测验证。
+
+<strong>输入</strong>:
+<li>漏洞 ID 列表</li>
+<li>复测策略</li>
+
+<strong>处理逻辑</strong>:
+<pre><code class="language-">1. 获取原始扫描配置
+2. 针对相同目标执行复测
+3. 比对复测结果
+4. 如漏洞不存在，标记为已修复
+5. 如漏洞仍存在，通知处理人
+</code></pre>
+
+<strong>输出</strong>:
+<li>复测结果</li>
+<li>验证报告</li>
+
+<h2>3.8 报告中心 (FR-07)</h2>
+
+<h3>3.8.1 报告模板 (FR-07-01)</h3>
+
+<strong>功能描述</strong>: 提供多种报告模板。
+
+<strong>内置模板</strong>:
+
+<table><tbody><tr><th>模板名称</th><th>内容</th></tr><tr><td>执行摘要</td><td>风险概览、趋势、建议</td></tr><tr><td>技术报告</td><td>详细漏洞、证据、修复</td></tr><tr><td>合规报告</td><td>等保/PCI-DSS 符合性</td></tr><tr><td>开发报告</td><td>代码漏洞、修复指引</td></tr><tr><td>趋势报告</td><td>历史趋势、对比分析</td></tr></tbody></table>
+
+<h3>3.8.2 报告生成 (FR-07-02)</h3>
+
+<strong>功能描述</strong>: 根据模板生成报告。
+
+<strong>输入</strong>:
+<li>模板选择</li>
+<li>数据范围 (时间/资产/漏洞类型)</li>
+<li>输出格式</li>
+
+<strong>处理逻辑</strong>:
+<pre><code class="language-">1. 加载报告模板
+2. 查询报告数据
+3. 渲染报告内容
+4. 生成目标格式文件
+5. 存储报告文件
+</code></pre>
+
+<strong>输出</strong>:
+<li>报告文件</li>
+<li>报告下载链接</li>
+
+<h3>3.8.3 报告分发 (FR-07-03)</h3>
+
+<strong>功能描述</strong>: 自动分发报告给相关人员。
+
+<strong>输入</strong>:
+<li>报告 ID</li>
+<li>分发列表</li>
+<li>分发方式 (邮件/IM/系统)</li>
+
+<strong>处理逻辑</strong>:
+<pre><code class="language-">1. 验证分发权限
+2. 获取分发列表
+3. 根据分发方式发送
+4. 记录分发日志
+</code></pre>
+
+<strong>输出</strong>:
+<li>分发结果</li>
+
+<h2>3.9 系统管理 (FR-08)</h2>
+
+<h3>3.9.1 用户管理 (FR-08-01)</h3>
+
+<strong>功能描述</strong>: 管理系统用户。
+
+<strong>输入</strong>:
+<li>用户信息 (用户名、邮箱、部门等)</li>
+<li>角色分配</li>
+
+<strong>处理逻辑</strong>:
+<pre><code class="language-">1. 验证用户名唯一性
+2. 创建用户记录
+3. 分配角色
+4. 发送激活通知
+</code></pre>
+
+<strong>输出</strong>:
+<li>用户 ID</li>
+<li>激活令牌</li>
+
+<h3>3.9.2 角色权限 (FR-08-02)</h3>
+
+<strong>功能描述</strong>: 管理角色和权限。
+
+<strong>预定义角色</strong>:
+
+<table><tbody><tr><th>角色</th></tr><tr><td>超级管理员</td></tr><tr><td>安全管理员</td></tr><tr><td>安全分析师</td></tr><tr><td>运维人员</td></tr><tr><td>只读用户</td></tr></tbody></table>
+
+<strong>输入</strong>:
+<li>角色信息</li>
+<li>权限配置</li>
+
+<strong>处理逻辑</strong>:
+<pre><code class="language-">1. 验证角色名称唯一性
+2. 创建/更新角色
+3. 配置权限
+4. 记录变更日志
+</code></pre>
+
+<strong>输出</strong>:
+<li>角色 ID</li>
+
+<h3>3.9.3 审计日志 (FR-08-03)</h3>
+
+<strong>功能描述</strong>: 记录系统操作日志。
+
+<strong>记录内容</strong>:
+<li>操作时间</li>
+<li>操作用户</li>
+<li>操作类型</li>
+<li>操作对象</li>
+<li>操作结果</li>
+<li>客户端信息</li>
+
+<strong>输入</strong>:
+<li>操作事件</li>
+
+<strong>处理逻辑</strong>:
+<pre><code class="language-">1. 捕获操作事件
+2. 提取操作信息
+3. 格式化日志记录
+4. 写入日志存储
+5. 触发告警 (如需要)
+</code></pre>
+
+<strong>输出</strong>:
+<li>日志记录 ID</li>
+
+<h2>3.10 API 接口 (FR-09)</h2>
+
+<h3>3.10.1 RESTful API (FR-09-01)</h3>
+
+<strong>功能描述</strong>: 提供 RESTful API 接口。
+
+<strong>API 分类</strong>:
+
+<table><tbody><tr><th>分类</th><th>描述</th></tr><tr><td>资产</td><td>资产管理</td></tr><tr><td>扫描</td><td>扫描任务</td></tr><tr><td>漏洞</td><td>漏洞管理</td></tr><tr><td>报告</td><td>报告生成</td></tr><tr><td>系统</td><td>系统管理</td></tr></tbody></table>
+
+<strong>示例接口</strong>:
+<pre><code class="language-">GET    /api/v1/assets              # 获取资产列表
+POST   /api/v1/assets              # 创建资产
+GET    /api/v1/assets/{id}         # 获取资产详情
+PUT    /api/v1/assets/{id}         # 更新资产
+DELETE /api/v1/assets/{id}         # 删除资产
+
+POST   /api/v1/scans               # 创建扫描任务
+GET    /api/v1/scans/{id}/status   # 获取任务状态
+
+GET    /api/v1/vulnerabilities     # 获取漏洞列表
+PATCH  /api/v1/vulnerabilities/{id}/status  # 更新漏洞状态
+
+POST   /api/v1/reports             # 生成报告
+GET    /api/v1/reports/{id}        # 获取报告
+</code></pre>
+
+<h3>3.10.2 GraphQL API (FR-09-02)</h3>
+
+<strong>功能描述</strong>: 提供 GraphQL 查询接口。
+
+<strong>Schema 示例</strong>:
+<pre><code class="language-graphql">type Query {
+  assets(filter: AssetFilter): [Asset]
+  vulnerabilities(filter: VulnFilter): [Vulnerability]
+  scans(status: ScanStatus): [Scan]
+}
+
+type Asset {
+  id: ID!
+  name: String!
+  ip: String!
+  vulnerabilities: [Vulnerability]
+}
+
+type Vulnerability {
+  id: ID!
+  cve: String
+  severity: Severity!
+  asset: Asset
+  status: VulnStatus
+}
+</code></pre>
+
+<h3>3.10.3 Webhook (FR-09-03)</h3>
+
+<strong>功能描述</strong>: 支持 Webhook 事件通知。
+
+<strong>支持事件</strong>:
+
+<table><tbody><tr><th>事件</th></tr><tr><td>vuln.found</td></tr><tr><td>vuln.updated</td></tr><tr><td>scan.completed</td></tr><tr><td>scan.failed</td></tr><tr><td>report.generated</td></tr></tbody></table>
+
+<strong>Webhook 负载示例</strong>:
+<pre><code class="language-json">{
+  "event": "vuln.found",
+  "timestamp": "2026-03-21T14:00:00Z",
+  "data": {
+    "vuln_id": "VULN-2026-00001",
+    "cve": "CVE-2026-1234",
+    "severity": "CRITICAL",
+    "asset_ip": "192.168.1.100"
+  }
+}
+</code></pre>
+
+<h2>3.11 插件管理 (FR-10)</h2>
+
+<h3>3.11.1 插件开发 SDK (FR-10-01)</h3>
+
+<strong>功能描述</strong>: 提供插件开发 SDK。
+
+<strong>SDK 功能</strong>:
+<li>插件基类</li>
+<li>扫描接口</li>
+<li>结果上报</li>
+<li>日志记录</li>
+<li>配置管理</li>
+
+<h3>3.11.2 插件上传 (FR-10-02)</h3>
+
+<strong>功能描述</strong>: 上传和安装插件。
+
+<strong>输入</strong>:
+<li>插件包 (ZIP 格式)</li>
+<li>插件元数据</li>
+
+<strong>处理逻辑</strong>:
+<pre><code class="language-">1. 验证插件包完整性
+2. 解析插件元数据
+3. 安全扫描插件代码
+4. 安装插件到沙箱
+5. 注册插件信息
+</code></pre>
+
+<strong>输出</strong>:
+<li>插件 ID</li>
+<li>安装结果</li>
+
+<h3>3.11.3 插件版本管理 (FR-10-03)</h3>
+
+<strong>功能描述</strong>: 管理插件版本。
+
+<strong>功能</strong>:
+<li>版本列表</li>
+<li>版本对比</li>
+<li>版本回滚</li>
+<li>依赖检查</li>
+
+<hr>
+
+<h2>3.12 多类型资产漏洞扫描 (FR-11)</h2>
+
+<h3>3.12.1 通用操作系统扫描 (FR-11-01)</h3>
+
+<strong>功能描述</strong>: 支持扫描各类通用操作系统的漏洞。
+
+<strong>支持的操作系统</strong>:
+
+<table><tbody><tr><th>操作系统类别</th><th>检测内容</th></tr><tr><td><strong>Windows 系列</strong></td><td>系统漏洞、配置缺陷、补丁状态</td></tr><tr><td><strong>macOS</strong></td><td>系统漏洞、应用漏洞</td></tr><tr><td><strong>Linux</strong></td><td>系统漏洞、内核漏洞、软件漏洞</td></tr><tr><td><strong>Unix</strong></td><td>系统漏洞、配置缺陷</td></tr></tbody></table>
+
+<strong>输入</strong>:
+<li>目标 IP/网段</li>
+<li>操作系统类型 (可选，支持自动识别)</li>
+<li>扫描深度 (快速/标准/深度)</li>
+
+<strong>处理逻辑</strong>:
+<pre><code class="language-">1. 操作系统指纹识别
+2. 根据 OS 类型加载对应检测插件
+3. 执行漏洞检测
+   - 系统漏洞 (CVE)
+   - 配置缺陷
+   - 补丁缺失
+4. 收集检测结果
+5. 生成漏洞报告
+</code></pre>
+
+<strong>输出</strong>:
+<li>操作系统信息</li>
+<li>漏洞列表</li>
+<li>修复建议</li>
+
+<h3>3.12.2 网络设备扫描 (FR-11-02)</h3>
+
+<strong>功能描述</strong>: 支持扫描交换路由设备漏洞。
+
+<strong>支持的设备厂商</strong>:
+
+<table><tbody><tr><th>厂商</th><th>检测内容</th></tr><tr><td><strong>Cisco</strong></td><td>IOS 漏洞、配置缺陷</td></tr><tr><td><strong>Juniper</strong></td><td>JunOS 漏洞、配置缺陷</td></tr><tr><td><strong>华为</strong></td><td>VRP 漏洞、配置缺陷</td></tr><tr><td><strong>F5</strong></td><td>BIG-IP 漏洞、配置缺陷</td></tr><tr><td><strong>Checkpoint</strong></td><td>Gaia 漏洞、策略缺陷</td></tr><tr><td><strong>锐捷</strong></td><td>RGOS 漏洞、配置缺陷</td></tr></tbody></table>
+
+<strong>检测内容</strong>:
+<li>固件/系统版本漏洞</li>
+<li>默认配置缺陷</li>
+<li>不安全协议启用</li>
+<li>访问控制缺陷</li>
+<li>管理接口暴露</li>
+
+<h3>3.12.3 安全设备扫描 (FR-11-03)</h3>
+
+<strong>功能描述</strong>: 支持扫描防火墙等安全设备漏洞。
+
+<strong>支持的厂商</strong>:
+
+<table><tbody><tr><th>厂商</th></tr><tr><td>Checkpoint</td></tr><tr><td>赛门铁克</td></tr><tr><td>Cisco</td></tr><tr><td>Juniper</td></tr><tr><td>Palo Alto</td></tr><tr><td>华为</td></tr></tbody></table>
+
+<strong>检测内容</strong>:
+<li>系统漏洞</li>
+<li>策略配置缺陷</li>
+<li>规则冗余/冲突</li>
+<li>管理接口安全</li>
+<li>日志审计配置</li>
+
+<h3>3.12.4 物联网设备扫描 (FR-11-04)</h3>
+
+<strong>功能描述</strong>: 支持扫描 IoT 设备漏洞。
+
+<strong>支持的设备类型</strong>:
+
+<table><tbody><tr><th>设备类型</th></tr><tr><td><strong>摄像头</strong></td></tr><tr><td><strong>打印机</strong></td></tr><tr><td><strong>其他 IoT</strong></td></tr></tbody></table>
+
+<strong>检测内容</strong>:
+<li>固件漏洞</li>
+<li>默认口令</li>
+<li>未授权访问</li>
+<li>不安全服务</li>
+<li>隐私数据泄露</li>
+
+<strong>特殊检测</strong>:
+<pre><code class="language-">摄像头专项检测:
+<li>RTSP 未授权访问</li>
+<li>Web 管理界面漏洞</li>
+<li>视频流劫持风险</li>
+<li>云台控制漏洞</li>
+
+打印机专项检测:
+<li>固件漏洞</li>
+<li>打印任务劫持</li>
+<li>网络配置缺陷</li>
+</code></pre>
+
+<h3>3.12.5 工控设备扫描 (FR-11-05)</h3>
+
+<strong>功能描述</strong>: 支持扫描工控专用设备漏洞。
+
+<strong>支持的设备类型</strong>:
+
+<table><tbody><tr><th>设备类型</th><th>支持协议</th></tr><tr><td><strong>PLC</strong></td><td>Modbus, S7, EtherNet/IP</td></tr><tr><td><strong>SCADA</strong></td><td>DNP3, IEC 61850</td></tr><tr><td><strong>DCS</strong></td><td>Profibus, Foundation Fieldbus</td></tr></tbody></table>
+
+<strong>检测内容</strong>:
+<li>控制器固件漏洞</li>
+<li>通信协议缺陷</li>
+<li>未授权访问</li>
+<li>工程文件泄露</li>
+<li>控制指令注入</li>
+
+<strong>安全约束</strong>:
+<pre><code class="language-">⚠️ 工控设备扫描特殊要求:
+1. 只读扫描，禁止写操作
+2. 避免高频扫描影响生产
+3. 支持离线扫描模式
+4. 扫描时间窗口限制 (非生产时段)
+</code></pre>
+
+<h3>3.12.6 国产系统扫描 (FR-11-06)</h3>
+
+<strong>功能描述</strong>: 支持对国产操作系统和数据库进行漏洞扫描。
+
+<strong>国产操作系统</strong>:
+
+<table><tbody><tr><th>操作系统</th><th>检测内容</th></tr><tr><td>中标麒麟</td><td>系统漏洞、配置缺陷</td></tr><tr><td>凝思</td><td>系统漏洞、安全加固</td></tr><tr><td>欧拉 (openEuler)</td><td>系统漏洞、补丁状态</td></tr><tr><td>深度 (Deepin)</td><td>系统漏洞、应用漏洞</td></tr><tr><td>红旗 (RedFlag)</td><td>系统漏洞、配置缺陷</td></tr><tr><td>中兴新支点</td><td>系统漏洞、安全策略</td></tr></tbody></table>
+
+<strong>国产数据库</strong>:
+
+<table><tbody><tr><th>数据库</th><th>检测内容</th></tr><tr><td>神通数据库</td><td>漏洞、配置、权限</td></tr><tr><td>人大金仓</td><td>漏洞、弱口令、审计</td></tr><tr><td>南大通用</td><td>漏洞、配置缺陷</td></tr><tr><td>达梦数据库</td><td>漏洞、权限、审计</td></tr></tbody></table>
+
+<h2>3.13 大数据组件扫描 (FR-12)</h2>
+
+<h3>3.13.1 大数据框架漏洞检测 (FR-12-01)</h3>
+
+<strong>功能描述</strong>: 支持大数据组件框架漏洞检测。
+
+<strong>支持的组件</strong>:
+
+<table><tbody><tr><th>组件</th><th>常见漏洞</th></tr><tr><td><strong>ZooKeeper</strong></td><td>未授权访问、数据泄露</td></tr><tr><td><strong>ElasticSearch</strong></td><td>RCE、数据泄露、未授权</td></tr><tr><td><strong>ActiveMQ</strong></td><td>RCE、XXE、反序列化</td></tr><tr><td><strong>Kibana</strong></td><td>RCE、XSS、原型污染</td></tr><tr><td><strong>Hadoop</strong></td><td>未授权访问、数据泄露</td></tr><tr><td><strong>Spark</strong></td><td>未授权访问、代码执行</td></tr><tr><td><strong>Kafka</strong></td><td>未授权访问、数据泄露</td></tr><tr><td><strong>Redis</strong></td><td>弱口令、未授权访问</td></tr><tr><td><strong>MongoDB</strong></td><td>未授权访问、数据泄露</td></tr></tbody></table>
+
+<strong>检测内容</strong>:
+<li>版本漏洞</li>
+<li>配置缺陷</li>
+<li>未授权访问</li>
+<li>弱口令</li>
+<li>数据泄露风险</li>
+
+<h2>3.14 弱口令检测 (FR-13)</h2>
+
+<h3>3.14.1 多协议弱口令检测 (FR-13-01)</h3>
+
+<strong>功能描述</strong>: 对知名协议、数据库、中间件进行弱口令检测。
+
+<strong>支持的协议和服务</strong>:
+
+<table><tbody><tr><th>类别</th><th>检测方式</th></tr><tr><td><strong>远程管理</strong></td><td>字典爆破</td></tr><tr><td><strong>文件传输</strong></td><td>字典爆破</td></tr><tr><td><strong>邮件服务</strong></td><td>字典爆破</td></tr><tr><td><strong>数据库</strong></td><td>字典爆破</td></tr><tr><td><strong>Web 服务</strong></td><td>字典爆破、默认口令</td></tr><tr><td><strong>摄像头</strong></td><td>默认口令、字典爆破</td></tr></tbody></table>
+
+<strong>输入</strong>:
+<li>目标地址</li>
+<li>协议类型</li>
+<li>字典选择 (内置/自定义)</li>
+<li>爆破参数 (并发、延时、重试)</li>
+
+<strong>处理逻辑</strong>:
+<pre><code class="language-">1. 识别目标服务
+2. 加载对应检测模块
+3. 使用字典进行爆破
+   - 默认字典
+   - 常用口令字典
+   - 自定义字典
+4. 记录成功凭据
+5. 生成检测报告
+</code></pre>
+
+<strong>输出</strong>:
+<li>弱口令列表</li>
+<li>成功凭据 (加密存储)</li>
+<li>修复建议</li>
+
+<h3>3.14.2 字典管理 (FR-13-02)</h3>
+
+<strong>功能描述</strong>: 管理弱口令检测字典。
+
+<strong>功能</strong>:
+<li>内置默认字典 (10,000+ 常用口令)</li>
+<li>支持上传自定义字典</li>
+<li>字典分类管理</li>
+<li>字典更新同步</li>
+
+<strong>字典类型</strong>:
+<pre><code class="language-">内置字典:
+<li>常用弱口令字典 (top 1000)</li>
+<li>厂商默认口令字典</li>
+<li>行业专用字典 (金融/电信/政府)</li>
+<li>日期组合字典</li>
+<li>用户名派生字典</li>
+
+自定义字典:
+<li>用户上传</li>
+<li>组织专用</li>
+<li>项目专用</li>
+</code></pre>
+
+<h2>3.15 漏洞库与规则 (FR-14)</h2>
+
+<h3>3.15.1 漏洞库规模 (FR-14-01)</h3>
+
+<strong>功能描述</strong>: 提供业界领先的漏洞库规模。
+
+<strong>漏洞库指标</strong>:
+
+<table><tbody><tr><th>指标</th></tr><tr><td>系统漏洞类别</td></tr><tr><td>检测规则数量</td></tr><tr><td>Web 漏洞类别</td></tr><tr><td>日更新漏洞数</td></tr></tbody></table>
+
+<strong>标准符合性</strong>:
+<li>✅ CVE (Common Vulnerabilities and Exposures)</li>
+<li>✅ CVSS (Common Vulnerability Scoring System)</li>
+<li>✅ CNNVD (中国国家漏洞数据库)</li>
+<li>✅ Bugtraq (安全焦点漏洞库)</li>
+<li>✅ CNVD (国家信息安全漏洞共享平台)</li>
+
+<h3>3.15.2 漏洞检测能力 (FR-14-02)</h3>
+
+<strong>功能描述</strong>: 具备全面的漏洞检测能力。
+
+<strong>检测覆盖范围</strong>:
+
+<pre><code class="language-">漏洞检测覆盖:
+├── 通用主机 (Windows/Linux/Unix/macOS)
+├── 网络设备 (交换机/路由器)
+├── 安全设备 (防火墙/IPS)
+├── 移动设备 (iOS/Android)
+├── 物联网设备 (摄像头/打印机)
+├── 数据库 (Oracle/MySQL/SQLServer/国产)
+├── 中间件 (WebLogic/Tomcat/Nginx/Apache)
+├── 国产系统 (中标麒麟/深度/达梦等)
+└── Web 应用 (OWASP Top 10)
+</code></pre>
+
+<strong>Web 漏洞检测</strong> (OWASP Top 10):
+1. 注入漏洞 (SQL/命令/代码注入)
+2. 失效的身份认证
+3. 敏感信息泄露
+4. XML 外部实体 (XXE)
+5. 失效的访问控制
+6. 安全配置错误
+7. 跨站脚本 (XSS)
+8. 不安全的反序列化
+9. 使用含有已知漏洞的组件
+10. 不足的日志记录和监控
+
+<h2>3.16 资产管理增强 (FR-15)</h2>
+
+<h3>3.16.1 树状资产结构 (FR-15-01)</h3>
+
+<strong>功能描述</strong>: 以清晰的树状结构管理和展示资产。
+
+<strong>资产层级结构</strong>:
+
+<pre><code class="language-">资产树状结构:
+└── 一级单位/部门
+    ├── 二级网络节点
+    │   ├── 三级资产 (服务器)
+    │   │   ├── 系统资产
+    │   │   └── Web 资产 (多个网站)
+    │   └── 三级资产 (网络设备)
+    └── 二级网络节点
+        └── ...
+</code></pre>
+
+<strong>功能特性</strong>:
+<li>支持多级资产分类</li>
+<li>树状结构展示</li>
+<li>节点展开/收起</li>
+<li>快速搜索定位</li>
+<li>批量操作支持</li>
+
+<h3>3.16.2 资产详情查看 (FR-15-02)</h3>
+
+<strong>功能描述</strong>: 查看资产详细信息。
+
+<strong>可查看的信息</strong>:
+
+<table><tbody><tr><th>信息类别</th></tr><tr><td><strong>基本信息</strong></td></tr><tr><td><strong>系统信息</strong></td></tr><tr><td><strong>服务信息</strong></td></tr><tr><td><strong>Web 资产</strong></td></tr><tr><td><strong>漏洞信息</strong></td></tr><tr><td><strong>历史信息</strong></td></tr></tbody></table>
+
+<strong>功能</strong>:
+<li>查看单位/部门下所有存活节点</li>
+<li>查看节点上的系统/Web 资产属性</li>
+<li>查看开放端口服务</li>
+<li>查看漏洞详情</li>
+<li>导出资产信息</li>
+
+<h2>3.17 自动化漏洞验证 (FR-16)</h2>
+
+<h3>3.17.1 自动化验证工具 (FR-16-01)</h3>
+
+<strong>功能描述</strong>: 提供自动化的漏洞验证工具，提高扫描结果准确性。
+
+<strong>支持的验证类型</strong>:
+
+<table><tbody><tr><th>验证类型</th><th>验证方式</th></tr><tr><td><strong>注入验证</strong></td><td>安全 Payload 验证</td></tr><tr><td><strong>XSS 验证</strong></td><td>安全脚本执行</td></tr><tr><td><strong>文件包含验证</strong></td><td>安全文件读取</td></tr><tr><td><strong>SSRF 验证</strong></td><td>内网请求验证</td></tr><tr><td><strong>XXE 验证</strong></td><td>实体解析验证</td></tr><tr><td><strong>反序列化验证</strong></td><td>安全对象序列化</td></tr><tr><td><strong>通用验证</strong></td><td>特征匹配验证</td></tr></tbody></table>
+
+<strong>处理逻辑</strong>:
+<pre><code class="language-">1. 识别漏洞类型
+2. 选择对应验证模块
+3. 发送安全验证 Payload
+4. 分析响应特征
+5. 确认漏洞真实性
+6. 更新漏洞置信度
+</code></pre>
+
+<strong>输出</strong>:
+<li>验证结果 (真实/疑似/误报)</li>
+<li>验证证据 (请求/响应)</li>
+<li>置信度评分</li>
+
+<h3>3.17.2 验证报告 (FR-16-02)</h3>
+
+<strong>功能描述</strong>: 生成漏洞验证报告。
+
+<strong>报告内容</strong>:
+<li>漏洞基本信息</li>
+<li>验证过程记录</li>
+<li>验证证据截图</li>
+<li>置信度评分</li>
+<li>修复建议</li>
+
+<h2>3.18 隐匿站点探测 (FR-17)</h2>
+
+<h3>3.18.1 自动站点探测 (FR-17-01)</h3>
+
+<strong>功能描述</strong>: 针对指定网段自动探测在线站点。
+
+<strong>探测功能</strong>:
+<li>网段扫描发现存活主机</li>
+<li>端口扫描发现 Web 服务</li>
+<li>协议识别 (HTTP/HTTPS)</li>
+<li>虚拟主机探测</li>
+<li>隐匿站点发现</li>
+
+<strong>处理逻辑</strong>:
+<pre><code class="language-">1. 输入目标网段
+2. 执行主机发现
+   - ICMP Ping
+   - ARP 扫描
+   - TCP SYN 扫描
+3. 执行端口扫描
+   - 常见 Web 端口 (80/443/8080/8443)
+   - 非常规端口探测
+4. 协议识别
+   - HTTP/HTTPS 识别
+   - Web 框架识别
+5. 虚拟主机探测
+   - 基于 Host 头探测
+   - 证书域名收集
+6. 生成站点列表
+</code></pre>
+
+<strong>输出</strong>:
+<li>存活主机列表</li>
+<li>Web 站点列表</li>
+<li>未报备站点标记</li>
+
+<h3>3.18.2 资产暴露面管理 (FR-17-02)</h3>
+
+<strong>功能描述</strong>: 帮助用户梳理和收敛资产暴露面。
+
+<strong>功能</strong>:
+<li>发现未报备的隐匿网站</li>
+<li>识别违规外联资产</li>
+<li>标记高风险暴露资产</li>
+<li>生成暴露面报告</li>
+<li>提供收敛建议</li>
+
+<strong>报告内容</strong>:
+<pre><code class="language-">资产暴露面报告:
+├── 总资产数
+├── 在线资产数
+├── Web 站点数
+├── 未报备站点数 ⚠️
+├── 高风险暴露资产 ⚠️
+├── 违规外联资产 ⚠️
+└── 收敛建议
+</code></pre>
+
+<hr>
+
+<h1>4. 非功能需求</h1>
+
+<h2>4.1 性能需求</h2>
+
+<h3>4.1.1 响应时间</h3>
+
+<table><tbody><tr><th>操作类型</th><th>最大响应时间</th></tr><tr><td>页面加载</td><td>&lt; 5 秒</td></tr><tr><td>列表查询</td><td>&lt; 3 秒</td></tr><tr><td>详情查询</td><td>&lt; 1 秒</td></tr><tr><td>报告生成</td><td>&lt; 60 秒</td></tr><tr><td>API 调用</td><td>&lt; 1 秒</td></tr></tbody></table>
+
+<h3>4.1.2 扫描性能</h3>
+
+<table><tbody><tr><th>指标</th><th>测量方法</th></tr><tr><td>单节点扫描速度</td><td>标准测试环境</td></tr><tr><td>并发扫描任务</td><td>大型部署</td></tr><tr><td>增量扫描时间</td><td>5000 资产</td></tr><tr><td>漏洞检测准确率</td><td>标准漏洞集</td></tr></tbody></table>
+
+<h3>4.1.3 吞吐量</h3>
+
+<table><tbody><tr><th>指标</th></tr><tr><td>API 请求处理</td></tr><tr><td>日志写入</td></tr><tr><td>事件处理</td></tr></tbody></table>
+
+<h2>4.2 安全性需求</h2>
+
+<h3>4.2.1 认证安全</h3>
+
+<li>支持多因素认证 (MFA)</li>
+<li>密码复杂度要求 (最小 12 位，包含大小写、数字、特殊字符)</li>
+<li>密码加密存储 (bcrypt/argon2)</li>
+<li>登录失败锁定 (5 次失败锁定 30 分钟)</li>
+<li>会话超时 (30 分钟无操作)</li>
+
+<h3>4.2.2 授权安全</h3>
+
+<li>基于角色的访问控制 (RBAC)</li>
+<li>最小权限原则</li>
+<li>API 访问令牌</li>
+<li>操作审计日志</li>
+
+<h3>4.2.3 数据安全</h3>
+
+<li>传输加密 (TLS 1.3)</li>
+<li>存储加密 (AES-256)</li>
+<li>敏感数据脱敏</li>
+<li>密钥管理 (HSM/KMS)</li>
+
+<h3>4.2.4 扫描安全</h3>
+
+<li>扫描速率限制</li>
+<li>目标授权验证</li>
+<li>扫描行为审计</li>
+<li>异常行为检测</li>
+
+<h2>4.3 可靠性需求</h2>
+
+<h3>4.3.1 可用性</h3>
+
+<table><tbody><tr><th>指标</th></tr><tr><td>系统可用率</td></tr><tr><td>计划外停机</td></tr><tr><td>故障恢复时间 (MTTR)</td></tr><tr><td>故障间隔时间 (MTBF)</td></tr></tbody></table>
+
+<h3>4.3.2 容错能力</h3>
+
+<li>节点故障自动切换</li>
+<li>数据多副本存储</li>
+<li>任务断点续传</li>
+<li>异常自动重试</li>
+
+<h3>4.3.3 备份恢复</h3>
+
+<li>每日增量备份</li>
+<li>每周全量备份</li>
+<li>备份保留 90 天</li>
+<li>RTO ≤ 4 小时</li>
+<li>RPO ≤ 1 小时</li>
+
+<h2>4.4 可扩展性需求</h2>
+
+<h3>4.4.1 水平扩展</h3>
+
+<li>支持动态添加扫描节点</li>
+<li>支持负载均衡</li>
+<li>支持多租户隔离</li>
+
+<h3>4.4.2 垂直扩展</h3>
+
+<li>支持资源动态调整</li>
+<li>支持插件热加载</li>
+
+<h3>4.4.3 容量规划</h3>
+
+<table><tbody><tr><th>组件</th><th>最大规模</th></tr><tr><td>扫描节点</td><td>100 节点</td></tr><tr><td>数据库</td><td>10 实例集群</td></tr><tr><td>存储</td><td>100TB</td></tr></tbody></table>
+
+<h2>4.5 兼容性需求</h2>
+
+<h3>4.5.1 浏览器兼容</h3>
+
+<table><tbody><tr><th>浏览器</th></tr><tr><td>Chrome</td></tr><tr><td>Firefox</td></tr><tr><td>Safari</td></tr><tr><td>Edge</td></tr></tbody></table>
+
+<h3>4.5.2 操作系统兼容</h3>
+
+<table><tbody><tr><th>系统</th></tr><tr><td>Linux</td></tr><tr><td>Windows</td></tr><tr><td>macOS</td></tr></tbody></table>
+
+<h3>4.5.3 数据库兼容</h3>
+
+<table><tbody><tr><th>数据库</th></tr><tr><td>PostgreSQL</td></tr><tr><td>MySQL</td></tr></tbody></table>
+
+<h2>4.6 可维护性需求</h2>
+
+<h3>4.6.1 日志管理</h3>
+
+<li>结构化日志 (JSON 格式)</li>
+<li>日志分级 (DEBUG/INFO/WARN/ERROR)</li>
+<li>日志轮转 (每日/每 100MB)</li>
+<li>日志保留 (180 天)</li>
+
+<h3>4.6.2 监控告警</h3>
+
+<li>系统指标监控 (CPU/内存/磁盘)</li>
+<li>应用指标监控 (QPS/延迟/错误率)</li>
+<li>业务指标监控 (扫描任务/漏洞数)</li>
+<li>告警通知 (邮件/短信/IM)</li>
+
+<h3>4.6.3 配置管理</h3>
+
+<li>配置集中管理</li>
+<li>配置版本控制</li>
+<li>配置热更新</li>
+<li>配置审计</li>
+
+<hr>
+
+<h1>5. 外部接口</h1>
+
+<h2>5.1 用户接口</h2>
+
+<h3>5.1.1 Web 界面</h3>
+
+<li>基于浏览器的图形界面</li>
+<li>响应式设计，支持多设备</li>
+<li>支持主题切换</li>
+
+<h3>5.1.2 命令行界面</h3>
+
+<li>支持 SSH 访问</li>
+<li>支持 CLI 工具</li>
+
+<h3>5.1.3 移动应用</h3>
+
+<li>iOS 应用</li>
+<li>Android 应用</li>
+<li>功能：告警通知、报告查看、任务审批</li>
+
+<h2>5.2 硬件接口</h2>
+
+<h3>5.2.1 网络接口</h3>
+
+<li>以太网 (1Gbps/10Gbps)</li>
+<li>支持 VLAN</li>
+<li>支持链路聚合</li>
+
+<h3>5.2.2 存储接口</h3>
+
+<li>本地存储 (SSD/HDD)</li>
+<li>网络存储 (NFS/SAN)</li>
+<li>对象存储 (S3 兼容)</li>
+
+<h2>5.3 软件接口</h2>
+
+<h3>5.3.1 漏洞情报源</h3>
+
+<table><tbody><tr><th>接口名称</th><th>频率</th></tr><tr><td>NVD API</td><td>每日</td></tr><tr><td>CNVD API</td><td>每日</td></tr><tr><td>GitHub Advisory</td><td>每日</td></tr></tbody></table>
+
+<h3>5.3.2 工单系统</h3>
+
+<table><tbody><tr><th>系统</th><th>用途</th></tr><tr><td>Jira</td><td>创建修复工单</td></tr><tr><td>ServiceNow</td><td>工单流转</td></tr><tr><td>钉钉</td><td>通知和审批</td></tr><tr><td>飞书</td><td>通知和审批</td></tr></tbody></table>
+
+<h3>5.3.3 CI/CD 系统</h3>
+
+<table><tbody><tr><th>系统</th><th>用途</th></tr><tr><td>Jenkins</td><td>流水线集成</td></tr><tr><td>GitLab CI</td><td>代码扫描</td></tr><tr><td>GitHub Actions</td><td>代码扫描</td></tr></tbody></table>
+
+<h3>5.3.4 SIEM 系统</h3>
+
+<table><tbody><tr><th>系统</th><th>用途</th></tr><tr><td>Splunk</td><td>日志和事件</td></tr><tr><td>Elastic</td><td>日志和事件</td></tr><tr><td>QRadar</td><td>事件关联</td></tr></tbody></table>
+
+<h3>5.3.5 云平台</h3>
+
+<table><tbody><tr><th>平台</th><th>用途</th></tr><tr><td>AWS</td><td>资产发现、Security Hub</td></tr><tr><td>Azure</td><td>资产发现、Sentinel</td></tr><tr><td>阿里云</td><td>资产发现</td></tr></tbody></table>
+
+<h2>5.4 通信接口</h2>
+
+<h3>5.4.1 协议支持</h3>
+
+<table><tbody><tr><th>协议</th></tr><tr><td>HTTP/HTTPS</td></tr><tr><td>WebSocket</td></tr><tr><td>gRPC</td></tr><tr><td>AMQP</td></tr></tbody></table>
+
+<h3>5.4.2 端口需求</h3>
+
+<table><tbody><tr><th>端口</th><th>用途</th></tr><tr><td>443</td><td>HTTPS</td></tr><tr><td>8080</td><td>HTTP (内部)</td></tr><tr><td>5432</td><td>PostgreSQL</td></tr><tr><td>6379</td><td>Redis</td></tr><tr><td>9200</td><td>Elasticsearch</td></tr></tbody></table>
+
+<hr>
+
+<h1>6. 数据需求</h1>
+
+<h2>6.1 数据类型</h2>
+
+<h3>6.1.1 资产数据</h3>
+
+<table><tbody><tr><th>字段</th><th>说明</th></tr><tr><td>id</td><td>资产唯一标识</td></tr><tr><td>name</td><td>资产名称</td></tr><tr><td>ip</td><td>IP 地址</td></tr><tr><td>mac</td><td>MAC 地址</td></tr><tr><td>type</td><td>资产类型</td></tr><tr><td>os</td><td>操作系统</td></tr><tr><td>status</td><td>状态</td></tr><tr><td>tags</td><td>标签</td></tr><tr><td>owner</td><td>负责人</td></tr><tr><td>created_at</td><td>创建时间</td></tr><tr><td>updated_at</td><td>更新时间</td></tr></tbody></table>
+
+<h3>6.1.2 漏洞数据</h3>
+
+<table><tbody><tr><th>字段</th><th>说明</th></tr><tr><td>id</td><td>漏洞唯一标识</td></tr><tr><td>cve_id</td><td>CVE 编号</td></tr><tr><td>title</td><td>漏洞标题</td></tr><tr><td>description</td><td>漏洞描述</td></tr><tr><td>severity</td><td>严重程度</td></tr><tr><td>cvss_score</td><td>CVSS 分数</td></tr><tr><td>risk_score</td><td>风险分数</td></tr><tr><td>asset_id</td><td>关联资产</td></tr><tr><td>evidence</td><td>扫描证据</td></tr><tr><td>remediation</td><td>修复建议</td></tr><tr><td>status</td><td>处置状态</td></tr><tr><td>created_at</td><td>发现时间</td></tr><tr><td>updated_at</td><td>更新时间</td></tr></tbody></table>
+
+<h3>6.1.3 扫描任务数据</h3>
+
+<table><tbody><tr><th>字段</th><th>说明</th></tr><tr><td>id</td><td>任务唯一标识</td></tr><tr><td>name</td><td>任务名称</td></tr><tr><td>policy_id</td><td>扫描策略</td></tr><tr><td>targets</td><td>目标资产</td></tr><tr><td>status</td><td>任务状态</td></tr><tr><td>progress</td><td>进度百分比</td></tr><tr><td>started_at</td><td>开始时间</td></tr><tr><td>completed_at</td><td>完成时间</td></tr><tr><td>result_summary</td><td>结果摘要</td></tr></tbody></table>
+
+<h3>6.1.4 用户数据</h3>
+
+<table><tbody><tr><th>字段</th><th>说明</th></tr><tr><td>id</td><td>用户唯一标识</td></tr><tr><td>username</td><td>用户名</td></tr><tr><td>email</td><td>邮箱</td></tr><tr><td>password_hash</td><td>密码哈希</td></tr><tr><td>role_id</td><td>角色 ID</td></tr><tr><td>status</td><td>状态</td></tr><tr><td>last_login</td><td>最后登录</td></tr><tr><td>created_at</td><td>创建时间</td></tr></tbody></table>
+
+<h2>6.2 数据结构</h2>
+
+<h3>6.2.1 实体关系图</h3>
+
+<pre><code class="language-">┌─────────────┐     ┌─────────────┐
+│    Asset    │────&lt;│ Vulnerability│
+└─────────────┘     └─────────────┘
+      │                    │
+      │                    │
+      v                    v
+┌─────────────┐     ┌─────────────┐
+│    Scan     │     │ Remediation │
+└─────────────┘     └─────────────┘
+      │
+      │
+      v
+┌─────────────┐
+│   Policy    │
+└─────────────┘
+</code></pre>
+
+<h3>6.2.2 数据范式</h3>
+
+<li>所有表满足第三范式 (3NF)</li>
+<li>适当反范式优化查询性能</li>
+
+<h2>6.3 数据存储</h2>
+
+<h3>6.3.1 存储架构</h3>
+
+<pre><code class="language-">┌─────────────────────────────────────────────────────┐
+│                    数据存储层                        │
+├─────────────────────────────────────────────────────┤
+│  ┌───────────┐  ┌───────────┐  ┌───────────┐       │
+│  │PostgreSQL │  │  Redis    │  │Elasticsearch│      │
+│  │(主数据)   │  │  (缓存)   │  │  (搜索)    │       │
+│  └───────────┘  └───────────┘  └───────────┘       │
+│  ┌───────────┐  ┌───────────┐                       │
+│  │   MinIO   │  │  Kafka    │                       │
+│  │(文件存储) │  │ (消息队列) │                       │
+│  └───────────┘  └───────────┘                       │
+└─────────────────────────────────────────────────────┘
+</code></pre>
+
+<h3>6.3.2 存储容量规划</h3>
+
+<table><tbody><tr><th>数据类型</th><th>日增量</th><th>保留期</th></tr><tr><td>资产数据</td><td>10MB</td><td>永久</td></tr><tr><td>漏洞数据</td><td>50MB</td><td>5 年</td></tr><tr><td>扫描结果</td><td>100MB</td><td>2 年</td></tr><tr><td>日志数据</td><td>1GB</td><td>180 天</td></tr><tr><td>报告文件</td><td>100MB</td><td>2 年</td></tr></tbody></table>
+
+<h3>6.3.3 数据备份</h3>
+
+<li>备份策略：每日增量 + 每周全量</li>
+<li>备份位置：异地灾备中心</li>
+<li>备份加密：AES-256</li>
+<li>恢复测试：每季度一次</li>
+
+<h2>6.4 数据字典</h2>
+
+<h3>6.4.1 枚举值定义</h3>
+
+<strong>资产类型 (asset_type)</strong>:
+<li>SERVER: 服务器</li>
+<li>WORKSTATION: 工作站</li>
+<li>NETWORK_DEVICE: 网络设备</li>
+<li>DATABASE: 数据库</li>
+<li>WEB_APP: Web 应用</li>
+<li>MOBILE_APP: 移动应用</li>
+<li>IOT_DEVICE: IoT 设备</li>
+<li>OTHER: 其他</li>
+
+<strong>漏洞严重程度 (severity)</strong>:
+<li>CRITICAL: 严重 (9.0-10.0)</li>
+<li>HIGH: 高危 (7.0-8.9)</li>
+<li>MEDIUM: 中危 (4.0-6.9)</li>
+<li>LOW: 低危 (0.1-3.9)</li>
+<li>INFO: 信息 (0.0)</li>
+
+<strong>漏洞状态 (vuln_status)</strong>:
+<li>NEW: 新发现</li>
+<li>CONFIRMED: 已确认</li>
+<li>ASSIGNED: 已分派</li>
+<li>IN_PROGRESS: 修复中</li>
+<li>PENDING_VERIFY: 待验证</li>
+<li>FIXED: 已修复</li>
+<li>FALSE_POSITIVE: 误报</li>
+<li>ACCEPTED_RISK: 接受风险</li>
+<li>CLOSED: 已关闭</li>
+
+<hr>
+
+<h1>7. 约束条件</h1>
+
+<h2>7.1 技术约束</h2>
+
+<h3>7.1.1 开发语言</h3>
+
+<table><tbody><tr><th>组件</th><th>版本</th></tr><tr><td>后端服务</td><td>Go 1.20+, Python 3.10+</td></tr><tr><td>前端应用</td><td>4.9+</td></tr><tr><td>扫描插件</td><td>-</td></tr><tr><td>移动端</td><td>3.0+</td></tr></tbody></table>
+
+<h3>7.1.2 技术栈</h3>
+
+<table><tbody><tr><th>类别</th></tr><tr><td>后端框架</td></tr><tr><td>前端框架</td></tr><tr><td>数据库</td></tr><tr><td>缓存</td></tr><tr><td>消息队列</td></tr><tr><td>容器编排</td></tr></tbody></table>
+
+<h3>7.1.3 性能约束</h3>
+
+<li>单节点内存限制：8GB</li>
+<li>单任务超时：24 小时</li>
+<li>并发连接数：10,000</li>
+
+<h2>7.2 业务约束</h2>
+
+<h3>7.2.1 合规要求</h3>
+
+<li>符合网络安全法</li>
+<li>符合等保 2.0 三级要求</li>
+<li>符合 GDPR (如适用)</li>
+<li>符合行业监管要求</li>
+
+<h3>7.2.2 运营约束</h3>
+
+<li>扫描需获得授权</li>
+<li>不得影响业务正常运行</li>
+<li>敏感数据不得出境</li>
+<li>操作需可审计追溯</li>
+
+<h2>7.3 资源约束</h2>
+
+<h3>7.3.1 硬件资源</h3>
+
+<table><tbody><tr><th>环境</th><th>内存</th></tr><tr><td>开发环境</td><td>8GB</td></tr><tr><td>测试环境</td><td>16GB</td></tr><tr><td>生产环境 (最小)</td><td>32GB</td></tr><tr><td>生产环境 (推荐)</td><td>64GB</td></tr></tbody></table>
+
+<h3>7.3.2 人力资源</h3>
+
+<table><tbody><tr><th>角色</th><th>技能要求</th></tr><tr><td>后端开发</td><td>Go/Python, 分布式系统</td></tr><tr><td>前端开发</td><td>React/Vue, TypeScript</td></tr><tr><td>安全研究</td><td>漏洞研究，插件开发</td></tr><tr><td>测试工程</td><td>自动化测试，安全测试</td></tr><tr><td>运维工程</td><td>K8s, CI/CD</td></tr></tbody></table>
+
+<h2>7.4 时间约束</h2>
+
+<h3>7.4.1 开发周期</h3>
+
+<table><tbody><tr><th>阶段</th><th>里程碑</th></tr><tr><td>需求分析</td><td>需求评审通过</td></tr><tr><td>系统设计</td><td>设计评审通过</td></tr><tr><td>核心开发</td><td>核心功能完成</td></tr><tr><td>集成测试</td><td>测试报告通过</td></tr><tr><td>用户验收</td><td>UAT 通过</td></tr><tr><td>上线部署</td><td>正式上线</td></tr></tbody></table>
+
+<h3>7.4.2 关键路径</h3>
+
+<pre><code class="language-">需求分析 → 系统设计 → 核心开发 → 集成测试 → 用户验收 → 上线
+   2 周      3 周       12 周       4 周        2 周       1 周
+</code></pre>
+
+<hr>
+
+<h1>8. 用户界面</h1>
+
+<h2>8.1 界面设计原则</h2>
+
+<li><strong>简洁直观</strong>: 减少学习成本</li>
+<li><strong>一致性</strong>: 统一的视觉风格</li>
+<li><strong>响应式</strong>: 适配多种设备</li>
+<li><strong>无障碍</strong>: 符合 WCAG 2.1 AA 标准</li>
+
+<h2>8.2 界面原型</h2>
+
+<h3>8.2.1 登录页面</h3>
+
+<pre><code class="language-">┌─────────────────────────────────────────────────────┐
+│                                                     │
+│                    [系统 Logo]                       │
+│                                                     │
+│              漏洞扫描系统                            │
+│              Vulnerability Scanning System          │
+│                                                     │
+│         ┌─────────────────────────────┐            │
+│         │  用户名                      │            │
+│         └─────────────────────────────┘            │
+│                                                     │
+│         ┌─────────────────────────────┐            │
+│         │  密码                        │            │
+│         └─────────────────────────────┘            │
+│                                                     │
+│         □ 记住我    □ 多因素认证                     │
+│                                                     │
+│              [        登录        ]                 │
+│                                                     │
+│         忘记密码？ | 联系管理员                      │
+│                                                     │
+└─────────────────────────────────────────────────────┘
+</code></pre>
+
+<h3>8.2.2 仪表盘</h3>
+
+<pre><code class="language-">┌─────────────────────────────────────────────────────────────────┐
+│  [Logo]  仪表盘    资产    扫描    漏洞    报告    系统    [用户]│
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐       │
+│  │ 总资产   │  │ 待处理漏洞│  │ 进行中扫描│  │ 高风险   │       │
+│  │  1,250   │  │    45    │  │    3     │  │    8     │       │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘       │
+│                                                                 │
+│  ┌─────────────────────────┐  ┌─────────────────────────┐     │
+│  │     漏洞趋势 (近 30 天)    │  │     风险分布            │     │
+│  │     [折线图]            │  │     [饼图]              │     │
+│  │                         │  │                         │     │
+│  └─────────────────────────┘  └─────────────────────────┘     │
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │                    最近发现的漏洞                        │   │
+│  ├─────────────────────────────────────────────────────────┤   │
+│  │ CVE-2026-1234  │ 严重 │ app-server-01 │ 2 小时前       │   │
+│  │ CVE-2026-5678  │ 高危 │ db-server-01  │ 3 小时前       │   │
+│  │ CVE-2026-9012  │ 高危 │ web-app-01    │ 5 小时前       │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<h3>8.2.3 资产列表</h3>
+
+<pre><code class="language-">┌─────────────────────────────────────────────────────────────────┐
+│  资产管理                                                         │
+├─────────────────────────────────────────────────────────────────┤
+│  [搜索框]  [类型▼] [状态▼] [标签▼]  [+ 新增] [导入] [导出]       │
+├─────────────────────────────────────────────────────────────────┤
+│  □ │ 名称        │ IP            │ 类型    │ 状态   │ 漏洞数    │
+│  ├─────────────────────────────────────────────────────────────│
+│  □ │ app-srv-01  │ 192.168.1.100 │ 服务器  │ 运行中 │ 3        │
+│  □ │ app-srv-02  │ 192.168.1.101 │ 服务器  │ 运行中 │ 1        │
+│  □ │ db-srv-01   │ 192.168.1.200 │ 数据库  │ 运行中 │ 5        │
+│  □ │ web-app-01  │ 192.168.1.50  │ Web 应用 │ 运行中 │ 2        │
+│  □ │ net-sw-01   │ 192.168.1.1   │ 网络设备│ 运行中 │ 0        │
+├─────────────────────────────────────────────────────────────────┤
+│  &lt; 上一页  1/25  下一页 &gt;                                        │
+└─────────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<h3>8.2.4 漏洞详情</h3>
+
+<pre><code class="language-">┌─────────────────────────────────────────────────────────────────┐
+│  漏洞详情                                              [关闭]    │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  CVE-2021-44228 - Apache Log4j 远程代码执行漏洞                  │
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │ 严重程度：[严重]  CVSS: 9.8  风险分数：95                │   │
+│  │ 状态：[待修复]  发现时间：2026-03-21 10:00              │   │
+│  │ 资产：app-server-01 (192.168.1.100)                     │   │
+│  │ 负责人：张三                                            │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │ 漏洞描述                                                 │   │
+│  │ Apache Log4j2 存在远程代码执行漏洞，攻击者可构造恶意请求  │   │
+│  │ 执行任意代码。                                          │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │ 扫描证据                                                 │   │
+│  │ [请求/响应详情] [截图] [时间线]                         │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │ 修复建议                                                 │   │
+│  │ 1. 升级 Log4j 到 2.17.0 或更高版本                      │   │
+│  │ 2. [查看修复脚本] [创建工单] [标记误报] [接受风险]      │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │ 处置历史                                                 │   │
+│  │ 2026-03-21 10:00 - 发现漏洞                             │   │
+│  │ 2026-03-21 10:30 - 分配给张三                           │   │
+│  │ 2026-03-21 11:00 - 开始修复                             │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<h3>8.2.5 扫描任务创建</h3>
+
+<pre><code class="language-">┌─────────────────────────────────────────────────────────────────┐
+│  创建扫描任务                                            [取消]  │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  任务名称：[___________________________]                        │
+│                                                                 │
+│  目标资产：                                                     │
+│  ○ 单个资产  ○ 资产组  ○ 网段  ○ 全部资产                      │
+│  [选择资产...]                                                  │
+│                                                                 │
+│  扫描策略：                                                     │
+│  ○ 快速扫描 (15 分钟)                                           │
+│  ○ 标准扫描 (2 小时)                                            │
+│  ○ 深度扫描 (8 小时)                                            │
+│  ○ 自定义策略 [选择策略▼]                                      │
+│                                                                 │
+│  执行时间：                                                     │
+│  ○ 立即执行                                                     │
+│  ○ 定时执行 [日期选择器] [时间选择器]                          │
+│                                                                 │
+│  通知设置：                                                     │
+│  □ 扫描完成通知  □ 发现高危漏洞通知                            │
+│  [选择通知对象...]                                              │
+│                                                                 │
+│                    [创建任务]                                   │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<h2>8.3 交互设计</h2>
+
+<h3>8.3.1 快捷键</h3>
+
+<table><tbody><tr><th>快捷键</th></tr><tr><td>Ctrl+K</td></tr><tr><td>Ctrl+N</td></tr><tr><td>Ctrl+R</td></tr><tr><td>?</td></tr></tbody></table>
+
+<h3>8.3.2 手势支持 (移动端)</h3>
+
+<table><tbody><tr><th>手势</th></tr><tr><td>左滑</td></tr><tr><td>右滑</td></tr><tr><td>下拉</td></tr><tr><td>双指缩放</td></tr></tbody></table>
+
+<hr>
+
+<h1>9. 质量属性</h1>
+
+<h2>9.1 质量标准</h2>
+
+<h3>9.1.1 代码质量</h3>
+
+<table><tbody><tr><th>指标</th><th>测量工具</th></tr><tr><td>单元测试覆盖率</td><td>Jest/Pytest</td></tr><tr><td>代码重复率</td><td>SonarQube</td></tr><tr><td>代码异味</td><td>SonarQube</td></tr><tr><td>安全漏洞</td><td>SAST 工具</td></tr></tbody></table>
+
+<h3>9.1.2 文档质量</h3>
+
+<table><tbody><tr><th>文档类型</th><th>准确性</th></tr><tr><td>API 文档</td><td>100%</td></tr><tr><td>用户手册</td><td>100%</td></tr><tr><td>运维手册</td><td>100%</td></tr></tbody></table>
+
+<h3>9.1.3 测试质量</h3>
+
+<table><tbody><tr><th>测试类型</th><th>通过率</th></tr><tr><td>单元测试</td><td>100%</td></tr><tr><td>集成测试</td><td>100%</td></tr><tr><td>系统测试</td><td>100%</td></tr><tr><td>安全测试</td><td>无高危漏洞</td></tr></tbody></table>
+
+<h2>9.2 评估方法</h2>
+
+<h3>9.2.1 代码评审</h3>
+
+<li>所有代码必须经过同行评审</li>
+<li>使用 Pull Request 流程</li>
+<li>至少 1 人批准才能合并</li>
+
+<h3>9.2.2 自动化测试</h3>
+
+<pre><code class="language-">CI/CD 流水线:
+  代码提交 → 静态检查 → 单元测试 → 集成测试 → 
+  安全扫描 → 构建镜像 → 部署测试 → 通知
+</code></pre>
+
+<h3>9.2.3 性能测试</h3>
+
+<li>负载测试：模拟峰值流量</li>
+<li>压力测试：超出设计容量</li>
+<li>耐久性测试：72 小时持续运行</li>
+<li>基准测试：与竞品对比</li>
+
+<h3>9.2.4 安全测试</h3>
+
+<li>SAST: 静态应用安全测试</li>
+<li>DAST: 动态应用安全测试</li>
+<li>渗透测试：第三方专业团队</li>
+<li>漏洞赏金：公开计划</li>
+
+<h3>9.2.5 用户验收</h3>
+
+<li>UAT 测试用例执行</li>
+<li>用户满意度调查</li>
+<li>NPS 净推荐值评估</li>
+
+<h2>9.3 持续改进</h2>
+
+<h3>9.3.1 质量度量</h3>
+
+<table><tbody><tr><th>度量项</th><th>负责人</th></tr><tr><td>代码质量报告</td><td>开发负责人</td></tr><tr><td>测试覆盖率报告</td><td>测试负责人</td></tr><tr><td>安全扫描报告</td><td>安全负责人</td></tr><tr><td>用户满意度</td><td>产品负责人</td></tr></tbody></table>
+
+<h3>9.3.2 改进流程</h3>
+
+<pre><code class="language-">问题发现 → 根因分析 → 改进方案 → 实施 → 验证 → 标准化
+</code></pre>
+
+<hr>
+
+<h1>10. 附录</h1>
+
+<h2>附录 A：用例图</h2>
+
+<pre><code class="language-">                         ┌─────────────────┐
+                         │   安全管理员    │
+                         └────────┬────────┘
+                                  │
+         ┌────────────────────────┼────────────────────────┐
+         │                        │                        │
+         v                        v                        v
+  ┌─────────────┐          ┌─────────────┐          ┌─────────────┐
+  │  配置系统   │          │  管理用户   │          │  查看报告   │
+  └─────────────┘          └─────────────┘          └─────────────┘
+
+                         ┌─────────────────┐
+                         │   安全分析师    │
+                         └────────┬────────┘
+                                  │
+         ┌────────────────────────┼────────────────────────┐
+         │                        │                        │
+         v                        v                        v
+  ┌─────────────┐          ┌─────────────┐          ┌─────────────┐
+  │  分析漏洞   │          │  创建扫描   │          │  生成报告   │
+  └─────────────┘          └─────────────┘          └─────────────┘
+
+                         ┌─────────────────┐
+                         │   运维工程师    │
+                         └────────┬────────┘
+                                  │
+         ┌────────────────────────┼────────────────────────┐
+         │                        │                        │
+         v                        v                        v
+  ┌─────────────┐          ┌─────────────┐          ┌─────────────┐
+  │  修复漏洞   │          │  管理资产   │          │  执行复测   │
+  └─────────────┘          └─────────────┘          └─────────────┘
+</code></pre>
+
+<h2>附录 B：数据流图</h2>
+
+<pre><code class="language-">┌──────────┐    扫描请求    ┌──────────┐
+│  用户    │───────────────&gt;│  任务调度 │
+└──────────┘                └────┬─────┘
+                                 │
+                                 │ 下发任务
+                                 v
+┌──────────┐    扫描结果    ┌──────────┐
+│  漏洞库  │&lt;───────────────│  扫描节点 │
+└──────────┘                └──────────┘
+     │
+     │ 情报查询
+     v
+┌──────────┐
+│ 外部情报源 │
+└──────────┘
+</code></pre>
+
+<h2>附录 C：状态转换图</h2>
+
+<h3>漏洞状态转换</h3>
+
+<pre><code class="language-">     ┌─────────┐
+     │  发现   │
+     └────┬────┘
+          │ 确认
+          v
+     ┌─────────┐
+     │  已确认  │──误报──&gt;┌─────────┐
+     └────┬────┘         │  误报   │
+          │ 分派          └─────────┘
+          v
+     ┌─────────┐
+     │  已分派  │──接受风险─&gt;┌─────────┐
+     └────┬────┘            │接受风险 │
+          │ 开始修复         └─────────┘
+          v
+     ┌─────────┐
+     │ 修复中  │
+     └────┬────┘
+          │ 提交修复
+          v
+     ┌─────────┐
+     │ 待验证  │──复测失败──&gt;┌─────────┐
+     └────┬────┘            │ 修复中  │
+          │ 复测成功         └─────────┘
+          v
+     ┌─────────┐
+     │  已修复  │
+     └────┬────┘
+          │ 关闭
+          v
+     ┌─────────┐
+     │  已关闭  │
+     └─────────┘
+</code></pre>
+
+<h2>附录 D：API 接口清单</h2>
+
+<h3>资产管理 API</h3>
+
+<table><tbody><tr><th>方法</th><th>描述</th></tr><tr><td>GET</td><td>获取资产列表</td></tr><tr><td>POST</td><td>创建资产</td></tr><tr><td>GET</td><td>获取资产详情</td></tr><tr><td>PUT</td><td>更新资产</td></tr><tr><td>DELETE</td><td>删除资产</td></tr><tr><td>POST</td><td>批量导入</td></tr><tr><td>GET</td><td>批量导出</td></tr></tbody></table>
+
+<h3>扫描任务 API</h3>
+
+<table><tbody><tr><th>方法</th><th>描述</th></tr><tr><td>GET</td><td>获取任务列表</td></tr><tr><td>POST</td><td>创建任务</td></tr><tr><td>GET</td><td>获取任务详情</td></tr><tr><td>POST</td><td>暂停任务</td></tr><tr><td>POST</td><td>恢复任务</td></tr><tr><td>POST</td><td>停止任务</td></tr><tr><td>GET</td><td>获取任务状态</td></tr></tbody></table>
+
+<h3>漏洞管理 API</h3>
+
+<table><tbody><tr><th>方法</th><th>描述</th></tr><tr><td>GET</td><td>获取漏洞列表</td></tr><tr><td>GET</td><td>获取漏洞详情</td></tr><tr><td>PATCH</td><td>更新漏洞状态</td></tr><tr><td>POST</td><td>分派漏洞</td></tr><tr><td>POST</td><td>复测验证</td></tr><tr><td>GET</td><td>导出漏洞</td></tr></tbody></table>
+
+<h2>附录 E：术语表</h2>
+
+<table><tbody><tr><th>术语</th></tr><tr><td>资产</td></tr><tr><td>漏洞</td></tr><tr><td>威胁</td></tr><tr><td>风险</td></tr><tr><td>扫描策略</td></tr><tr><td>扫描任务</td></tr><tr><td>误报</td></tr><tr><td>漏报</td></tr></tbody></table>
+
+<h2>附录 F：修订历史</h2>
+
+<table><tbody><tr><th>版本</th><th>作者</th></tr><tr><td>V1.0</td><td>网络安全专家团队</td></tr><tr><td>V1.1</td><td>网络安全专家团队</td></tr></tbody></table>
+
+<hr>
+
+<h1>文档结束</h1>
+
+<strong>文档编号</strong>: VSS-SRS-2026-001  
+<strong>版本号</strong>: V1.1  
+<strong>密级</strong>: 内部机密
+
+    </div>
+
+</body></html>

@@ -1,0 +1,29 @@
+# ===== Python =====
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# ===== 运行时数据库（二进制数据，勿提交）=====
+*.db
+*.db-shm
+*.db-wal
+
+# ===== 运行时临时文件 =====
+temp/
+
+# ===== 生成报告（输出产物，非源码）=====
+reports/
+
+# ===== 打包/构建产物 =====
+dist/
+build/
+node_modules/
+
+# ===== 其它噪声 =====
+*.zip
+*.docx
+ai-vuln-err.txt
+_shared/
+
+# ===== 运行时生成的密钥（勿提交）=====
+.token_secret

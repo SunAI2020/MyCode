@@ -1,0 +1,1395 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>新一代漏洞扫描系统软件架构设计说明书</title>
+<style>
+
+body {
+    font-family: SimSun, serif;
+    font-size: 11pt;
+    line-height: 1.6;
+    margin: 20pt;
+    color: #000;
+}
+h1 { font-size: 18pt; text-align: center; color: #1a5f7a; margin-bottom: 20pt; }
+h2 { font-size: 14pt; color: #2c7a8b; border-left: 3pt solid #2c7a8b; padding-left: 8pt; margin-top: 15pt; }
+h3 { font-size: 12pt; color: #3d8b8b; margin-top: 12pt; }
+p { text-align: justify; margin: 6pt 0; }
+ul, ol { margin: 6pt 0; padding-left: 20pt; }
+li { margin: 3pt 0; }
+table { width: 100%; border-collapse: collapse; margin: 10pt 0; font-size: 9pt; }
+th, td { border: 0.5pt solid #888; padding: 4pt 6pt; text-align: left; }
+th { background: #1a5f7a; color: #fff; }
+pre { background: #f5f5f5; padding: 8pt; overflow: x-auto; font-size: 8pt; }
+code { background: #f0f0f0; padding: 1pt 3pt; font-size: 9pt; }
+blockquote { border-left: 3pt solid #1a5f7a; margin: 8pt 0; padding: 5pt 10pt; background: #f9f9f9; }
+img { max-width: 100%; display: block; margin: 10pt auto; }
+.logo { text-align: center; margin: 20pt 0; }
+
+</style>
+</head>
+<body>
+<h1>新一代漏洞扫描系统软件架构设计说明书</h1>
+
+<blockquote>
+  <p>基于《漏洞扫描系统需求规格说明书》和《漏洞扫描系统新增功能需求》的完整软件架构设计</p>
+</blockquote>
+
+<div class="logo"><img src="D:\python files\vuln-scanner\logo.png" alt="Logo" /></div>
+
+<p><strong>版权声明</strong>: © 2026 山西有信网安科技有限公司，版权所有</p>
+
+<p><strong>作者</strong>: 网络安全专家团队
+<strong>日期</strong>: 2026 年 3 月
+<strong>版本</strong>: 1.0</p>
+
+<hr />
+
+<h2>第一章：总体架构设计</h2>
+
+<h3>1.1 架构设计原则</h3>
+
+<p>本系统采用<strong>微服务架构</strong>设计，遵循以下原则：</p>
+
+<table>
+<thead>
+<tr>
+  <th>设计原则</th>
+  <th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>模块化设计</td>
+  <td>高内聚、低耦合，功能模块独立部署</td>
+</tr>
+<tr>
+  <td>分布式部署</td>
+  <td>支持集群部署，水平扩展</td>
+</tr>
+<tr>
+  <td>云原生设计</td>
+  <td>容器化部署，支持 Kubernetes</td>
+</tr>
+<tr>
+  <td>API 优先</td>
+  <td>所有功能可通过 API 调用</td>
+</tr>
+<tr>
+  <td>安全性设计</td>
+  <td>纵深防御，零信任架构</td>
+</tr>
+</tbody>
+</table>
+
+<h3>1.2 系统架构总览</h3>
+
+<pre><code>┌─────────────────────────────────────────────────────────────────────────────┐
+│                           新一代漏洞扫描系统架构                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                         用户访问层 (Presentation)                    │    │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐ │    │
+│  │  │   Web 门户   │  │  CLI 客户端  │  │  移动端 App  │  │   API 网关   │ │    │
+│  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘ │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                      │                                       │
+│                                      ▼                                       │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                         业务服务层 (Business)                        │    │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐ │    │
+│  │  │  资产管理   │  │  扫描任务   │  │  漏洞管理   │  │   报告中心   │ │    │
+│  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘ │    │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐ │    │
+│  │  │  风险分析   │  │  修复管理   │  │  系统管理   │  │  插件管理   │ │    │
+│  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘ │    │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐ │    │
+│  │  │  AI 分析服务 │  │  情报服务   │  │  通知服务   │  │  认证服务   │ │    │
+│  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘ │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                      │                                       │
+│                                      ▼                                       │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                         扫描引擎层 (Scan Engine)                     │    │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐ │    │
+│  │  │  调度中心   │  │  节点管理器  │  │  插件容器池  │  │  结果收集器  │ │    │
+│  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘ │    │
+│  │  ┌─────────────────────────────────────────────────────────────────┐│    │
+│  │  │                        插件体系                                 ││    │
+│  │  │  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐  ││    │
+│  │  │  │Web 扫描 │ │主机扫描 │ │网络设备 │ │云安全  │ │工控扫描 │  ││    │
+│  │  │  └─────────┘ └─────────┘ └─────────┘ └─────────┘ └─────────┘  ││    │
+│  │  │  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐  ││    │
+│  │  │  │弱口令   │ │IoT 扫描 │ │国产系统 │ │大数据   │ │代码安全 │  ││    │
+│  │  │  └─────────┘ └─────────┘ └─────────┘ └─────────┘ └─────────┘  ││    │
+│  │  └─────────────────────────────────────────────────────────────────┘│    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                      │                                       │
+│                                      ▼                                       │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                         数据服务层 (Data)                           │    │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐ │    │
+│  │  │  PostgreSQL  │  │   Redis    │  │Elasticsearch│  │    Kafka    │ │    │
+│  │  │  (主数据库)   │  │   (缓存)    │  │   (搜索)    │  │  (消息队列)  │ │    │
+│  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘ │    │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                  │    │
+│  │  │    MinIO    │  │   Grafana   │  │   Prometheus │                  │    │
+│  │  │  (文件存储)  │  │  (监控)     │  │   (指标)    │                  │    │
+│  │  └─────────────┘  └─────────────┘  └─────────────┘                  │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                      │                                       │
+│                                      ▼                                       │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                       基础设施层 (Infrastructure)                   │    │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐ │    │
+│  │  │ Kubernetes  │  │   Docker    │  │   Nginx     │  │   TLS 1.3   │ │    │
+│  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘ │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<hr />
+
+<h2>第二章：核心功能模块架构</h2>
+
+<h3>2.1 模块架构总览</h3>
+
+<pre><code>┌─────────────────────────────────────────────────────────────────────────────┐
+│                          核心功能模块架构                                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐   │
+│  │                        FR-01: 资产管理模块                           │   │
+│  │  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐       │   │
+│  │  │   资产发现     │  │   资产录入     │  │   资产分类     │       │   │
+│  │  │  Discovery    │  │   Import      │  │   Taxonomy     │       │   │
+│  │  └────────────────┘  └────────────────┘  └────────────────┘       │   │
+│  │  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐       │   │
+│  │  │   生命周期     │  │   资产详情     │  │   树状结构     │       │   │
+│  │  │  Lifecycle    │  │   Detail       │  │   TreeView    │       │   │
+│  │  └────────────────┘  └────────────────┘  └────────────────┘       │   │
+│  └───────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐   │
+│  │                      FR-02/03: 扫描策略与任务模块                     │   │
+│  │  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐       │   │
+│  │  │   策略管理     │  │   任务调度     │  │   任务执行     │       │   │
+│  │  │   Policy      │  │   Scheduler   │  │   Executor    │       │   │
+│  │  └────────────────┘  └────────────────┘  └────────────────┘       │   │
+│  │  ┌────────────────┐  ┌────────────────┐                            │   │
+│  │  │   任务监控     │  │   任务控制     │                            │   │
+│  │  │   Monitor     │  │   Controller  │                            │   │
+│  │  └────────────────┘  └────────────────┘                            │   │
+│  └───────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐   │
+│  │                        FR-04: 漏洞管理模块                            │   │
+│  │  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐       │   │
+│  │  │   漏洞列表     │  │   漏洞详情     │  │   漏洞处置     │       │   │
+│  │  │   List        │  │   Detail       │  │   Disposal    │       │   │
+│  │  └────────────────┘  └────────────────┘  └────────────────┘       │   │
+│  │  ┌────────────────┐                                                  │   │
+│  │  │   漏洞去重     │                                                  │   │
+│  │  │   Dedupe      │                                                  │   │
+│  │  └────────────────┘                                                  │   │
+│  └───────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐   │
+│  │                    FR-05: 风险分析模块 (含 AI)                        │   │
+│  │  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐       │   │
+│  │  │  AI 辅助验证   │  │   风险评分     │  │   优先级排序   │       │   │
+│  │  │   AI Verify   │  │   Risk Score  │  │   Prioritize  │       │   │
+│  │  └────────────────┘  └────────────────┘  └────────────────┘       │   │
+│  └───────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐   │
+│  │                        FR-06: 修复管理模块                            │   │
+│  │  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐       │   │
+│  │  │   修复建议     │  │   工单集成     │  │   复测验证     │       │   │
+│  │  │   Remediation │  │   Ticketing   │  │   Retest      │       │   │
+│  │  └────────────────┘  └────────────────┘  └────────────────┘       │   │
+│  └───────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐   │
+│  │                        FR-07: 报告中心模块                            │   │
+│  │  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐       │   │
+│  │  │   报告模板     │  │   报告生成     │  │   报告分发     │       │   │
+│  │  │   Templates   │  │   Generator   │  │   Distribute  │       │   │
+│  │  └────────────────┘  └────────────────┘  └────────────────┘       │   │
+│  └───────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐   │
+│  │                        FR-08: 系统管理模块                            │   │
+│  │  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐       │   │
+│  │  │   用户管理     │  │   角色权限     │  │   审计日志     │       │   │
+│  │  │   Users       │  │   RBAC        │  │   Audit       │       │   │
+│  │  └────────────────┘  └────────────────┘  └────────────────┘       │   │
+│  └───────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐   │
+│  │                    FR-11: 多类型资产漏洞扫描模块                      │   │
+│  │  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐       │   │
+│  │  │  通用系统扫描   │  │  网络设备扫描  │  │  安全设备扫描  │       │   │
+│  │  │   OS Scan     │  │  NetDev Scan  │  │  SecDev Scan  │       │   │
+│  │  └────────────────┘  └────────────────┘  └────────────────┘       │   │
+│  │  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐       │   │
+│  │  │  IoT 设备扫描  │  │  工控设备扫描  │  │  国产系统扫描  │       │   │
+│  │  │   IoT Scan    │  │   OT Scan     │  │  Dom国产 Scan  │       │   │
+│  │  └────────────────┘  └────────────────┘  └────────────────┘       │   │
+│  └───────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐   │
+│  │                      FR-12: 大数据组件扫描模块                       │   │
+│  │  ┌────────────────────────────────────────────────────────────────┐ │   │
+│  │  │  ZooKeeper │ ES │ ActiveMQ │ Kibana │ Hadoop │ Spark │ Kafka │  │   │
+│  │  │  Redis │ MongoDB │ Hive │ HBase │ Flink │ Storm                 │ │   │
+│  │  └────────────────────────────────────────────────────────────────┘ │   │
+│  └───────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐   │
+│  │                      FR-13: 弱口令检测模块                            │   │
+│  │  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐       │   │
+│  │  │   多协议检测   │  │   字典管理     │  │   凭据管理     │       │   │
+│  │  │   BruteForce  │  │   Dictionary  │  │   Credentials │       │   │
+│  │  └────────────────┘  └────────────────┘  └────────────────┘       │   │
+│  └───────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐   │
+│  │                      FR-14: 漏洞库与规则模块                          │   │
+│  │  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐       │   │
+│  │  │   漏洞库管理   │  │   规则引擎     │  │   情报同步     │       │   │
+│  │  │   CVE Database │  │   Rule Engine │  │   Intel Sync  │       │   │
+│  │  └────────────────┘  └────────────────┘  └────────────────┘       │   │
+│  └───────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐   │
+│  │                      FR-16: 自动化漏洞验证模块                        │   │
+│  │  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐       │   │
+│  │  │   注入验证     │  │   XSS 验证    │  │   通用验证     │       │   │
+│  │  │   Injection   │  │   XSS Verify  │  │   General     │       │   │
+│  │  └────────────────┘  └────────────────┘  └────────────────┘       │   │
+│  │  ┌────────────────┐  ┌────────────────┐                            │   │
+│  │  │   验证报告     │  │   置信度计算   │                            │   │
+│  │  │   Report      │  │   Confidence  │                            │   │
+│  │  └────────────────┘  └────────────────┘                            │   │
+│  └───────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐   │
+│  │                      FR-17: 隐匿站点探测模块                          │   │
+│  │  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐       │   │
+│  │  │   自动站点探测 │  │   资产暴露面   │  │   未报备告警   │       │   │
+│  │  │   Discovery   │  │   Exposure    │  │   Unregistered │       │   │
+│  │  └────────────────┘  └────────────────┘  └────────────────┘       │   │
+│  └───────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐   │
+│  │                      FR-09/10: API 与插件模块                        │   │
+│  │  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐       │   │
+│  │  │   RESTful API  │  │   GraphQL API  │  │   Webhook     │       │   │
+│  │  └────────────────┘  └────────────────┘  └────────────────┘       │   │
+│  │  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐       │   │
+│  │  │   插件 SDK    │  │   插件上传     │  │   版本管理     │       │   │
+│  │  │   Plugin SDK │  │   Upload      │  │   Version     │       │   │
+│  │  └────────────────┘  └────────────────┘  └────────────────┘       │   │
+│  └───────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<hr />
+
+<h2>第三章：数据架构设计</h2>
+
+<h3>3.1 数据模型设计</h3>
+
+<pre><code>┌─────────────────────────────────────────────────────────────────────────────┐
+│                              数据模型架构                                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐   │
+│  │                          核心实体关系图                                │   │
+│  │                                                                       │   │
+│  │    ┌─────────┐         ┌─────────┐         ┌─────────┐             │   │
+│  │    │ Tenant  │         │  User   │         │  Role   │             │   │
+│  │    │ 租户    │────────&lt;│  用户   │────────&lt;│  角色   │             │   │
+│  │    └─────────┘         └─────────┘         └─────────┘             │   │
+│  │         │                   │                                        │   │
+│  │         │                   │                                        │   │
+│  │         ▼                   ▼                                        │   │
+│  │    ┌─────────┐         ┌─────────┐                                 │   │
+│  │    │ Organization│       │  Audit  │                                 │   │
+│  │    │ 组织架构 │         │  审计   │                                 │   │
+│  │    └─────────┘         └─────────┘                                 │   │
+│  │         │                                                          │   │
+│  │         │ 1:n                                                      │   │
+│  │         ▼                                                          │   │
+│  │    ┌─────────┐     n:m     ┌─────────┐                           │   │
+│  │    │  Asset  │&lt;───────────&gt;│   Tag   │                           │   │
+│  │    │  资产   │             │  标签   │                           │   │
+│  │    └─────────┘             └─────────┘                           │   │
+│  │         │                                                          │   │
+│  │         │ 1:n                                                      │   │
+│  │         ▼                                                          │   │
+│  │    ┌─────────┐     1:n     ┌─────────┐     n:1     ┌─────────┐ │   │
+│  │    │ Service │&lt;───────────&gt;│ Vuln    │&lt;────────────│ Policy │ │   │
+│  │    │ 服务    │             │ 漏洞    │             │ 策略   │ │   │
+│  │    └─────────┘             └─────────┘             └─────────┘ │   │
+│  │         │                       │                                  │   │
+│  │         │                       │ n:1                              │   │
+│  │         ▼                       ▼                                  │   │
+│  │    ┌─────────┐         ┌─────────┐                                 │   │
+│  │    │ ScanTask│         │Remediation│                                │   │
+│  │    │ 扫描任务│         │ 修复记录 │                                 │   │
+│  │    └─────────┘         └─────────┘                                 │   │
+│  │         │                                                          │   │
+│  │         │ 1:n                                                      │   │
+│  │         ▼                                                          │   │
+│  │    ┌─────────┐                                                     │   │
+│  │    │ Report  │                                                     │   │
+│  │    │ 报告    │                                                     │   │
+│  │    └─────────┘                                                     │   │
+│  │                                                                       │   │
+│  └───────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐   │
+│  │                          资产树状结构设计                             │   │
+│  │                                                                       │   │
+│  │    ┌─────────────────────────────────────────────────────────────────┐│   │
+│  │    │                         Organization (组织)                     ││   │
+│  │    │                              ├── Department (部门)             ││   │
+│  │    │                              │    ├── Network (网络)             ││   │
+│  │    │                              │    │    ├── Subnet (子网)         ││   │
+│  │    │                              │    │    │    ├── Server (服务器)   ││   │
+│  │    │                              │    │    │    │    ├── WebAsset     ││   │
+│  │    │                              │    │    │    │    │    (Web资产)   ││   │
+│  │    │                              │    │    │    │    └── Database    ││   │
+│  │    │                              │    │    │    │         (数据库)   ││   │
+│  │    │                              │    │    │    └── NetworkDevice  ││   │
+│  │    │                              │    │    │         (网络设备)     ││   │
+│  │    │                              │    │    └── SecurityDevice     ││   │
+│  │    │                              │    │         (安全设备)         ││   │
+│  │    │                              │    └── IoTDevice (物联网设备)   ││   │
+│  │    │                              │         └── OTDevice (工控设备) ││   │
+│  │    │                              └── AssetGroup (资产组)          ││   │
+│  │    └─────────────────────────────────────────────────────────────────┘│   │
+│  └───────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<h3>3.2 数据表设计</h3>
+
+<h4>3.2.1 资产表 (assets)</h4>
+
+<div class="codehilite">
+<pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">assets</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">id</span><span class="w">              </span><span class="n">UUID</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="n">gen_random_uuid</span><span class="p">(),</span>
+<span class="w">    </span><span class="n">tenant_id</span><span class="w">       </span><span class="n">UUID</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">REFERENCES</span><span class="w"> </span><span class="n">tenants</span><span class="p">(</span><span class="n">id</span><span class="p">),</span>
+<span class="w">    </span><span class="n">organization_id</span><span class="w"> </span><span class="n">UUID</span><span class="w"> </span><span class="k">REFERENCES</span><span class="w"> </span><span class="n">organizations</span><span class="p">(</span><span class="n">id</span><span class="p">),</span>
+<span class="w">    </span><span class="n">parent_id</span><span class="w">       </span><span class="n">UUID</span><span class="w"> </span><span class="k">REFERENCES</span><span class="w"> </span><span class="n">assets</span><span class="p">(</span><span class="n">id</span><span class="p">),</span><span class="w">  </span><span class="c1">-- 树状结构父节点</span>
+<span class="w">    </span><span class="n">asset_type</span><span class="w">      </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">50</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span><span class="w">  </span><span class="c1">-- SERVER, NETWORK_DEVICE, SECURITY_DEVICE, IOT, OT, WEB_APP, DATABASE, etc.</span>
+<span class="w">    </span><span class="n">name</span><span class="w">            </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">255</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">ip_address</span><span class="w">      </span><span class="n">INET</span><span class="p">,</span>
+<span class="w">    </span><span class="n">mac_address</span><span class="w">    </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">17</span><span class="p">),</span>
+<span class="w">    </span><span class="n">os_type</span><span class="w">         </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">50</span><span class="p">),</span><span class="w">  </span><span class="c1">-- Windows, Linux, macOS, 中标麒麟, 欧拉, etc.</span>
+<span class="w">    </span><span class="n">os_version</span><span class="w">      </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">100</span><span class="p">),</span>
+<span class="w">    </span><span class="n">manufacturer</span><span class="w">    </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">100</span><span class="p">),</span><span class="w">  </span><span class="c1">-- 厂商: Cisco, 华为, 海康威视, etc.</span>
+<span class="w">    </span><span class="n">model</span><span class="w">           </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">100</span><span class="p">),</span><span class="w">  </span><span class="c1">-- 型号</span>
+<span class="w">    </span><span class="n">serial_number</span><span class="w">   </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">100</span><span class="p">),</span>
+<span class="w">    </span><span class="n">status</span><span class="w">          </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">20</span><span class="p">)</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="s1">&#39;discovered&#39;</span><span class="p">,</span><span class="w">  </span><span class="c1">-- discovered, pending, confirmed, active, maintenance, offline</span>
+<span class="w">    </span><span class="n">importance</span><span class="w">      </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">20</span><span class="p">)</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="s1">&#39;normal&#39;</span><span class="p">,</span><span class="w">  </span><span class="c1">-- core, important, normal, edge</span>
+<span class="w">    </span><span class="n">risk_score</span><span class="w">      </span><span class="nb">INTEGER</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
+<span class="w">    </span><span class="k">owner</span><span class="w">           </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">100</span><span class="p">),</span>
+<span class="w">    </span><span class="n">department</span><span class="w">      </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">100</span><span class="p">),</span>
+<span class="w">    </span><span class="k">location</span><span class="w">        </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">255</span><span class="p">),</span>
+<span class="w">    </span><span class="n">tags</span><span class="w">            </span><span class="n">JSONB</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="s1">&#39;[]&#39;</span><span class="p">,</span>
+<span class="w">    </span><span class="n">metadata</span><span class="w">        </span><span class="n">JSONB</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="s1">&#39;{}&#39;</span><span class="p">,</span><span class="w">  </span><span class="c1">-- 扩展属性</span>
+<span class="w">    </span><span class="n">first_seen</span><span class="w">     </span><span class="k">TIMESTAMP</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="n">NOW</span><span class="p">(),</span>
+<span class="w">    </span><span class="n">last_seen</span><span class="w">      </span><span class="k">TIMESTAMP</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="n">NOW</span><span class="p">(),</span>
+<span class="w">    </span><span class="n">created_at</span><span class="w">      </span><span class="k">TIMESTAMP</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="n">NOW</span><span class="p">(),</span>
+<span class="w">    </span><span class="n">updated_at</span><span class="w">      </span><span class="k">TIMESTAMP</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="n">NOW</span><span class="p">(),</span>
+<span class="w">    </span><span class="n">deleted_at</span><span class="w">      </span><span class="k">TIMESTAMP</span>
+<span class="p">);</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_assets_tenant</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">assets</span><span class="p">(</span><span class="n">tenant_id</span><span class="p">);</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_assets_parent</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">assets</span><span class="p">(</span><span class="n">parent_id</span><span class="p">);</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_assets_type</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">assets</span><span class="p">(</span><span class="n">asset_type</span><span class="p">);</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_assets_org</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">assets</span><span class="p">(</span><span class="n">organization_id</span><span class="p">);</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_assets_ip</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">assets</span><span class="p">(</span><span class="n">ip_address</span><span class="p">);</span>
+</code></pre>
+</div>
+
+<h4>3.2.2 漏洞表 (vulnerabilities)</h4>
+
+<div class="codehilite">
+<pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">vulnerabilities</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">id</span><span class="w">              </span><span class="n">UUID</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="n">gen_random_uuid</span><span class="p">(),</span>
+<span class="w">    </span><span class="n">tenant_id</span><span class="w">       </span><span class="n">UUID</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">REFERENCES</span><span class="w"> </span><span class="n">tenants</span><span class="p">(</span><span class="n">id</span><span class="p">),</span>
+<span class="w">    </span><span class="n">asset_id</span><span class="w">        </span><span class="n">UUID</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">REFERENCES</span><span class="w"> </span><span class="n">assets</span><span class="p">(</span><span class="n">id</span><span class="p">),</span>
+<span class="w">    </span><span class="n">cve_id</span><span class="w">          </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">20</span><span class="p">),</span><span class="w">  </span><span class="c1">-- CVE-2021-44228</span>
+<span class="w">    </span><span class="n">vuln_type</span><span class="w">       </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">50</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span><span class="w">  </span><span class="c1">-- CVE, WEB, CONFIG, WEAK_PASSWORD, etc.</span>
+<span class="w">    </span><span class="n">title</span><span class="w">           </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">500</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">description</span><span class="w">     </span><span class="nb">TEXT</span><span class="p">,</span>
+<span class="w">    </span><span class="n">severity</span><span class="w">        </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">20</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span><span class="w">  </span><span class="c1">-- CRITICAL, HIGH, MEDIUM, LOW, INFO</span>
+<span class="w">    </span><span class="n">cvss_score</span><span class="w">      </span><span class="nb">DECIMAL</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span><span class="mi">1</span><span class="p">),</span>
+<span class="w">    </span><span class="n">cvss_vector</span><span class="w">     </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">100</span><span class="p">),</span>
+<span class="w">    </span><span class="n">risk_score</span><span class="w">      </span><span class="nb">INTEGER</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">  </span><span class="c1">-- 综合风险评分</span>
+<span class="w">    </span><span class="n">confidence</span><span class="w">      </span><span class="nb">INTEGER</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="mi">50</span><span class="p">,</span><span class="w">  </span><span class="c1">-- 置信度 0-100</span>
+<span class="w">    </span><span class="n">status</span><span class="w">          </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">30</span><span class="p">)</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="s1">&#39;new&#39;</span><span class="p">,</span><span class="w">  </span><span class="c1">-- new, confirmed, assigned, in_progress, pending_verify, fixed, false_positive, accepted_risk, closed</span>
+<span class="w">    </span><span class="n">evidence</span><span class="w">        </span><span class="n">JSONB</span><span class="p">,</span><span class="w">  </span><span class="c1">-- 扫描证据</span>
+<span class="w">    </span><span class="n">remediation</span><span class="w">     </span><span class="n">JSONB</span><span class="p">,</span><span class="w">  </span><span class="c1">-- 修复建议</span>
+<span class="w">    </span><span class="n">assigned_to</span><span class="w">     </span><span class="n">UUID</span><span class="w"> </span><span class="k">REFERENCES</span><span class="w"> </span><span class="n">users</span><span class="p">(</span><span class="n">id</span><span class="p">),</span>
+<span class="w">    </span><span class="n">due_date</span><span class="w">        </span><span class="nb">DATE</span><span class="p">,</span>
+<span class="w">    </span><span class="n">verified_at</span><span class="w">     </span><span class="k">TIMESTAMP</span><span class="p">,</span>
+<span class="w">    </span><span class="n">fixed_at</span><span class="w">        </span><span class="k">TIMESTAMP</span><span class="p">,</span>
+<span class="w">    </span><span class="n">created_at</span><span class="w">      </span><span class="k">TIMESTAMP</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="n">NOW</span><span class="p">(),</span>
+<span class="w">    </span><span class="n">updated_at</span><span class="w">      </span><span class="k">TIMESTAMP</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="n">NOW</span><span class="p">()</span>
+<span class="p">);</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_vuln_tenant</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">vulnerabilities</span><span class="p">(</span><span class="n">tenant_id</span><span class="p">);</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_vuln_asset</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">vulnerabilities</span><span class="p">(</span><span class="n">asset_id</span><span class="p">);</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_vuln_cve</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">vulnerabilities</span><span class="p">(</span><span class="n">cve_id</span><span class="p">);</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_vuln_severity</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">vulnerabilities</span><span class="p">(</span><span class="n">severity</span><span class="p">);</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_vuln_status</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">vulnerabilities</span><span class="p">(</span><span class="n">status</span><span class="p">);</span>
+</code></pre>
+</div>
+
+<h4>3.2.3 扫描任务表 (scan_tasks)</h4>
+
+<div class="codehilite">
+<pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">scan_tasks</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">id</span><span class="w">              </span><span class="n">UUID</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="n">gen_random_uuid</span><span class="p">(),</span>
+<span class="w">    </span><span class="n">tenant_id</span><span class="w">       </span><span class="n">UUID</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">REFERENCES</span><span class="w"> </span><span class="n">tenants</span><span class="p">(</span><span class="n">id</span><span class="p">),</span>
+<span class="w">    </span><span class="n">name</span><span class="w">            </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">255</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">description</span><span class="w">     </span><span class="nb">TEXT</span><span class="p">,</span>
+<span class="w">    </span><span class="n">policy_id</span><span class="w">       </span><span class="n">UUID</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">REFERENCES</span><span class="w"> </span><span class="n">scan_policies</span><span class="p">(</span><span class="n">id</span><span class="p">),</span>
+<span class="w">    </span><span class="n">scan_type</span><span class="w">       </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">30</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span><span class="w">  </span><span class="c1">-- quick, standard, deep, custom</span>
+<span class="w">    </span><span class="n">target_type</span><span class="w">     </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">20</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span><span class="w">  </span><span class="c1">-- asset, asset_group, network, all</span>
+<span class="w">    </span><span class="n">targets</span><span class="w">         </span><span class="n">JSONB</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span><span class="w">  </span><span class="c1">-- 目标列表</span>
+<span class="w">    </span><span class="n">schedule_type</span><span class="w">   </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">20</span><span class="p">)</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="s1">&#39;immediate&#39;</span><span class="p">,</span><span class="w">  </span><span class="c1">-- immediate, scheduled, recurring</span>
+<span class="w">    </span><span class="n">schedule_cron</span><span class="w">   </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">100</span><span class="p">),</span>
+<span class="w">    </span><span class="n">scheduled_at</span><span class="w">    </span><span class="k">TIMESTAMP</span><span class="p">,</span>
+<span class="w">    </span><span class="n">status</span><span class="w">          </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">20</span><span class="p">)</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="s1">&#39;pending&#39;</span><span class="p">,</span><span class="w">  </span><span class="c1">-- pending, queued, running, paused, completed, failed, cancelled</span>
+<span class="w">    </span><span class="n">progress</span><span class="w">        </span><span class="nb">INTEGER</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
+<span class="w">    </span><span class="n">priority</span><span class="w">        </span><span class="nb">INTEGER</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="mi">50</span><span class="p">,</span>
+<span class="w">    </span><span class="n">node_id</span><span class="w">         </span><span class="n">UUID</span><span class="w"> </span><span class="k">REFERENCES</span><span class="w"> </span><span class="n">scan_nodes</span><span class="p">(</span><span class="n">id</span><span class="p">),</span>
+<span class="w">    </span><span class="n">result_summary</span><span class="w">  </span><span class="n">JSONB</span><span class="p">,</span>
+<span class="w">    </span><span class="n">started_at</span><span class="w">      </span><span class="k">TIMESTAMP</span><span class="p">,</span>
+<span class="w">    </span><span class="n">completed_at</span><span class="w">    </span><span class="k">TIMESTAMP</span><span class="p">,</span>
+<span class="w">    </span><span class="n">created_by</span><span class="w">      </span><span class="n">UUID</span><span class="w"> </span><span class="k">REFERENCES</span><span class="w"> </span><span class="n">users</span><span class="p">(</span><span class="n">id</span><span class="p">),</span>
+<span class="w">    </span><span class="n">created_at</span><span class="w">      </span><span class="k">TIMESTAMP</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="n">NOW</span><span class="p">(),</span>
+<span class="w">    </span><span class="n">updated_at</span><span class="w">      </span><span class="k">TIMESTAMP</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="n">NOW</span><span class="p">()</span>
+<span class="p">);</span>
+</code></pre>
+</div>
+
+<h4>3.2.4 扫描策略表 (scan_policies)</h4>
+
+<div class="codehilite">
+<pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">scan_policies</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">id</span><span class="w">              </span><span class="n">UUID</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="n">gen_random_uuid</span><span class="p">(),</span>
+<span class="w">    </span><span class="n">tenant_id</span><span class="w">       </span><span class="n">UUID</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">REFERENCES</span><span class="w"> </span><span class="n">tenants</span><span class="p">(</span><span class="n">id</span><span class="p">),</span>
+<span class="w">    </span><span class="n">name</span><span class="w">            </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">255</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">description</span><span class="w">     </span><span class="nb">TEXT</span><span class="p">,</span>
+<span class="w">    </span><span class="n">policy_type</span><span class="w">     </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">30</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span><span class="w">  </span><span class="c1">-- quick, standard, deep, custom, compliance</span>
+<span class="w">    </span><span class="n">scan_profile</span><span class="w">    </span><span class="n">JSONB</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span><span class="w">  </span><span class="c1">-- 扫描配置</span>
+<span class="w">    </span><span class="n">plugin_list</span><span class="w">     </span><span class="n">JSONB</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="s1">&#39;[]&#39;</span><span class="p">,</span><span class="w">  </span><span class="c1">-- 启用的插件列表</span>
+<span class="w">    </span><span class="n">scan_options</span><span class="w">    </span><span class="n">JSONB</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="s1">&#39;{}&#39;</span><span class="p">,</span><span class="w">  </span><span class="c1">-- 扫描选项</span>
+<span class="w">    </span><span class="n">is_template</span><span class="w">     </span><span class="nb">BOOLEAN</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="k">FALSE</span><span class="p">,</span>
+<span class="w">    </span><span class="n">template_name</span><span class="w">   </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">50</span><span class="p">),</span><span class="w">  </span><span class="c1">-- 快速扫描, 标准扫描, 深度扫描, 等保合规, etc.</span>
+<span class="w">    </span><span class="k">version</span><span class="w">         </span><span class="nb">INTEGER</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
+<span class="w">    </span><span class="n">created_by</span><span class="w">      </span><span class="n">UUID</span><span class="w"> </span><span class="k">REFERENCES</span><span class="w"> </span><span class="n">users</span><span class="p">(</span><span class="n">id</span><span class="p">),</span>
+<span class="w">    </span><span class="n">created_at</span><span class="w">      </span><span class="k">TIMESTAMP</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="n">NOW</span><span class="p">(),</span>
+<span class="w">    </span><span class="n">updated_at</span><span class="w">      </span><span class="k">TIMESTAMP</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="n">NOW</span><span class="p">()</span>
+<span class="p">);</span>
+</code></pre>
+</div>
+
+<h4>3.2.5 漏洞检测规则表 (vuln_rules)</h4>
+
+<div class="codehilite">
+<pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">vuln_rules</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">id</span><span class="w">              </span><span class="n">UUID</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="n">gen_random_uuid</span><span class="p">(),</span>
+<span class="w">    </span><span class="n">rule_type</span><span class="w">       </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">30</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span><span class="w">  </span><span class="c1">-- cve, web, config, weak_password, etc.</span>
+<span class="w">    </span><span class="n">name</span><span class="w">            </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">255</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">category</span><span class="w">        </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">50</span><span class="p">),</span><span class="w">  </span><span class="c1">-- OWASP, CVE, etc.</span>
+<span class="w">    </span><span class="n">severity</span><span class="w">        </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">20</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">description</span><span class="w">     </span><span class="nb">TEXT</span><span class="p">,</span>
+<span class="w">    </span><span class="n">detection_method</span><span class="w"> </span><span class="n">JSONB</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span><span class="w">  </span><span class="c1">-- 检测方法配置</span>
+<span class="w">    </span><span class="n">remediation</span><span class="w">     </span><span class="nb">TEXT</span><span class="p">,</span>
+<span class="w">    </span><span class="n">cve_id</span><span class="w">          </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">20</span><span class="p">),</span>
+<span class="w">    </span><span class="n">cwe_id</span><span class="w">          </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">20</span><span class="p">),</span>
+<span class="w">    </span><span class="n">affected_product</span><span class="w"> </span><span class="n">JSONB</span><span class="p">,</span><span class="w">  </span><span class="c1">-- 受影响产品</span>
+<span class="w">    </span><span class="n">plugin_id</span><span class="w">       </span><span class="n">UUID</span><span class="p">,</span><span class="w">  </span><span class="c1">-- 对应的插件</span>
+<span class="w">    </span><span class="k">version</span><span class="w">         </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">20</span><span class="p">),</span>
+<span class="w">    </span><span class="n">is_active</span><span class="w">       </span><span class="nb">BOOLEAN</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="k">TRUE</span><span class="p">,</span>
+<span class="w">    </span><span class="n">created_at</span><span class="w">      </span><span class="k">TIMESTAMP</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="n">NOW</span><span class="p">(),</span>
+<span class="w">    </span><span class="n">updated_at</span><span class="w">      </span><span class="k">TIMESTAMP</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="n">NOW</span><span class="p">()</span>
+<span class="p">);</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_rules_type</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">vuln_rules</span><span class="p">(</span><span class="n">rule_type</span><span class="p">);</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_rules_cve</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">vuln_rules</span><span class="p">(</span><span class="n">cve_id</span><span class="p">);</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_rules_product</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">vuln_rules</span><span class="p">(</span><span class="n">affected_product</span><span class="p">);</span>
+</code></pre>
+</div>
+
+<h4>3.2.6 弱口令字典表 (password_dictionaries)</h4>
+
+<div class="codehilite">
+<pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">password_dictionaries</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">id</span><span class="w">              </span><span class="n">UUID</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="n">gen_random_uuid</span><span class="p">(),</span>
+<span class="w">    </span><span class="n">tenant_id</span><span class="w">       </span><span class="n">UUID</span><span class="w"> </span><span class="k">REFERENCES</span><span class="w"> </span><span class="n">tenants</span><span class="p">(</span><span class="n">id</span><span class="p">),</span><span class="w">  </span><span class="c1">-- null 表示全局字典</span>
+<span class="w">    </span><span class="n">name</span><span class="w">            </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">255</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">dict_type</span><span class="w">       </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">30</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span><span class="w">  </span><span class="c1">-- default, common, custom, industry</span>
+<span class="w">    </span><span class="n">category</span><span class="w">        </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">50</span><span class="p">),</span><span class="w">  </span><span class="c1">-- 通用, 厂商默认, 行业专用, etc.</span>
+<span class="w">    </span><span class="n">entries_count</span><span class="w">   </span><span class="nb">INTEGER</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
+<span class="w">    </span><span class="n">is_builtin</span><span class="w">     </span><span class="nb">BOOLEAN</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="k">FALSE</span><span class="p">,</span>
+<span class="w">    </span><span class="n">file_path</span><span class="w">       </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">500</span><span class="p">),</span>
+<span class="w">    </span><span class="n">created_by</span><span class="w">      </span><span class="n">UUID</span><span class="w"> </span><span class="k">REFERENCES</span><span class="w"> </span><span class="n">users</span><span class="p">(</span><span class="n">id</span><span class="p">),</span>
+<span class="w">    </span><span class="n">created_at</span><span class="w">      </span><span class="k">TIMESTAMP</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="n">NOW</span><span class="p">(),</span>
+<span class="w">    </span><span class="n">updated_at</span><span class="w">      </span><span class="k">TIMESTAMP</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="n">NOW</span><span class="p">()</span>
+<span class="p">);</span>
+</code></pre>
+</div>
+
+<h3>3.3 存储架构</h3>
+
+<pre><code>┌─────────────────────────────────────────────────────────────────────────────┐
+│                              存储架构设计                                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐ │
+│  │                         数据存储分层                                  │ │
+│  ├───────────────────────────────────────────────────────────────────────┤ │
+│  │                                                                       │ │
+│  │   ┌─────────────┐     ┌─────────────┐     ┌─────────────┐          │ │
+│  │   │   热数据    │     │   温数据    │     │   冷数据    │          │ │
+│  │   │  (&lt; 30天)  │     │ (30-90天)   │     │ (&gt; 90天)    │          │ │
+│  │   ├─────────────┤     ├─────────────┤     ├─────────────┤          │ │
+│  │   │ PostgreSQL │     │ PostgreSQL  │     │   对象存储   │          │ │
+│  │   │  + Redis   │     │             │     │   (MinIO)   │          │ │
+│  │   └─────────────┘     └─────────────┘     └─────────────┘          │ │
+│  │                                                                       │ │
+│  └───────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐ │
+│  │                         数据流转设计                                  │ │
+│  ├───────────────────────────────────────────────────────────────────────┤ │
+│  │                                                                       │ │
+│  │   用户请求 ──&gt; API Gateway ──&gt; 业务服务 ──&gt; PostgreSQL              │ │
+│  │       │                                   │                          │ │
+│  │       │                                   ▼                          │ │
+│  │       │                            ┌─────────────┐                   │ │
+│  │       │                            │   Redis     │                   │ │
+│  │       │                            │  (缓存层)   │                   │ │
+│  │       │                            └─────────────┘                   │ │
+│  │       │                                   │                          │ │
+│  │       ▼                                   ▼                          │ │
+│  │   扫描任务 ──&gt; Kafka ──&gt; 扫描引擎 ──&gt; 结果 ──&gt; Elasticsearch       │ │
+│  │                                              │                      │ │
+│  │                                              ▼                      │ │
+│  │                                       ┌─────────────┐               │ │
+│  │                                       │  报告生成   │               │ │
+│  │                                       │  MinIO存储  │               │ │
+│  │                                       └─────────────┘               │ │
+│  │                                                                       │ │
+│  └───────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<hr />
+
+<h2>第四章：技术架构设计</h2>
+
+<h3>4.1 技术栈选型</h3>
+
+<table>
+<thead>
+<tr>
+  <th>层次</th>
+  <th>技术选型</th>
+  <th>版本要求</th>
+  <th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><strong>后端框架</strong></td>
+  <td>Gin (Go)</td>
+  <td>1.20+</td>
+  <td>高性能 HTTP 框架</td>
+</tr>
+<tr>
+  <td></td>
+  <td>FastAPI (Python)</td>
+  <td>3.10+</td>
+  <td>AI 服务、插件服务</td>
+</tr>
+<tr>
+  <td><strong>前端框架</strong></td>
+  <td>React</td>
+  <td>18+</td>
+  <td>Web 门户</td>
+</tr>
+<tr>
+  <td></td>
+  <td>Vue 3</td>
+  <td>3.3+</td>
+  <td>管理后台</td>
+</tr>
+<tr>
+  <td></td>
+  <td>Flutter</td>
+  <td>3.0+</td>
+  <td>移动端</td>
+</tr>
+<tr>
+  <td><strong>数据库</strong></td>
+  <td>PostgreSQL</td>
+  <td>14+</td>
+  <td>主数据库</td>
+</tr>
+<tr>
+  <td></td>
+  <td>Redis</td>
+  <td>7+</td>
+  <td>缓存、会话</td>
+</tr>
+<tr>
+  <td></td>
+  <td>Elasticsearch</td>
+  <td>8.x</td>
+  <td>日志、搜索</td>
+</tr>
+<tr>
+  <td><strong>消息队列</strong></td>
+  <td>Kafka</td>
+  <td>3.x</td>
+  <td>任务队列</td>
+</tr>
+<tr>
+  <td><strong>对象存储</strong></td>
+  <td>MinIO</td>
+  <td>2023+</td>
+  <td>文件存储</td>
+</tr>
+<tr>
+  <td><strong>容器编排</strong></td>
+  <td>Kubernetes</td>
+  <td>1.25+</td>
+  <td>容器编排</td>
+</tr>
+<tr>
+  <td><strong>监控</strong></td>
+  <td>Prometheus</td>
+  <td>2.x</td>
+  <td>指标收集</td>
+</tr>
+<tr>
+  <td></td>
+  <td>Grafana</td>
+  <td>10.x</td>
+  <td>可视化</td>
+</tr>
+</tbody>
+</table>
+
+<h3>4.2 微服务设计</h3>
+
+<pre><code>┌─────────────────────────────────────────────────────────────────────────────┐
+│                           微服务架构设计                                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐ │
+│  │                         API 网关层                                     │ │
+│  │  ┌─────────────────────────────────────────────────────────────────┐ │ │
+│  │  │                    Kong / Nginx Ingress                        │ │ │
+│  │  │  • 负载均衡  • 限流  • 认证  • SSL 卸载  • 请求路由           │ │ │
+│  │  └─────────────────────────────────────────────────────────────────┘ │ │
+│  └───────────────────────────────────────────────────────────────────────┘ │
+│                                    │                                         │
+│                                    ▼                                         │
+│  ┌───────────────────────────────────────────────────────────────────────┐ │
+│  │                         业务服务层                                     │ │
+│  │                                                                       │ │
+│  │  ┌───────────────┐ ┌───────────────┐ ┌───────────────┐ ┌───────────┐ │ │
+│  │  │   资产服务    │ │   扫描服务    │ │  漏洞服务    │ │  报告服务 │ │ │
+│  │  │ asset-service │ │  scan-service │ │ vuln-service │ │rpt-service│ │ │
+│  │  │   Go/Gin     │ │   Go/Gin     │ │   Go/Gin    │ │  Go/Gin  │ │ │
+│  │  └───────────────┘ └───────────────┘ └───────────────┘ └───────────┘ │ │
+│  │                                                                       │ │
+│  │  ┌───────────────┐ ┌───────────────┐ ┌───────────────┐ ┌───────────┐ │ │
+│  │  │   用户服务    │ │   AI 分析服务  │ │  情报服务    │ │  通知服务 │ │ │
+│  │  │  user-service │ │   ai-service  │ │ intel-service│ │notify-svc │ │ │
+│  │  │   Go/Gin     │ │ Python/FastAPI│ │   Go/Gin    │ │  Go/Gin  │ │ │
+│  │  └───────────────┘ └───────────────┘ └───────────────┘ └───────────┘ │ │
+│  │                                                                       │ │
+│  │  ┌───────────────┐ ┌───────────────┐                               │ │
+│  │  │   插件服务    │ │   认证服务    │                               │ │
+│  │  │plugin-service │ │  auth-service │                               │ │
+│  │  │ Python/FastAPI│ │   Go/Gin     │                               │ │
+│  │  └───────────────┘ └───────────────┘                               │ │
+│  │                                                                       │ │
+│  └───────────────────────────────────────────────────────────────────────┘ │
+│                                    │                                         │
+│                                    ▼                                         │
+│  ┌───────────────────────────────────────────────────────────────────────┐ │
+│  │                         扫描引擎层                                     │ │
+│  │                                                                       │ │
+│  │  ┌─────────────────────────────────────────────────────────────────┐ │ │
+│  │  │                      Scan Controller                           │ │ │
+│  │  │    • 任务调度  • 节点管理  • 资源分配  • 结果聚合              │ │ │
+│  │  └─────────────────────────────────────────────────────────────────┘ │ │
+│  │                                    │                                   │ │
+│  │          ┌─────────────────────────┼─────────────────────────┐       │ │
+│  │          ▼                         ▼                         ▼       │ │
+│  │  ┌───────────────┐        ┌───────────────┐        ┌───────────────┐ │ │
+│  │  │  扫描节点 1   │        │  扫描节点 2   │        │  扫描节点 N   │ │ │
+│  │  │ (K8s Pod)    │        │ (K8s Pod)    │        │ (K8s Pod)    │ │ │
+│  │  │               │        │               │        │               │ │ │
+│  │  │ ┌───────────┐ │        │ ┌───────────┐ │        │ ┌───────────┐ │ │ │
+│  │  │ │Web扫描插件 │ │        │ │Web扫描插件 │ │        │ │Web扫描插件 │ │ │ │
+│  │  │ │Host扫描插件│ │        │ │Host扫描插件│ │        │ │Host扫描插件│ │ │ │
+│  │  │ │NetDev插件 │ │        │ │NetDev插件 │ │        │ │NetDev插件 │ │ │ │
+│  │  │ │IoT扫描插件 │ │        │ │IoT扫描插件 │ │        │ │IoT扫描插件 │ │ │ │
+│  │  │ │弱口令插件 │ │        │ │弱口令插件 │ │        │ │弱口令插件 │ │ │ │
+│  │  │ │...        │ │        │ │...        │ │        │ │...        │ │ │ │
+│  │  │ └───────────┘ │        │ └───────────┘ │        │ └───────────┘ │ │ │
+│  │  └───────────────┘        └───────────────┘        └───────────────┘ │ │
+│  │                                                                       │ │
+│  └───────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<h3>4.3 插件体系架构</h3>
+
+<pre><code>┌─────────────────────────────────────────────────────────────────────────────┐
+│                           插件体系架构设计                                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐ │
+│  │                         插件管理器                                      │ │
+│  │  ┌─────────────────────────────────────────────────────────────────┐  │ │
+│  │  │  PluginManager                                                  │  │ │
+│  │  │  • 插件注册   • 插件加载   • 插件卸载   • 版本管理            │  │ │
+│  │  │  • 插件沙箱   • 依赖管理   • 插件升级   • 插件回滚            │  │ │
+│  │  └─────────────────────────────────────────────────────────────────┘  │ │
+│  └───────────────────────────────────────────────────────────────────────┘ │
+│                                    │                                         │
+│                                    ▼                                         │
+│  ┌───────────────────────────────────────────────────────────────────────┐ │
+│  │                         插件分类                                       │ │
+│  │                                                                       │ │
+│  │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐    │ │
+│  │  │ Web 应用扫描 │ │ 主机系统扫描 │ │ 网络设备扫描 │ │ 安全设备扫描 │    │ │
+│  │  │  Plugin     │ │  Plugin     │ │  Plugin    │ │  Plugin    │    │ │
+│  │  ├─────────────┤ ├─────────────┤ ├─────────────┤ ├─────────────┤    │ │
+│  │  │ • OWASP Top │ │ • CVE 检测 │ │ • Cisco    │ │ • Firewall │    │ │
+│  │  │ • API 安全  │ │ • 配置基线 │ │ • Juniper  │ │ • IPS      │    │ │
+│  │  │ • GraphQL   │ │ • 补丁检测 │ │ • 华为     │ │ • WAF      │    │ │
+│  │  │ • 业务逻辑  │ │ • 弱口令   │ │ • F5       │ │            │    │ │
+│  │  └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘    │ │
+│  │                                                                       │ │
+│  │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐    │ │
+│  │  │ IoT 设备扫描 │ │ 工控设备扫描 │ │  国产系统扫描 │ │ 大数据组件扫描 │    │ │
+│  │  │  Plugin     │ │  Plugin     │ │  Plugin    │ │  Plugin    │    │ │
+│  │  ├─────────────┤ ├─────────────┤ ├─────────────┤ ├─────────────┤    │ │
+│  │  │ • 摄像头   │ │ • PLC      │ │ • 中标麒麟 │ │ • Elastic  │    │ │
+│  │  │ • 打印机   │ │ • SCADA   │ │ • 深度    │ │ • Kafka    │    │ │
+│  │  │ • 智能家居 │ │ • DCS     │ │ • 达梦    │ │ • Hadoop   │    │ │
+│  │  │            │ │ • Modbus  │ │ • 欧拉    │ │ • Redis    │    │ │
+│  │  └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘    │ │
+│  │                                                                       │ │
+│  │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐                    │ │
+│  │  │ 弱口令检测   │ │ 代码安全扫描 │ │ 漏洞验证   │                    │ │
+│  │  │  Plugin     │ │  Plugin     │ │  Plugin    │                    │ │
+│  │  ├─────────────┤ ├─────────────┤ ├─────────────┤                    │ │
+│  │  │ • SSH/RDP  │ │ • SAST     │ │ • 注入验证  │                    │ │
+│  │  │ • 数据库   │ │ • SCA      │ │ • XSS 验证 │                    │ │
+│  │  │ • Web 认证 │ │ • 密钥泄露 │ │ • SSRF 验证│                    │ │
+│  │  │ • 协议爆破 │ │            │ │ • XXE 验证 │                    │ │
+│  │  └─────────────┘ └─────────────┘ └─────────────┘                    │ │
+│  │                                                                       │ │
+│  └───────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐ │
+│  │                         插件开发 SDK                                    │ │
+│  │                                                                       │ │
+│  │  ┌─────────────────────────────────────────────────────────────────┐ │ │
+│  │  │                    Plugin SDK (Python/Go)                      │ │ │
+│  │  ├─────────────────────────────────────────────────────────────────┤ │ │
+│  │  │  class VulnerabilityPlugin:                                     │ │ │
+│  │  │      name: str                                                  │ │ │
+│  │  │      version: str                                               │ │ │
+│  │  │      severity: str                                              │ │ │
+│  │  │                                                                  │ │ │
+│  │  │      def scan(self, target) -&gt; ScanResult:                     │ │ │
+│  │  │          pass                                                   │ │ │
+│  │  │                                                                  │ │ │
+│  │  │      def verify(self, result) -&gt; VerificationResult:           │ │ │
+│  │  │          pass                                                   │ │ │
+│  │  │                                                                  │ │ │
+│  │  │      def remediate(self, target) -&gt; RemediationPlan:            │ │ │
+│  │  │          pass                                                   │ │ │
+│  │  └─────────────────────────────────────────────────────────────────┘ │ │
+│  │                                                                       │ │
+│  └───────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<hr />
+
+<h2>第五章：部署架构设计</h2>
+
+<h3>5.1 高可用部署架构</h3>
+
+<pre><code>┌─────────────────────────────────────────────────────────────────────────────┐
+│                          高可用部署架构                                      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│                              ┌─────────────┐                                │
+│                              │   负载均衡   │                                │
+│                              │  (L4/L7)    │                                │
+│                              └──────┬──────┘                                │
+│                                     │                                        │
+│         ┌───────────────────────────┼───────────────────────────┐          │
+│         │                           │                           │          │
+│         ▼                           ▼                           ▼          │
+│  ┌─────────────┐            ┌─────────────┐            ┌─────────────┐    │
+│  │  K8s Master │            │  K8s Master │            │  K8s Master │    │
+│  │   (Node 1)  │            │   (Node 2)  │            │   (Node 3)  │    │
+│  └─────────────┘            └─────────────┘            └─────────────┘    │
+│         │                           │                           │          │
+│         └───────────────────────────┼───────────────────────────┘          │
+│                                     │                                        │
+│                                     ▼                                        │
+│  ┌─────────────────────────────────────────────────────────────────────┐  │
+│  │                         K8s Worker Nodes                             │  │
+│  │                                                                       │  │
+│  │   ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐          │  │
+│  │   │ Worker 1 │  │ Worker 2 │  │ Worker 3 │  │ Worker N │          │  │
+│  │   │          │  │          │  │          │  │          │          │  │
+│  │   │┌────────┐│  │┌────────┐│  │┌────────┐│  │┌────────┐│          │  │
+│  │   ││API Pod ││  ││API Pod ││  ││API Pod ││  ││API Pod ││          │  │
+│  │   │└────────┘│  │└────────┘│  │└────────┘│  │└────────┘│          │  │
+│  │   │┌────────┐│  │┌────────┐│  │┌────────┐│  │┌────────┐│          │  │
+│  │   ││Scan Ctrl│ │  ││Scan Ctrl│ │  ││Scan Ctrl│ │  ││Scan Ctrl│ │          │  │
+│  │   │└────────┘│  │└────────┘│  │└────────┘│  │└────────┘│          │  │
+│  │   │┌────────┐│  │┌────────┐│  │┌────────┐│  │┌────────┐│          │  │
+│  │   ││AI Svc  ││  ││AI Svc  ││  ││AI Svc  ││  ││AI Svc  ││          │  │
+│  │   │└────────┘│  │└────────┘│  │└────────┘│  │└────────┘│          │  │
+│  │   └──────────┘  └──────────┘  └──────────┘  └──────────┘          │  │
+│  │                                                                       │  │
+│  └─────────────────────────────────────────────────────────────────────┘  │
+│                                     │                                        │
+│         ┌───────────────────────────┼───────────────────────────┐          │
+│         │                           │                           │          │
+│         ▼                           ▼                           ▼          │
+│  ┌─────────────┐            ┌─────────────┐            ┌─────────────┐    │
+│  │ PostgreSQL  │            │  Redis      │            │Elasticsearch│    │
+│  │  主从集群   │            │  主从集群   │            │   集群      │    │
+│  └─────────────┘            └─────────────┘            └─────────────┘    │
+│         │                           │                           │          │
+│         └───────────────────────────┼───────────────────────────┘          │
+│                                     │                                        │
+│                                     ▼                                        │
+│  ┌─────────────┐            ┌─────────────┐                               │
+│  │    Kafka    │            │   MinIO     │                               │
+│  │   集群      │            │   集群      │                               │
+│  └─────────────┘            └─────────────┘                               │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<h3>5.2 边缘扫描部署</h3>
+
+<pre><code>┌─────────────────────────────────────────────────────────────────────────────┐
+│                          边缘扫描部署架构                                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│                          ┌─────────────────┐                                │
+│                          │   中央控制平台   │                                │
+│                          │  (云端/总部)    │                                │
+│                          └────────┬────────┘                                │
+│                                   │                                          │
+│                    ┌──────────────┼──────────────┐                          │
+│                    │              │              │                          │
+│                    ▼              ▼              ▼                          │
+│           ┌────────────┐  ┌────────────┐  ┌────────────┐                  │
+│           │ 边缘扫描节点│  │ 边缘扫描节点│  │ 边缘扫描节点│                  │
+│           │ (分部/子网)│  │ (分部/子网)│  │ (分部/子网)│                  │
+│           │            │  │            │  │            │                  │
+│           │ ┌────────┐ │  │ ┌────────┐ │  │ ┌────────┐ │                  │
+│           │ │Scan Pod│ │  │ │Scan Pod│ │  │ │Scan Pod│ │                  │
+│           │ └────────┘ │  │ └────────┘ │  │ └────────┘ │                  │
+│           └────────────┘  └────────────┘  └────────────┘                  │
+│                 │                                         │                 │
+│                 └────────────────┬──────────────────────┘                 │
+│                                  ▼                                          │
+│                          数据不出域                                          │
+│                    (只上报漏洞元数据)                                        │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<hr />
+
+<h2>第六章：安全架构设计</h2>
+
+<h3>6.1 安全架构总览</h3>
+
+<pre><code>┌─────────────────────────────────────────────────────────────────────────────┐
+│                           安全架构设计                                       │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐ │
+│  │                         纵深防御体系                                    │ │
+│  │                                                                       │ │
+│  │   ┌─────────────────────────────────────────────────────────────────┐│ │
+│  │   │  第1层: 边界防护                                                 ││ │
+│  │   │  • WAF • DDoS 防护 • 入侵检测                                   ││ │
+│  │   └─────────────────────────────────────────────────────────────────┘│ │
+│  │                                │                                        │ │
+│  │   ┌─────────────────────────────────────────────────────────────────┐│ │
+│  │   │  第2层: 身份认证                                                 ││ │
+│  │   │  • MFA 多因素认证 • OAuth 2.0 • LDAP 集成                      ││ │
+│  │   └─────────────────────────────────────────────────────────────────┘│ │
+│  │                                │                                        │ │
+│  │   ┌─────────────────────────────────────────────────────────────────┐│ │
+│  │   │  第3层: 访问控制                                                 ││ │
+│  │   │  • RBAC 角色权限 • ABAC 属性控制 • 最小权限原则                 ││ │
+│  │   └─────────────────────────────────────────────────────────────────┘│ │
+│  │                                │                                        │ │
+│  │   ┌─────────────────────────────────────────────────────────────────┐│ │
+│  │   │  第4层: 数据安全                                                 ││ │
+│  │   │  • TLS 1.3 传输加密 • AES-256 存储加密 • 数据脱敏               ││ │
+│  │   └─────────────────────────────────────────────────────────────────┘│ │
+│  │                                │                                        │ │
+│  │   ┌─────────────────────────────────────────────────────────────────┐│ │
+│  │   │  第5层: 审计追溯                                                 ││ │
+│  │   │  • 操作日志 • 审计日志 • 不可篡改                               ││ │
+│  │   └─────────────────────────────────────────────────────────────────┘│ │
+│  │                                                                       │ │
+│  └───────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐ │
+│  │                         扫描安全控制                                   │ │
+│  │                                                                       │ │
+│  │  • 目标授权验证: 扫描前验证资产所有权                                  │ │
+│  │  • 扫描速率限制: 防止对目标造成影响                                    │ │
+│  │  • 扫描行为审计: 记录所有扫描动作                                      │ │
+│  │  • 异常行为检测: 识别恶意扫描行为                                      │ │
+│  │  • 敏感数据保护: 自动识别和过滤敏感信息                              │ │
+│  │                                                                       │ │
+│  └───────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<hr />
+
+<h2>第七章：模块详细设计</h2>
+
+<h3>7.1 资产管理模块 (FR-01)</h3>
+
+<pre><code>┌─────────────────────────────────────────────────────────────────────────────┐
+│                        FR-01: 资产管理模块详细设计                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐ │
+│  │                         资产发现服务                                   │ │
+│  │  ┌─────────────────────────────────────────────────────────────────┐  │ │
+│  │  │                     AssetDiscoveryService                      │  │ │
+│  │  ├─────────────────────────────────────────────────────────────────┤  │ │
+│  │  │  • 网段扫描 (ICMP/ARP/端口)                                     │  │ │
+│  │  │  • 资产识别 (指纹识别)                                          │  │ │
+│  │  │  • 服务发现 (端口/协议)                                         │  │ │
+│  │  │  • 自动录入                                                     │  │ │
+│  │  └─────────────────────────────────────────────────────────────────┘  │ │
+│  │                               │                                        │ │
+│  │         ┌─────────────────────┼─────────────────────┐                │ │
+│  │         ▼                     ▼                     ▼                │ │
+│  │  ┌─────────────┐      ┌─────────────┐      ┌─────────────┐        │ │
+│  │  │ ICMP Scanner│      │ Port Scanner│      │ Fingerprint │        │ │
+│  │  │  (存活发现)  │      │  (端口扫描)  │      │  (指纹识别)  │        │ │
+│  │  └─────────────┘      └─────────────┘      └─────────────┘        │ │
+│  └───────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐ │
+│  │                         资产分类服务                                   │ │
+│  │  ┌─────────────────────────────────────────────────────────────────┐  │ │
+│  │  │                     AssetTaxonomyService                       │  │ │
+│  │  ├─────────────────────────────────────────────────────────────────┤  │ │
+│  │  │  • 树状结构管理                                                 │  │ │
+│  │  │  • 标签管理                                                     │  │ │
+│  │  │  • 批量分类                                                     │  │ │
+│  │  │  • 自动分类规则                                                 │  │ │
+│  │  └─────────────────────────────────────────────────────────────────┘  │ │
+│  └───────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐ │
+│  │                         生命周期服务                                    │ │
+│  │  ┌─────────────────────────────────────────────────────────────────┐  │ │
+│  │  │                     AssetLifecycleService                        │  │ │
+│  │  ├─────────────────────────────────────────────────────────────────┤  │ │
+│  │  │  状态流转:                                                      │  │ │
+│  │  │  discovered → pending → confirmed → active → maintenance → offline │  │ │
+│  │  │       ↑______________↓                                          │  │ │
+│  │  └─────────────────────────────────────────────────────────────────┘  │ │
+│  └───────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<h3>7.2 扫描任务模块 (FR-02/03)</h3>
+
+<pre><code>┌─────────────────────────────────────────────────────────────────────────────┐
+│                    FR-02/03: 扫描任务模块详细设计                           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐ │
+│  │                         任务调度流程                                   │ │
+│  │                                                                       │ │
+│  │    ┌─────────┐    ┌─────────┐    ┌─────────┐    ┌─────────┐        │ │
+│  │    │ 任务创建 │───&gt;│ 任务队列 │───&gt;│ 任务调度 │───&gt;│ 节点分配 │        │ │
+│  │    └─────────┘    └─────────┘    └─────────┘    └─────────┘        │ │
+│  │                                                    │                 │ │
+│  │                                                    ▼                 │ │
+│  │                                            ┌─────────────┐         │ │
+│  │                                            │  扫描执行    │         │ │
+│  │                                            └──────┬──────┘         │ │
+│  │                                                   │                  │ │
+│  │    ┌─────────┐    ┌─────────┐    ┌─────────┐    │                  │ │
+│  │    │ 任务完成 │&lt;───│ 结果收集 │&lt;───│ 结果处理 │&lt;──┘                  │ │
+│  │    └─────────┘    └─────────┘    └─────────┘                        │ │
+│  │                                                                       │ │
+│  └───────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐ │
+│  │                         调度算法设计                                   │ │
+│  │                                                                       │ │
+│  │  优先级 = 基础优先级 + 时间因子 + 资产重要性因子                       │ │
+│  │                                                                       │ │
+│  │  基础优先级:                                                          │ │
+│  │  • 紧急任务: 100                                                     │ │
+│  │  • 高危漏洞复测: 80                                                  │ │
+│  │  • 定期扫描: 50                                                       │ │
+│  │  • 临时扫描: 30                                                       │ │
+│  │                                                                       │ │
+│  │  时间因子:                                                            │ │
+│  │  • 超过计划时间: +20                                                 │ │
+│  │  • 即将超时: +10                                                      │ │
+│  │                                                                       │ │
+│  │  资产重要性因子:                                                      │ │
+│  │  • 核心资产: +30                                                     │ │
+│  │  • 重要资产: +20                                                     │ │
+│  │  • 一般资产: +10                                                     │ │
+│  │                                                                       │ │
+│  └───────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐ │
+│  │                         扫描模式                                       │ │
+│  │                                                                       │ │
+│  │  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐          │ │
+│  │  │  快速扫描    │  │  标准扫描     │  │  深度扫描    │          │ │
+│  │  │  15 分钟    │  │   2 小时      │  │   8 小时     │          │ │
+│  │  ├───────────────┤  ├───────────────┤  ├───────────────┤          │ │
+│  │  │ • 高危漏洞   │  │ • 全量漏洞    │  │ • 全量+fuzz │          │ │
+│  │  │ • 高危端口   │  │ • 端口扫描    │  │ • 深度检测  │          │ │
+│  │  │ • 弱口令     │  │ • 服务识别    │  │ • 渗透测试  │          │ │
+│  │  └───────────────┘  └───────────────┘  └───────────────┘          │ │
+│  │                                                                       │ │
+│  │  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐          │ │
+│  │  │  等保合规扫描  │  │  Web 专项扫描 │  │  定制扫描    │          │ │
+│  │  │   4 小时     │  │   3 小时      │  │    自定义    │          │ │
+│  │  ├───────────────┤  ├───────────────┤  ├───────────────┤          │ │
+│  │  │ • 等保检测项 │  │ • OWASP Top10 │  │ • 自定义插件 │          │ │
+│  │  │ • 合规报告   │  │ • API 安全    │  │ • 自定义规则 │          │ │
+│  │  │              │  │ • 业务逻辑    │  │              │          │ │
+│  │  └───────────────┘  └───────────────┘  └───────────────┘          │ │
+│  │                                                                       │ │
+│  └───────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<h3>7.3 风险分析模块 (FR-05) - AI 核心</h3>
+
+<pre><code>┌─────────────────────────────────────────────────────────────────────────────┐
+│                    FR-05: 风险分析模块详细设计 (含 AI)                      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐ │
+│  │                      AI 辅助验证流程                                    │ │
+│  │                                                                       │ │
+│  │   扫描发现 ──&gt; 初步判定 ──&gt; AI 分析 ──&gt; 置信度计算 ──&gt; 结果输出      │ │
+│  │      │              │            │             │                       │ │
+│  │      ▼              ▼            ▼             ▼                       │ │
+│  │   ┌────────┐   ┌────────┐   ┌────────┐   ┌────────┐               │ │
+│  │   │ 原始   │   │ 规则   │   │  LLM   │   │ 多因子 │               │ │
+│  │   │ 结果   │   │ 匹配   │   │ 分析   │   │ 评分   │               │ │
+│  │   └────────┘   └────────┘   └────────┘   └────────┘               │ │
+│  │                                                                       │ │
+│  └───────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐ │
+│  │                      AI 分析服务架构                                   │ │
+│  │                                                                       │ │
+│  │   ┌─────────────────────────────────────────────────────────────────┐ │ │
+│  │   │                      AI Analysis Service                         │ │ │
+│  │   │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐           │ │ │
+│  │   │  │  LLM 验证器  │  │  智能 Fuzzer │  │  攻击路径   │           │ │ │
+│  │   │  │ (误报降低)  │  │ (Payload生成)│  │  推理引擎   │           │ │ │
+│  │   │  └─────────────┘  └─────────────┘  └─────────────┘           │ │ │
+│  │   └─────────────────────────────────────────────────────────────────┘ │ │
+│  │                                    │                                   │ │
+│  │         ┌──────────────────────────┼──────────────────────────┐      │ │
+│  │         ▼                          ▼                          ▼      │ │
+│  │  ┌─────────────┐          ┌─────────────┐          ┌─────────────┐ │ │
+│  │  │  漏洞样本库  │          │  威胁情报   │          │  知识图谱   │ │ │
+│  │  │ (训练数据)  │          │  (上下文)   │          │  (关联分析) │ │ │
+│  │  └─────────────┘          └─────────────┘          └─────────────┘ │ │
+│  │                                                                       │ │
+│  └───────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐ │
+│  │                      风险评分公式                                      │ │
+│  │                                                                       │ │
+│  │  风险分数 = 基础 CVSS × 环境因子 × 威胁因子 × 业务因子               │ │
+│  │                                                                       │ │
+│  │  环境因子 = 资产重要性 × 暴露面 × 防护强度                           │ │
+│  │  威胁因子 = 在野利用 × 利用难度 × 影响范围                           │ │
+│  │  业务因子 = 数据敏感度 × 合规要求 × 停机成本                        │ │
+│  │                                                                       │ │
+│  │  各因子取值范围: 0.5 - 2.0                                           │ │
+│  │                                                                       │ │
+│  └───────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<h3>7.4 漏洞库与规则模块 (FR-14)</h3>
+
+<pre><code>┌─────────────────────────────────────────────────────────────────────────────┐
+│                    FR-14: 漏洞库与规则模块详细设计                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐ │
+│  │                         漏洞库架构                                     │ │
+│  │                                                                       │ │
+│  │   ┌─────────────────────────────────────────────────────────────────┐ │ │
+│  │   │                       漏洞库管理器                               │ │ │
+│  │   │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐            │ │ │
+│  │   │  │ CVE 存储   │  │ 规则引擎    │  │  情报同步   │            │ │ │
+│  │   │  │ (450K+)    │  │ (检测规则)  │  │ (NVD/CNVD)  │            │ │ │
+│  │   │  └─────────────┘  └─────────────┘  └─────────────┘            │ │ │
+│  │   └─────────────────────────────────────────────────────────────────┘ │ │
+│  │                                    │                                   │ │
+│  │         ┌──────────────────────────┼──────────────────────────┐      │ │
+│  │         ▼                          ▼                          ▼      │ │
+│  │  ┌─────────────┐          ┌─────────────┐          ┌─────────────┐ │ │
+│  │  │ NVD API     │          │ CNVD API    │          │ GitHub      │ │ │
+│  │  │ (每日同步)  │          │ (每日同步)  │          │ Advisory    │ │ │
+│  │  └─────────────┘          └─────────────┘          └─────────────┘ │ │
+│  │                                                                       │ │
+│  └───────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐ │
+│  │                         漏洞库规模                                     │ │
+│  │                                                                       │ │
+│  │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐     │ │
+│  │  │  系统漏洞类别   │  │  检测规则数量   │  │  Web 漏洞类别   │     │ │
+│  │  │    30+ 类      │  │   450,000+ 条   │  │  OWASP 10 大类  │     │ │
+│  │  └─────────────────┘  └─────────────────┘  └─────────────────┘     │ │
+│  │                                                                       │ │
+│  │  日更新漏洞数: 50+ 条                                                │ │
+│  │                                                                       │ │
+│  │  标准符合性:                                                         │ │
+│  │  ✅ CVE  ✅ CVSS  ✅ CNNVD  ✅ Bugtraq  ✅ CNVD                    │ │
+│  │                                                                       │ │
+│  └───────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐ │
+│  │                         响应 SLA                                      │ │
+│  │                                                                       │ │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐ │ │
+│  │  │   严重      │  │   高危      │  │   中危      │  │   低危      │ │ │
+│  │  │  &lt; 24小时  │  │  &lt; 72小时   │  │  &lt; 7天     │  │  &lt; 30天    │ │ │
+│  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘ │ │
+│  │                                                                       │ │
+│  │  在野利用: &lt; 4 小时                                                  │ │
+│  │                                                                       │ │
+│  └───────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<hr />
+
+<h2>第八章：接口设计</h2>
+
+<h3>8.1 API 接口设计</h3>
+
+<pre><code>┌─────────────────────────────────────────────────────────────────────────────┐
+│                           API 接口设计                                       │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐ │
+│  │                         RESTful API 列表                               │ │
+│  │                                                                       │ │
+│  │  资产管理:                                                            │ │
+│  │  GET    /api/v1/assets              获取资产列表                     │ │
+│  │  POST   /api/v1/assets              创建资产                         │ │
+│  │  GET    /api/v1/assets/{id}          获取资产详情                    │ │
+│  │  PUT    /api/v1/assets/{id}          更新资产                        │ │
+│  │  DELETE /api/v1/assets/{id}          删除资产                        │ │
+│  │  POST   /api/v1/assets/discover     执行资产发现                    │ │
+│  │  POST   /api/v1/assets/import       批量导入                         │ │
+│  │                                                                       │ │
+│  │  扫描任务:                                                            │ │
+│  │  GET    /api/v1/scans                获取扫描任务列表                 │ │
+│  │  POST   /api/v1/scans                创建扫描任务                    │ │
+│  │  GET    /api/v1/scans/{id}           获取任务详情                    │ │
+│  │  POST   /api/v1/scans/{id}/pause     暂停任务                        │ │
+│  │  POST   /api/v1/scans/{id}/resume    恢复任务                        │ │
+│  │  POST   /api/v1/scans/{id}/stop      停止任务                        │ │
+│  │  GET    /api/v1/scans/{id}/status    获取任务状态                    │ │
+│  │                                                                       │ │
+│  │  漏洞管理:                                                            │ │
+│  │  GET    /api/v1/vulnerabilities      获取漏洞列表                    │ │
+│  │  GET    /api/v1/vulnerabilities/{id} 获取漏洞详情                   │ │
+│  │  PATCH  /api/v1/vulnerabilities/{id}/status  更新漏洞状态            │ │
+│  │  POST   /api/v1/vulnerabilities/{id}/assign  分派漏洞                │ │
+│  │  POST   /api/v1/vulnerabilities/{id}/verify  复测验证                │ │
+│  │                                                                       │ │
+│  │  报告中心:                                                            │ │
+│  │  GET    /api/v1/reports               获取报告列表                  │ │
+│  │  POST   /api/v1/reports               生成报告                       │ │
+│  │  GET    /api/v1/reports/{id}          获取报告                      │ │
+│  │  DELETE /api/v1/reports/{id}          删除报告                      │ │
+│  │                                                                       │ │
+│  │  系统管理:                                                            │ │
+│  │  GET    /api/v1/users                 获取用户列表                   │ │
+│  │  POST   /api/v1/users                 创建用户                       │ │
+│  │  GET    /api/v1/roles                 获取角色列表                   │ │
+│  │  POST   /api/v1/roles                 创建角色                       │ │
+│  │                                                                       │ │
+│  └───────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐ │
+│  │                         Webhook 事件列表                              │ │
+│  │                                                                       │ │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌───────────┐ │ │
+│  │  │vuln.found   │  │vuln.updated │  │scan.completed│ │scan.failed│ │ │
+│  │  │发现新漏洞   │  │漏洞状态更新 │  │扫描完成     │  │扫描失败  │ │ │
+│  │  └─────────────┘  └─────────────┘  └─────────────┘  └───────────┘ │ │
+│  │                                                                       │ │
+│  │  ┌─────────────┐  ┌─────────────┐                                  │ │
+│  │  │report.generated│ │task.created │                                  │ │
+│  │  │报告生成     │  │任务创建     │                                  │ │
+│  │  └─────────────┘  └─────────────┘                                  │ │
+│  │                                                                       │ │
+│  └───────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<hr />
+
+<h2>第九章：总结</h2>
+
+<h3>9.1 架构优势</h3>
+
+<table>
+<thead>
+<tr>
+  <th>优势</th>
+  <th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><strong>高可扩展性</strong></td>
+  <td>微服务架构，支持水平扩展</td>
+</tr>
+<tr>
+  <td><strong>高性能</strong></td>
+  <td>分布式扫描引擎，支持并发扫描</td>
+</tr>
+<tr>
+  <td><strong>高可用</strong></td>
+  <td>多节点部署，自动故障转移</td>
+</tr>
+<tr>
+  <td><strong>智能化</strong></td>
+  <td>AI 辅助验证，降低误报率</td>
+</tr>
+<tr>
+  <td><strong>全场景覆盖</strong></td>
+  <td>支持多类型资产扫描</td>
+</tr>
+<tr>
+  <td><strong>国产化适配</strong></td>
+  <td>支持国产操作系统和数据库</td>
+</tr>
+<tr>
+  <td><strong>合规性</strong></td>
+  <td>符合等保 2.0 要求</td>
+</tr>
+</tbody>
+</table>
+
+<h3>9.2 性能指标</h3>
+
+<table>
+<thead>
+<tr>
+  <th>指标</th>
+  <th>目标值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>系统可用率</td>
+  <td>≥ 99.9%</td>
+</tr>
+<tr>
+  <td>单节点扫描速度</td>
+  <td>≥ 10,000 端口/分钟</td>
+</tr>
+<tr>
+  <td>并发扫描任务</td>
+  <td>≥ 100</td>
+</tr>
+<tr>
+  <td>增量扫描时间</td>
+  <td>≤ 30 分钟</td>
+</tr>
+<tr>
+  <td>漏洞检测准确率</td>
+  <td>≥ 95%</td>
+</tr>
+<tr>
+  <td>误报率</td>
+  <td>&lt; 5%</td>
+</tr>
+</tbody>
+</table>
+
+<hr />
+
+<p><strong>文档结束</strong></p>
+
+<p><strong>版权声明</strong>: © 2026 山西有信网安科技有限公司，版权所有</p>
+
+<p><strong>版本</strong>: 1.0
+<strong>编制日期</strong>: 2026 年 3 月 21 日</p>
+
+</body>
+</html>

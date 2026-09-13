@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <title>AI 代码审计模块 — 分阶段停止按钮</title>
+    <style>
+        body { font-family: "Microsoft YaHei", Arial, sans-serif; margin: 20px; background: #f0f2f5; color: #333; line-height: 1.7; }
+        .container { max-width: 1080px; margin: 0 auto; background: white; padding: 40px; border-radius: 10px; box-shadow: 0 2px 20px rgba(0,0,0,0.08); }
+        .header { text-align: center; padding-bottom: 20px; border-bottom: 3px solid #ef6c00; margin-bottom: 30px; }
+        .header h1 { margin: 0 0 8px; color: #1a237e; }
+        .header .meta { color: #777; font-size: 14px; }
+        h2 { color: #ef6c00; border-left: 4px solid #ef6c00; padding-left: 10px; margin-top: 36px; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+        th { background: #ef6c00; color: white; padding: 9px 10px; text-align: left; }
+        td { padding: 8px 10px; border-bottom: 1px solid #eee; }
+        tr:nth-child(even) { background: #fafafa; }
+        code { background: #fff3e0; color: #ef6c00; padding: 1px 6px; border-radius: 4px; font-family: Consolas, monospace; font-size: 12px; }
+        pre { background: #263238; color: #eceff1; padding: 16px; border-radius: 8px; overflow-x: auto; font-size: 13px; }
+        pre code { background: none; color: #eceff1; }
+        .badge-new { display: inline-block; background: #2e7d32; color: white; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+        .badge-mod { display: inline-block; background: #ef6c00; color: white; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+        .footer { text-align: center; color: #999; font-size: 12px; margin-top: 40px; padding-top: 15px; border-top: 1px solid #eee; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>AI 代码审计模块 — 分阶段停止按钮</h1>
+            <div class="meta">下一代智能漏洞扫描系统 Pro | 山西有信网安科技有限公司 | 版本 2.1.0 | 2026-08-20</div>
+        </div>
+
+        <h2>一、背景</h2>
+        <p>AI 代码审计包含两个 AI 密集阶段：</p>
+        <ol>
+            <li><strong>AI 安全核验</strong>（<code>claude_security</code>）：对正则扫描出的候选漏洞逐条调用 Claude 核验，耗时。</li>
+            <li><strong>深度代码质量/设计审计</strong>（<code>enable_quality_review</code>）：对每个文件调用 Claude 深度分析，耗时。</li>
+        </ol>
+        <p>此前只有一个「停止」按钮，点击后只能整体中止，无法分别控制两个阶段。本次拆分为三个停止按钮，支持<strong>独立中止任一阶段</strong>。</p>
+
+        <h2>二、界面改动</h2>
+        <p>审计页按钮区（<code>main_window.py::_create_audit_tab</code>）新增/调整：</p>
+        <table>
+            <thead><tr><th>按钮</th><th>类型</th><th>作用</th></tr></thead>
+            <tbody>
+                <tr><td>停止安全审计</td><td><span class="badge-new">新增</span></td><td>仅中止 AI 安全核验阶段，质量审计（若启用）继续</td></tr>
+                <tr><td>停止质量审计</td><td><span class="badge-new">新增</span></td><td>仅中止代码质量/设计审计阶段，安全审计结果保留</td></tr>
+                <tr><td>停止全部</td><td><span class="badge-mod">改名</span></td><td>同时中止两个阶段 + 强制终止线程</td></tr>
+            </tbody>
+        </table>
+        <p><strong>按钮启用/禁用时机</strong>：开始审计时 <code>停止安全审计</code> 常启用、<code>停止质量审计</code> 仅在勾选质量审计时启用；结束/出错/停止后三个按钮全部禁用。</p>
+
+        <h2>三、实现机制</h2>
+        <h3>双独立中断事件（<code>AIAuditThread</code>）</h3>
+        <pre><code>def __init__(self, ...):
+    ...
+    self._stop_security_event = threading.Event()
+    self._stop_quality_event = threading.Event()
+
+def stop_security(self):  # 请求停止 AI 安全核验
+    self._stop_security_event.set()
+
+def stop_quality(self):   # 请求停止代码质量/设计审计
+    self._stop_quality_event.set()</code></pre>
+        <pre><code>result = self.analyzer.scan_directory(
+    self.target,
+    progress_callback=...,
+    enable_quality_review=self.enable_quality_review,
+    stop_security=self._stop_security_event.is_set,
+    stop_quality=self._stop_quality_event.is_set,
+)</code></pre>
+
+        <h3>单参数拆分为双参数（<code>ai_analyzer.py</code>）</h3>
+        <table>
+            <thead><tr><th>回调</th><th>透传目标</th></tr></thead>
+            <tbody>
+                <tr><td><code>stop_security</code></td><td><code>_ai_verify_issues(...)</code> — AI 安全核验</td></tr>
+                <tr><td><code>stop_quality</code></td><td><code>AICodeReviewer.review_project(...)</code> — 质量审计</td></tr>
+            </tbody>
+        </table>
+
+        <h3>AI 安全核验支持中断（<code>_ai_verify_issues</code>）</h3>
+        <pre><code>for batch_start in range(0, total, batch_size):
+    if should_stop and should_stop():
+        break  # 中止核验，保留已完成结果
+    ...
+    for i, issue in enumerate(batch):
+        if should_stop and should_stop():
+            break
+        result = self.ai_verifier.verify_issue(issue, content)</code></pre>
+
+        <h2>四、停止方法（<code>main_window.py</code>）</h2>
+        <table>
+            <thead><tr><th>方法</th><th>行为</th></tr></thead>
+            <tbody>
+                <tr><td><code>_stop_audit_security()</code></td><td>调用线程 <code>stop_security()</code>，仅中止安全核验</td></tr>
+                <tr><td><code>_stop_audit_quality()</code></td><td>调用线程 <code>stop_quality()</code>，仅中止质量审计</td></tr>
+                <tr><td><code>_stop_audit()</code></td><td>同时调用 <code>stop_security()</code> + <code>stop_quality()</code> + <code>requestInterruption()</code>，保留 5 秒 <code>terminate()</code> 兜底</td></tr>
+            </tbody>
+        </table>
+        <p>点击「停止安全审计」或「停止质量审计」后，对应阶段在下一检查点<strong>优雅中止</strong>并保留已完成结果，不再依赖 <code>terminate()</code>。</p>
+
+        <h2>五、文件变更清单</h2>
+        <table>
+            <thead><tr><th>文件</th><th>类型</th><th>改动</th></tr></thead>
+            <tbody>
+                <tr><td><code>ai_analyzer.py</code></td><td><span class="badge-mod">修改</span></td><td><code>scan_directory</code> 拆 <code>stop_security</code>/<code>stop_quality</code>；<code>_ai_verify_issues</code> 支持中断</td></tr>
+                <tr><td><code>main_window.py</code></td><td><span class="badge-mod">修改</span></td><td><code>AIAuditThread</code> 双事件；新增两个停止按钮 + 两个停止方法；按钮启用/禁用状态管理</td></tr>
+            </tbody>
+        </table>
+
+        <h2>六、验证结果</h2>
+        <pre><code>python -m py_compile ai_analyzer.py ai_code_reviewer.py main_window.py   # 全部通过
+python -m pytest tests/test_scanner_ai.py tests/test_code_reviewer.py \
+    tests/test_audit_dedup.py tests/test_audit_enrich.py -q             # 48 passed</code></pre>
+
+        <div class="footer">本文档由 AI 代码审计模块开发过程自动整理生成 | 山西有信网安科技有限公司 &copy; 2026</div>
+    </div>
+</body>
+</html>

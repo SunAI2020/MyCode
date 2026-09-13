@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>代码修改报告 — 合规检查模块</title>
+<style>
+  body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; margin: 0;
+          padding: 32px 20px; background: #f5f6f8; color: #212121; line-height: 1.8; }
+  .wrap { max-width: 1150px; margin: 0 auto; background: #fff; border-radius: 10px;
+           box-shadow: 0 2px 12px rgba(0,0,0,.08); padding: 40px 48px; }
+  h1 { font-size: 27px; color: #1a237e; margin: 0 0 24px;
+        padding-bottom: 14px; border-bottom: 3px solid #3949ab; }
+  h2 { font-size: 20px; color: #283593; border-left: 5px solid #3949ab;
+        padding-left: 12px; margin: 36px 0 14px; }
+  h3 { font-size: 17px; color: #37474f; margin: 26px 0 10px;
+        padding-bottom: 6px; border-bottom: 1px dashed #cfd8dc; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 14px 0 22px; }
+  th { background: #e8eaf6; color: #283593; padding: 10px 12px; text-align: left;
+        border: 1px solid #c5cae9; }
+  td { padding: 9px 12px; border: 1px solid #e0e0e0; vertical-align: top; }
+  tr:nth-child(even) td { background-color: rgba(0,0,0,.015); }
+  code { background: #eceff1; padding: 2px 6px; border-radius: 3px;
+          font-family: Consolas, "Courier New", monospace; font-size: 13px; color: #c62828; }
+  pre { background: #263238; color: #eceff1; padding: 18px 20px; border-radius: 8px;
+         overflow-x: auto; line-height: 1.65; }
+  pre code { background: none; color: inherit; padding: 0; font-size: 13px; }
+  blockquote { margin: 16px 0; padding: 14px 18px; background: #fff8e1;
+                border-left: 5px solid #ffb300; border-radius: 0 6px 6px 0; color: #5d4037; }
+  blockquote p { margin: 6px 0; }
+  strong { color: #b71c1c; }
+  blockquote strong { color: #bf360c; }
+  th strong, td strong { color: #1a237e; }
+  hr { border: none; border-top: 1px solid #e0e0e0; margin: 34px 0; }
+  ol, ul { padding-left: 26px; }
+  li { margin: 6px 0; }
+  em { color: #757575; }
+  .foot { margin-top: 34px; padding-top: 16px; border-top: 1px solid #e0e0e0;
+           color: #9e9e9e; font-size: 12.5px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1 id="_1">代码修改报告 — 合规检查模块（等保 / 关基 / 数据安全）</h1>
+<h2 id="_2">基本信息</h2>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>项目名称</td>
+<td>下一代智能漏洞扫描系统 Pro</td>
+</tr>
+<tr>
+<td>修改日期</td>
+<td>2026-08-26</td>
+</tr>
+<tr>
+<td>当前分支</td>
+<td>feat/0day-scan</td>
+</tr>
+<tr>
+<td>修改范围</td>
+<td>新增合规检查子系统（8 个阶段，跨引擎 / 数据层 / AI / 报告 / GUI / REST API）</td>
+</tr>
+<tr>
+<td>验证结果</td>
+<td><strong>全量 462 项测试通过</strong>（合规模块新增 82 项，原有 380 项零回归）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_3">修改概述</h2>
+<p>本次实现了完整的<strong>三标准合规检查子系统</strong>，采用「自动技术检查 → 人工问卷填报 → AI 辅助研判」三阶判定模型：</p>
+<table>
+<thead>
+<tr>
+<th>标准</th>
+<th>条款数</th>
+<th>依据</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>等保合规</td>
+<td>65 条（10 个安全层面）</td>
+<td>GB/T 22239-2019 网络安全等级保护基本要求</td>
+</tr>
+<tr>
+<td>关基合规</td>
+<td>46 条（6 个域）</td>
+<td>GB/T 39204-2022 关键信息基础设施安全保护要求</td>
+</tr>
+<tr>
+<td>数据安全合规</td>
+<td>48 条（9 个域）</td>
+<td>《数据安全法》《个人信息保护法》/ DSMM GB-T 37988-2019</td>
+</tr>
+</tbody>
+</table>
+<p>新增代码 <strong>6120 行</strong>，其中条款目录 JSON 2411 行、核心代码 2390 行、测试 1319 行。</p>
+<hr />
+<h2 id="_4">详细修改</h2>
+<h3 id="0databasepy">阶段 0：资产合规字段（<code>database.py</code>）</h3>
+<p><code>assets</code> 表新增三列并做 <code>ALTER TABLE</code> 兼容迁移：</p>
+<ul>
+<li><code>dengbao_level</code> — 等保定级，决定该资产适用的条款集（L2/L3）</li>
+<li><code>business_system</code> — 业务系统，是问卷答案的<strong>作用域键</strong></li>
+<li><code>data_classification</code> — 数据分类分级</li>
+</ul>
+<p>同步加入 <code>add_asset</code> 的 INSERT 与 <code>update_asset</code> 的 <code>ALLOWED_COLUMNS</code>（后者若遗漏会导致更新被静默丢弃）。</p>
+<h3 id="1">阶段 1：条款目录与判定引擎</h3>
+<p><strong><code>compliance_controls/{dengbao,cii,data_security}.json</code></strong> — 条款目录外置为 JSON，扩充纯问卷条款无需改代码。每条含 <code>mode</code>（auto / questionnaire / hybrid）、<code>check</code>（自动评估器名）、<code>evidence_type</code>、<code>scope</code>（org / system）、<code>weight</code>、<code>question</code>、<code>evidence_hint</code> 等字段。</p>
+<p><strong><code>compliance_engine.py</code>（529 行）</strong> — 引擎核心：</p>
+<ul>
+<li><strong>六态判定</strong>：符合 / 部分符合 / 不符合 / 不适用 / 未填报 / 证据不足</li>
+<li><strong>计分规则</strong>：分母<strong>仅含</strong>符合、部分符合、不符合三类；不适用 / 未填报 / <strong>证据不足一律排除</strong></li>
+<li><strong>AI 降级表</strong>（<code>score_factor</code>）：</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>状态</th>
+<th>AI 研判</th>
+<th>系数</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>符合</td>
+<td>认可 / 未运行 / 未完成</td>
+<td>1.0</td>
+</tr>
+<tr>
+<td>符合</td>
+<td>存疑</td>
+<td>0.5</td>
+</tr>
+<tr>
+<td>符合</td>
+<td>矛盾</td>
+<td>0.0（状态已被强制改判为不符合）</td>
+</tr>
+<tr>
+<td>部分符合</td>
+<td>任意</td>
+<td>0.5</td>
+</tr>
+<tr>
+<td>不符合</td>
+<td>任意</td>
+<td>0.0</td>
+</tr>
+<tr>
+<td>不适用 / 未填报 / 证据不足</td>
+<td>任意</td>
+<td>不计分（None）</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>hybrid 合并取较差者</strong>：技术检查判「符合」但人工填报「不符合」→ 取不符合</li>
+<li><strong><code>apply_ai_verdicts</code> 矛盾强制改判</strong>：AI 发现自评与技术事实冲突时，状态强制改为不符合——自评不得凌驾于扫描到的硬事实之上</li>
+<li><strong><code>build_evidence()</code></strong>：把扫描结果行归一化为 <code>EvidenceBundle</code>；<code>scan_rows=None</code>（无证据）与 <code>[]</code>（扫过但无发现）语义严格区分</li>
+</ul>
+<p><strong><code>compliance_checks.py</code>（530 行）</strong> — 12 个自动评估器：传输加密、身份鉴别、入侵防范、漏洞修补、KEV 处置、恶意代码防范、边界访问控制、数据库暴露、数据分类分级、工控协议暴露、国产化适配、Web 安全响应头。</p>
+<blockquote>
+<p><strong>关键设计原则：没有证据 ≠ 合规。</strong> 评估器缺证据或崩溃时一律返回「证据不足」，绝不默认判「符合」。</p>
+</blockquote>
+<h3 id="2databasepy">阶段 2：合规结果数据库（<code>database.py</code>）</h3>
+<p>新增<strong>第 6 个数据库</strong> <code>compliance_results.db</code>，三张表：</p>
+<table>
+<thead>
+<tr>
+<th>表</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>compliance_history</code></td>
+<td>每次检查一条历史（合规率、得分、六态计数、自动占比、问卷完成度、AI 开关）</td>
+</tr>
+<tr>
+<td><code>compliance_control_results</code></td>
+<td>条款级明细（状态、来源、AI 研判、权重、依据、整改建议）</td>
+</tr>
+<tr>
+<td><code>questionnaire_answers</code></td>
+<td>问卷答案，<code>UNIQUE(standard, scope_key, control_id)</code> + UPSERT</td>
+</tr>
+</tbody>
+</table>
+<p><code>Database</code> 门面注册 <code>self.compliance</code> 并转发 5 个便捷方法；<code>clear_database</code> / <code>close</code> 同步加一行；今日工作矩阵 <code>work_types</code> 由 7 类扩至 <strong>10 类</strong>（新增等保合规 / 关基合规 / 数据安全合规）。</p>
+<p><strong>组织级答案跨系统复用</strong>：<code>scope='org'</code> 的条款（制度、机构、人员）落在 <code>ORG</code> 作用域，所有业务系统共享；<code>scope='system'</code> 的条款按业务系统隔离，系统级答案覆盖组织级同名答案。</p>
+<h3 id="3-ai">阶段 3：问卷引擎与 AI 研判层</h3>
+<p><strong><code>compliance_questionnaire.py</code>（210 行）</strong> — 抽取待填条款、读写答案、统计完成度。<code>normalize_status()</code> 认不出的状态返回 <code>None</code> 并<strong>拒绝写库</strong>，不猜成「符合」。</p>
+<p><strong><code>compliance_ai.py</code>（419 行）</strong> — 四种能力：<code>suggest_answers</code> / <code>review_answers</code> / <code>cross_check</code> / <code>generate_remediation</code>，批量 4 条 × 并行 3 批。</p>
+<blockquote>
+<p>⚠️ <strong>失败方向与 <code>ai_scan_enhancer</code> 相反，这是本次最需要注意的一点：</strong>
+<code>ai_scan_enhancer</code> 调用失败时<strong>保留漏洞</strong>（保守 = 不漏报）；
+本模块调用失败时返回 <code>ai_status='未完成'</code>，<strong>绝不返回「认可」</strong>。
+原因：合规研判里「认可」是一项声明——声称 AI 已核验过这条自评。调用失败却回填「认可」，等于凭空捏造一次并不存在的核验，会让报告里的「AI 已核验 N 条」变成谎报。
+该规则由 7 项单测逐条锁定（异常 / 空响应 / 无法解析 / 模型漏答 / 模型胡诌状态 / AI 不可用）。</p>
+</blockquote>
+<h3 id="4compliance_reportpy318">阶段 4：合规报告（<code>compliance_report.py</code>，318 行）</h3>
+<p>单 f-string + 内联 CSS，镜像 <code>report_generator._generate_audit_html</code>。含汇总卡片网格、按安全层面统计表、条款判定明细表（状态 / 来源 / AI 研判三色着色，问题项优先排序）。</p>
+<p><strong>页脚强制披露</strong>（不可删除，由 6 项测试锁定）：</p>
+<ul>
+<li>自动技术检查判定占比、问卷填报完成度</li>
+<li>合规率分母口径说明（哪些状态不计分）</li>
+<li>AI 矛盾 / 存疑 / <strong>未完成</strong>项数——「未完成」明确标注为<strong>未经过 AI 核验</strong></li>
+<li>「证据不足」显式警告<strong>请勿理解为符合</strong></li>
+<li><strong>本报告不构成等级保护测评、认证或第三方审计结论</strong></li>
+</ul>
+<h3 id="5guimain_windowpy-compliance_dialogpy">阶段 5：GUI（<code>main_window.py</code> + <code>compliance_dialog.py</code>）</h3>
+<ul>
+<li><strong>两个工作线程</strong>：<code>ComplianceCheckThread</code>（证据装配 → 判定 → AI 研判 → 落库）、<code>ComplianceAISuggestThread</code></li>
+<li><strong>三个标签页</strong>：等保合规 / 关基合规 / 数据安全合规，<strong>追加在最后（索引 11/12/13）</strong>——<code>_on_tab_changed</code> 按硬编码索引 0~10 分发，前插会导致全部错位</li>
+<li><strong>防陈旧线程</strong>：信号回调用 lambda 捕获线程对象，<code>self._compliance[k]['thread'] is t</code> 校验后才回写界面</li>
+<li><strong><code>_populate_compliance_table</code></strong>：AI 判「矛盾」整行标红、「存疑」标橙、「不符合」浅红底</li>
+<li><strong><code>compliance_dialog.py</code>（263 行）</strong>：问卷填报对话框独立成文件。AI 建议经 <code>ai_suggest_requested</code> 信号交给主窗口线程执行，对话框本身不发起耗时调用。<strong>AI 建议只填「AI建议」列，不直接改判定——AI 不替填报人签字</strong></li>
+<li><strong>工作埋点</strong>：<code>start_work</code> / <code>finish_work</code> 覆盖进行中 / 已完成 / 被终止三态，接入仪表盘今日工作图表</li>
+</ul>
+<h3 id="6rest-apiapirouterscompliancepy121">阶段 6：REST API（<code>api/routers/compliance.py</code>，121 行）</h3>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>路径</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET</td>
+<td><code>/api/v1/compliance/standards</code></td>
+<td>可用标准列表</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/v1/compliance/history</code></td>
+<td>检查历史（可按标准过滤）</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/v1/compliance/questionnaire/{standard}</code></td>
+<td>问卷条款 + 已填答案 + 进度</td>
+</tr>
+<tr>
+<td>PUT</td>
+<td><code>/api/v1/compliance/questionnaire/{standard}</code></td>
+<td>批量提交答案（非法项计入 <code>rejected</code>，不静默吞掉）</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/v1/compliance/check</code></td>
+<td>执行检查（<strong>仅复用历史扫描，不内联发起扫描</strong>）</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/v1/compliance/{history_id}</code></td>
+<td>检查详情</td>
+</tr>
+</tbody>
+</table>
+<p><code>api/models/__init__.py</code> 追加 3 个 Pydantic 模型；<code>api/server.py</code> 注册路由。</p>
+<h3 id="7">阶段 7：资产界面三字段</h3>
+<ul>
+<li><code>_add_asset_dialog</code> / <code>_edit_asset_dialog</code> 各加等保定级（下拉）、业务系统（文本）、数据分类（下拉）</li>
+<li>资产表格列数 <strong>13 → 16</strong>，表头与填充同步扩展</li>
+<li>新增模块常量 <code>COMPLIANCE_LEVEL_OPTIONS</code> / <code>DATA_CLASSIFICATION_OPTIONS</code>（空串在前——未定级就显示为空，不默认塞一个等级）</li>
+</ul>
+<hr />
+<h2 id="_5">端到端验证结果</h2>
+<p>在临时数据库上完整走通「设资产字段 → 扫描 → 填问卷 → 合规检查 → 出报告」：</p>
+<pre><code>== 1. 资产三字段 ==
+  写入: L3 OA系统 重要数据
+  更新: L2 财务系统 核心数据
+  表格列数: 16  末三列表头: ['等保定级', '业务系统', '数据分类']
+
+== 2. 扫描证据 ==
+  扫描任务 #1，2 条结果（23/telnet 明文 + 3306/mysql CRITICAL 未授权）
+
+== 3. 问卷填报 ==
+  DB-CN-02 自评「符合」，说明「已全程启用TLS加密，无明文协议」
+  填报进度: 2 / 65
+
+== 4. 合规检查 ==
+  合规率=0.4407  得分=44
+  符合=4  部分符合=7  不符合=5  证据不足=0  未填报=49
+  自动判定占比=0.2308
+  DB-CN-02 判定 = 不符合 | 来源 = auto
+  依据 = [技术检查] 检测到 1 个明文传输服务：Telnet/23@10.0.0.1，账号口令与业务数据
+         以明文在网络中传输 | [人工填报] 已全程启用TLS加密，无明文协议
+</code></pre>
+<p><strong>hybrid 取较差者生效</strong>：自评「符合」被技术检查的明文 Telnet 端口压倒，判为不符合，且两侧依据都保留在报告里。</p>
+<p><strong>专项验证 — AI 矛盾检测强制改判：</strong></p>
+<pre><code>== 5. AI 矛盾强制改判 ==
+  输入: DB-CN-02 自评「符合」，权重 2.0
+  AI 研判: 矛盾（扫到 23/telnet 明文端口）
+  改判后 = 不符合   严重度 = CRITICAL   计分 = 0.0
+  依据含改判说明: True
+</code></pre>
+<p><strong>结论：矛盾项被强制改判为「不符合」，权重 2.0 触发 CRITICAL 严重度，合规率计分归零。</strong></p>
+<pre><code>== 6. 报告落盘 ==
+  compliance_dengbao_20260826_062020.html (60666 bytes)
+  含免责声明: True | 含 DB-CN-02: True | 明细表行数: 65
+
+== 7. 今日工作矩阵（三类合规工作三态埋点）==
+  等保合规:     进行中 → {'进行中': 1} → 已完成 → {'已完成': 1}
+  关基合规:     {'被终止': 1}
+  数据安全合规: {'已完成': 1}
+  工作类型总数: 10
+</code></pre>
+<hr />
+<h2 id="_6">新增文件清单</h2>
+<table>
+<thead>
+<tr>
+<th>文件</th>
+<th>行数</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>compliance_engine.py</code></td>
+<td>529</td>
+<td>判定引擎、六态、计分、AI 降级表、证据装配</td>
+</tr>
+<tr>
+<td><code>compliance_checks.py</code></td>
+<td>530</td>
+<td>12 个自动技术评估器</td>
+</tr>
+<tr>
+<td><code>compliance_questionnaire.py</code></td>
+<td>210</td>
+<td>问卷引擎、scope_key 解析、完成度</td>
+</tr>
+<tr>
+<td><code>compliance_ai.py</code></td>
+<td>419</td>
+<td>AI 建议 / 复核 / 交叉比对 / 整改建议</td>
+</tr>
+<tr>
+<td><code>compliance_report.py</code></td>
+<td>318</td>
+<td>HTML 报告渲染 + 强制披露</td>
+</tr>
+<tr>
+<td><code>compliance_dialog.py</code></td>
+<td>263</td>
+<td>问卷填报对话框</td>
+</tr>
+<tr>
+<td><code>api/routers/compliance.py</code></td>
+<td>121</td>
+<td>REST 路由（6 个端点）</td>
+</tr>
+<tr>
+<td><code>compliance_controls/dengbao.json</code></td>
+<td>982</td>
+<td>等保 65 条条款目录</td>
+</tr>
+<tr>
+<td><code>compliance_controls/cii.json</code></td>
+<td>703</td>
+<td>关基 46 条条款目录</td>
+</tr>
+<tr>
+<td><code>compliance_controls/data_security.json</code></td>
+<td>726</td>
+<td>数据安全 48 条条款目录</td>
+</tr>
+<tr>
+<td><code>tests/test_compliance_engine.py</code></td>
+<td>387</td>
+<td>76 项：目录完整性 + AI 降级表逐行</td>
+</tr>
+<tr>
+<td><code>tests/test_compliance_questionnaire.py</code></td>
+<td>318</td>
+<td>47 项：问卷 + <strong>AI 失败方向锁定</strong></td>
+</tr>
+<tr>
+<td><code>tests/test_compliance_report.py</code></td>
+<td>233</td>
+<td>20 项：强制披露 + HTML 转义</td>
+</tr>
+<tr>
+<td><code>tests/test_compliance_db.py</code></td>
+<td>190</td>
+<td>20 项：UPSERT + 作用域复用</td>
+</tr>
+<tr>
+<td><code>tests/test_compliance_api.py</code></td>
+<td>191</td>
+<td>15 项：6 个端点端到端</td>
+</tr>
+<tr>
+<td><strong>合计</strong></td>
+<td><strong>6120</strong></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2 id="_7">修改文件清单</h2>
+<table>
+<thead>
+<tr>
+<th>文件</th>
+<th>改动</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>database.py</code></td>
+<td>新增 <code>ComplianceResultsDB</code>（第 6 库）；门面注册 + 5 个转发方法；<code>clear_database</code>/<code>close</code> 各加一行；<code>work_types</code> 7 → 10 类；顶层加 <code>import json</code></td>
+</tr>
+<tr>
+<td><code>main_window.py</code></td>
+<td>新增 2 个线程类、3 个标签页、11 个处理函数、2 个模块常量；资产表 13 → 16 列；两个资产对话框各加 3 字段</td>
+</tr>
+<tr>
+<td><code>api/models/__init__.py</code></td>
+<td>追加 3 个 Pydantic 模型</td>
+</tr>
+<tr>
+<td><code>api/server.py</code></td>
+<td>导入元组 + <code>include_router</code> 各加一处</td>
+</tr>
+<tr>
+<td><code>compliance_engine.py</code></td>
+<td>追加 <code>build_evidence()</code> 与证据装配分节</td>
+</tr>
+<tr>
+<td><code>tests/conftest.py</code></td>
+<td>新增 <code>compliance_db</code> fixture</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_8">设计要点回顾</h2>
+<ol>
+<li><strong>没有证据 ≠ 合规</strong> — 缺证据判「证据不足」并排除出分母，绝不默认「符合」</li>
+<li><strong>技术事实压过自评</strong> — hybrid 取较差者；AI 判矛盾时强制改判不符合</li>
+<li><strong>AI 失败判「未完成」而非「认可」</strong> — 不捏造并不存在的核验（与 <code>ai_scan_enhancer</code> 方向相反，已加注释 + 单测锁定）</li>
+<li><strong>不冒充测评结论</strong> — 报告页脚强制披露自动占比、问卷完成度、未核验项数，并声明不构成等级测评/认证结论</li>
+<li><strong>组织级答案复用</strong> — 制度类条款填一次全局共用，不逼用户逐系统重复填报</li>
+<li><strong>截断显式告知</strong> — AI 整改建议按权重取 Top-N 时，回调告知剩余未生成条数，不伪装成全量覆盖</li>
+</ol>
+<hr />
+<p><em>本报告由「下一代智能漏洞扫描系统 Pro」开发过程记录 · 山西有信网安科技有限公司</em></p>
+<div class="foot">下一代智能漏洞扫描系统 Pro · 山西有信网安科技有限公司</div>
+</div>
+</body>
+</html>

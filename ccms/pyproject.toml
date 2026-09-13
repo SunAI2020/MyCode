@@ -1,0 +1,53 @@
+[tool.poetry]
+name = "ccms"
+version = "0.1.0"
+description = "Claude Code Management System - AI 子 Agent 协同管理中控台"
+authors = ["CCMS Team"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.115.0"
+uvicorn = {extras = ["standard"], version = "^0.32.0"}
+sqlalchemy = {extras = ["asyncio"], version = "^2.0.36"}
+asyncpg = "^0.30.0"
+alembic = "^1.14.0"
+python-jose = {extras = ["cryptography"], version = "^3.3.0"}
+bcrypt = ">=4.2.0,<6.0.0"
+redis = "^5.2.0"
+celery = {extras = ["redis"], version = "^5.4.0"}
+pydantic = "^2.10.0"
+pydantic-settings = "^2.7.0"
+python-multipart = "^0.0.18"
+httpx = "^0.28.0"
+anthropic = "^0.39.0"
+psutil = "^6.1.0"
+tenacity = "^9.0.0"
+structlog = "^24.4.0"
+croniter = "^3.0.0"
+slowapi = "^0.1.9"
+email-validator = "^2.3.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.0"
+pytest-asyncio = "^0.24.0"
+coverage = "^7.6.0"
+ruff = "^0.8.0"
+mypy = "^1.13.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true

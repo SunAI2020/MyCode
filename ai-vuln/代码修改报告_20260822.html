@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>代码修改报告 — 2026-08-22</title>
+<style>
+  :root { --brand:#1a237e; --accent:#0d47a1; --ok:#107c10; --warn:#c62828; --bg:#f5f6fa; --card:#ffffff; --muted:#666; }
+  * { box-sizing: border-box; }
+  body { font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif; margin:0; background:var(--bg); color:#222; line-height:1.65; }
+  .wrap { max-width: 900px; margin:0 auto; padding:32px 20px 60px; }
+  header { background:linear-gradient(135deg,#1a237e,#0d47a1); color:#fff; border-radius:12px; padding:28px 32px; margin-bottom:24px; }
+  header h1 { margin:0 0 8px; font-size:26px; }
+  header .meta { font-size:14px; opacity:.92; }
+  h2 { color:var(--brand); border-left:5px solid var(--accent); padding-left:12px; margin-top:36px; font-size:20px; }
+  h3 { color:var(--accent); margin-top:24px; font-size:17px; }
+  table { width:100%; border-collapse:collapse; margin:16px 0; background:var(--card); border-radius:8px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  th, td { padding:10px 14px; text-align:left; border-bottom:1px solid #e6e8ef; font-size:14px; }
+  th { background:#eef1fb; color:var(--brand); font-weight:600; }
+  tr:last-child td { border-bottom:none; }
+  .card { background:var(--card); border:1px solid #e6e8ef; border-radius:10px; padding:18px 22px; margin:16px 0; }
+  code { background:#f0f1f7; padding:2px 6px; border-radius:4px; font-family:Consolas,Monaco,monospace; font-size:13px; color:#0d47a1; }
+  pre { background:#1e1e2e; color:#e8e8f0; padding:16px 20px; border-radius:8px; overflow-x:auto; font-size:13px; line-height:1.5; }
+  pre code { background:none; color:inherit; padding:0; }
+  .tag { display:inline-block; padding:2px 10px; border-radius:12px; font-size:12px; font-weight:600; }
+  .tag.ok { background:#e6f4ea; color:var(--ok); }
+  .tag.warn { background:#fdecea; color:var(--warn); }
+  ul { padding-left:22px; }
+  li { margin:6px 0; }
+  .footer { margin-top:40px; color:var(--muted); font-size:13px; text-align:center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>代码修改报告 — 2026-08-22</h1>
+    <div class="meta">下一代智能漏洞扫描系统 Pro（AI-VULN） · 山西有信网安科技有限公司</div>
+    <div class="meta">主题：优先完成「笔记本作为漏洞扫描设备，对用户网络进行漏洞扫描 + 渗透测试」核心链路</div>
+  </header>
+
+  <h2>一、修改概览</h2>
+  <table>
+    <thead><tr><th>#</th><th>改动</th><th>涉及文件</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>渗透测试（弱口令爆破）接入 GUI 扫描主流程</td><td><code>scanner_engine.py</code>、<code>main_window.py</code></td><td>扫描时勾选启用，对开放服务自动爆破</td></tr>
+      <tr><td>2</td><td>AI 代码审计模块拆分为两个独立标签页</td><td><code>main_window.py</code></td><td>「AI代码安全审计」与「AI代码质量检测」并列</td></tr>
+    </tbody>
+  </table>
+
+  <h2>二、改动 1：渗透测试（弱口令爆破）接入 GUI</h2>
+  <div class="card">
+    <h3>背景</h3>
+    <p><code>weak_password_scanner.py</code> 已实现 9 种协议（SSH/FTP/MySQL/PostgreSQL/Redis/MongoDB/HTTP Basic/Telnet/RDP）的弱口令爆破，但此前<strong>仅通过 REST API 调用</strong>，笔记本 GUI 的「漏洞扫描」流程中无法使用。</p>
+  </div>
+  <div class="card">
+    <h3>改动内容</h3>
+    <p><strong><code>scanner_engine.py</code></strong></p>
+    <ul>
+      <li><code>VulnScanner.scan_target()</code> 新增关键字参数 <code>weak_pass: bool = False</code>（向后兼容）。</li>
+      <li>新增私有方法 <code>_scan_weak_passwords()</code>：遍历存活主机与开放端口 → 调用 <code>WeakPasswordScanner.scan_services()</code> 爆破 → 命中结果转为漏洞结构（<code>severity=HIGH</code>、<code>finding_type='weak_password'</code>）并入 <code>vulnerabilities</code>。</li>
+      <li>弱口令发现<strong>独立于相似度去重/富化管线</strong>合并（避免多组弱口令被误合并）。</li>
+      <li>返回结果新增 <code>weak_password_count</code> 字段。</li>
+    </ul>
+    <p><strong><code>main_window.py</code></strong></p>
+    <ul>
+      <li><code>ScanThread</code> 新增 <code>weak_pass</code> 参数并透传给 <code>scan_target()</code>。</li>
+      <li>「漏洞扫描」标签页新增勾选框「渗透测试 (弱口令爆破)」（<span class="tag warn">默认不勾选</span>）。</li>
+      <li><code>_do_scan()</code> 读取勾选状态并传入 <code>ScanThread</code>。</li>
+      <li>扫描完成日志新增「渗透测试: 发现 N 个弱口令」。</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>设计要点</h3>
+    <ul>
+      <li><strong>保守策略</strong>：沿用「连续失败即停 + 0.5s 间隔」，降低账号锁定风险。</li>
+      <li><strong>默认关闭</strong>：渗透测试属主动探测，需用户显式勾选 + 获得目标授权。</li>
+      <li><strong>结果统一</strong>：弱口令命中以 HIGH 严重度进入结果表（红色高亮）与报告。</li>
+    </ul>
+  </div>
+
+  <h2>三、改动 2：AI 代码审计拆分为两个独立标签页</h2>
+  <div class="card">
+    <h3>背景</h3>
+    <p>原「AI代码审计」标签页将「安全审计」与「质量检测」混在一个面板中（通过 <code>quality_checkbox</code> 开关合并执行），界面职责不清。</p>
+  </div>
+  <div class="card">
+    <h3>改动内容</h3>
+    <ul>
+      <li><code>AIAuditThread</code> 新增 <code>quality</code> 审计模式，及独立执行体 <code>_run_quality_review()</code>（复用 <code>ai_code_reviewer.AICodeReviewer</code>，含去重/富化/维度统计）。</li>
+      <li><code>_create_audit_tab()</code> 精简为「🛡️ AI代码安全审计」单卡片。</li>
+      <li>新增 <code>_create_quality_tab()</code> —— 顶层标签页「🔍 AI代码质量检测」，与「漏洞扫描」「AI代码审计」<strong>并列</strong>。</li>
+      <li>新增质量检测处理器：<code>_start_quality_audit</code> / <code>_stop_quality_audit</code> / <code>_on_quality_audit_*</code> / <code>_select_quality_code_*</code>。</li>
+      <li>移除旧的 <code>quality_checkbox</code> 及冗余停止按钮。</li>
+      <li><code>__init__</code> 新增状态字段 <code>current_quality_audit_thread</code>、<code>last_quality_audit_result</code>。</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>标签页结构（最终）</h3>
+    <pre><code>仪表盘 | 资产管理 | 漏洞扫描 | 漏洞库 | 数据库维护
+| AI代码审计 | AI代码质量检测 | 威胁情报 | 报告中心 | 系统设置</code></pre>
+  </div>
+
+  <h2>四、测试验证</h2>
+  <div class="card">
+    <pre><code>$ python -m py_compile main_window.py scanner_engine.py   # 语法通过
+$ python -c "import main_window"                          # 导入通过
+$ python -m pytest tests/ -q
+============================ 269 passed in 15.60s =============================</code></pre>
+    <p>全量 <strong>269</strong> 个测试全部通过（含弱口令、扫描引擎、代码审计、数据库等模块）。<span class="tag ok">✓ 通过</span></p>
+  </div>
+
+  <h2>五、后续建议（非本次范围）</h2>
+  <ul>
+    <li>弱口令爆破协议可扩展（当前 <code>SERVICE_PROTOCOL_MAP</code> 未覆盖 SMB/MSSQL）。</li>
+    <li>Web 安全扫描（目录枚举/ZAP）尚未接入 GUI，可作为下一步渗透测试增强。</li>
+    <li>弱口令结果可进一步纳入统一报告模板的独立章节。</li>
+  </ul>
+
+  <div class="footer">生成于 2026-08-22 · AI-VULN 项目 · 山西有信网安科技有限公司</div>
+</div>
+</body>
+</html>

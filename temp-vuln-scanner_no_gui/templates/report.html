@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>漏洞扫描报告 - {{ scan_id }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .header .meta {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 30px;
+            background: #f8f9fa;
+        }
+        
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            text-align: center;
+        }
+        
+        .card .number {
+            font-size: 36px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .card .label {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .card.critical .number { color: #dc3545; }
+        .card.high .number { color: #fd7e14; }
+        .card.medium .number { color: #ffc107; }
+        .card.low .number { color: #28a745; }
+        
+        .section {
+            padding: 30px;
+            border-top: 1px solid #eee;
+        }
+        
+        .section h2 {
+            font-size: 20px;
+            margin-bottom: 20px;
+            color: #333;
+            border-left: 4px solid #667eea;
+            padding-left: 15px;
+        }
+        
+        .vuln-item {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        
+        .vuln-header {
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f8f9fa;
+        }
+        
+        .vuln-title {
+            font-weight: 600;
+            font-size: 16px;
+        }
+        
+        .vuln-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            color: white;
+        }
+        
+        .vuln-body {
+            padding: 20px;
+        }
+        
+        .vuln-detail {
+            margin-bottom: 15px;
+        }
+        
+        .vuln-detail strong {
+            color: #555;
+            display: inline-block;
+            width: 100px;
+        }
+        
+        .cvss-score {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: white;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #555;
+        }
+        
+        tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .tag {
+            display: inline-block;
+            padding: 2px 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            font-size: 12px;
+            margin: 2px;
+        }
+        
+        .fix-box {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 15px;
+        }
+        
+        .fix-box strong {
+            color: #155724;
+        }
+        
+        .warning-box {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #999;
+            font-size: 12px;
+            border-top: 1px solid #eee;
+        }
+        
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            .container {
+                box-shadow: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔒 漏洞扫描报告</h1>
+            <div class="meta">
+                <div>扫描 ID: {{ scan_id }}</div>
+                <div>扫描目标：{{ target }}</div>
+                <div>扫描时间：{{ start_time | format_datetime }} - {{ end_time | format_datetime }}</div>
+                <div>报告生成：{{ generated_at | format_datetime }}</div>
+            </div>
+        </div>
+        
+        <div class="summary-cards">
+            <div class="card">
+                <div class="number">{{ total_hosts }}</div>
+                <div class="label">扫描主机</div>
+            </div>
+            <div class="card">
+                <div class="number">{{ total_services }}</div>
+                <div class="label">发现服务</div>
+            </div>
+            <div class="card">
+                <div class="number">{{ total_vulns }}</div>
+                <div class="label">发现漏洞</div>
+            </div>
+            <div class="card critical">
+                <div class="number">{{ statistics.get('critical_count', 0) }}</div>
+                <div class="label">严重漏洞</div>
+            </div>
+            <div class="card high">
+                <div class="number">{{ statistics.get('high_count', 0) }}</div>
+                <div class="label">高危漏洞</div>
+            </div>
+        </div>
+        
+        {% if statistics.get('exploitable_count', 0) > 0 %}
+        <div class="section">
+            <div class="warning-box">
+                <strong>⚠️ 警告：</strong>发现 {{ statistics['exploitable_count'] }} 个存在公开利用代码的漏洞，建议优先处理！
+            </div>
+        </div>
+        {% endif %}
+        
+        {% for severity in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO'] %}
+        {% if vulns_by_severity.get(severity) %}
+        <div class="section">
+            <h2>{{ severity }} 漏洞 ({{ vulns_by_severity[severity]|length }})</h2>
+            
+            {% for vuln in vulns_by_severity[severity] %}
+            <div class="vuln-item">
+                <div class="vuln-header" style="border-left: 4px solid {{ vuln.cve.severity | severity_color }};">
+                    <div class="vuln-title">
+                        {{ vuln.cve.cve_id }} - {{ vuln.cve.name }}
+                    </div>
+                    <div>
+                        <span class="cvss-score" style="background: {{ vuln.cve.cvss_score | cvss_color }};">
+                            CVSS {{ vuln.cve.cvss_score }}
+                        </span>
+                        <span class="vuln-badge" style="background: {{ vuln.cve.severity | severity_color }}; margin-left: 10px;">
+                            {{ vuln.cve.severity.value }}
+                        </span>
+                    </div>
+                </div>
+                <div class="vuln-body">
+                    <div class="vuln-detail">
+                        <strong>受影响主机:</strong>
+                        {{ vuln.host_ip }}:{{ vuln.port }} ({{ vuln.service }})
+                    </div>
+                    <div class="vuln-detail">
+                        <strong>匹配版本:</strong>
+                        {{ vuln.matched_version }}
+                    </div>
+                    <div class="vuln-detail">
+                        <strong>置信度:</strong>
+                        <span class="tag">{{ vuln.confidence }}</span>
+                    </div>
+                    <div class="vuln-detail">
+                        <strong>描述:</strong>
+                        <p style="margin-top: 5px; color: #666;">{{ vuln.cve.description }}</p>
+                    </div>
+                    {% if vuln.cve.affected_products %}
+                    <div class="vuln-detail">
+                        <strong>受影响产品:</strong>
+                        {% for product in vuln.cve.affected_products[:5] %}
+                        <span class="tag">{{ product }}</span>
+                        {% endfor %}
+                        {% if vuln.cve.affected_products|length > 5 %}
+                        <span class="tag">+{{ vuln.cve.affected_products|length - 5 }} 更多</span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    {% if vuln.cve.exploit_available %}
+                    <div class="vuln-detail">
+                        <strong style="color: #dc3545;">⚠️ 存在公开利用代码</strong>
+                    </div>
+                    {% endif %}
+                    <div class="fix-box">
+                        <strong>💡 修复建议:</strong>
+                        <p style="margin-top: 5px;">{{ vuln.cve.fix_recommendation }}</p>
+                    </div>
+                    {% if vuln.cve.references %}
+                    <div style="margin-top: 15px; font-size: 12px; color: #999;">
+                        <strong>参考链接:</strong>
+                        {% for ref in vuln.cve.references[:3] %}
+                        <div style="margin-top: 3px; word-break: break-all;">📎 {{ ref }}</div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endfor %}
+        
+        {% if hosts %}
+        <div class="section">
+            <h2>扫描主机详情</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>IP 地址</th>
+                        <th>主机名</th>
+                        <th>操作系统</th>
+                        <th>状态</th>
+                        <th>服务数量</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for host in hosts %}
+                    <tr>
+                        <td>{{ host.ip }}</td>
+                        <td>{{ host.hostname or '-' }}</td>
+                        <td>{{ host.os or '-' }}</td>
+                        <td>
+                            <span style="color: {{ '#28a745' if host.status == 'up' else '#dc3545' }};">
+                                {{ host.status }}
+                            </span>
+                        </td>
+                        <td>
+                            {{ services | selectattr('host_ip', 'equalto', host.ip) | list | length }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+        
+        <div class="footer">
+            <p>本报告由漏洞扫描系统自动生成 | 仅供授权的安全测试使用</p>
+            <p>⚠️ 未经授权扫描他人系统是违法行为</p>
+        </div>
+    </div>
+</body>
+</html>

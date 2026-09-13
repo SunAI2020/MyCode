@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>代码修改报告 — 仪表盘「今日扫描工作」图表四项状态</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; line-height: 1.7; max-width: 900px; margin: 0 auto; padding: 24px; color: #24292f; background: #fff; }
+  h1 { border-bottom: 3px solid #0078d4; padding-bottom: 10px; color: #0078d4; }
+  h2 { margin-top: 32px; border-left: 5px solid #0078d4; padding-left: 12px; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+  th, td { border: 1px solid #d0d7de; padding: 8px 12px; text-align: left; }
+  th { background: #f6f8fa; }
+  code { background: #f6f8fa; padding: 2px 6px; border-radius: 4px; font-family: "SFMono-Regular", Consolas, monospace; font-size: 0.92em; }
+  pre { background: #f6f8fa; padding: 14px; border-radius: 8px; overflow-x: auto; border: 1px solid #d0d7de; }
+  pre code { background: transparent; padding: 0; }
+  .meta { color: #57606a; font-size: 0.95em; }
+</style>
+</head>
+<body>
+
+<h1>代码修改报告 — 仪表盘「今日扫描工作」图表四项状态</h1>
+<p class="meta">
+  <strong>项目：</strong>AI-VULN 下一代智能漏洞扫描系统 Pro（v2.1.0）<br>
+  <strong>日期：</strong>2026-08-22<br>
+  <strong>修改范围：</strong>仪表盘模块「今日扫描工作」图表改为四项状态统计
+</p>
+
+<h2>一、需求背景</h2>
+<p>仪表盘「今日扫描工作」图表原按 5 种状态（进行中/已完成/失败/计划中/已停止）统计。按需求调整为固定 <strong>四项</strong>：<strong>已完成、进行中、计划中、已取消</strong>，使当日扫描态势更聚焦、直观。</p>
+
+<h2>二、修改概述</h2>
+<table>
+  <tr><th>文件</th><th>修改内容</th></tr>
+  <tr>
+    <td><code>main_window.py</code></td>
+    <td><code>_update_dashboard()</code> 卡片3「今日扫描工作」的状态映射由 5 项改为 4 项，并将 <code>stopped</code>/<code>cancelled</code>/<code>failed</code> 聚合归入「已取消」</td>
+  </tr>
+</table>
+
+<h2>三、详细修改内容</h2>
+<h3><code>main_window.py</code> — <code>_update_dashboard()</code> 卡片3</h3>
+<pre><code># ---- 卡片3: 今日扫描工作 (饼状图: 已完成/进行中/计划中/已取消 四项) ----
+today_status = self.db.get_today_status_counts()
+status_labels = {'completed': '已完成', 'running': '进行中', 'pending': '计划中',
+                 'stopped': '已取消', 'cancelled': '已取消', 'failed': '已取消'}
+today_data = {}
+for k, v in today_status.items():
+    label = status_labels.get(k, k)
+    today_data[label] = today_data.get(label, 0) + v
+today_count = sum(today_status.values())</code></pre>
+
+<p><strong>改动要点：</strong></p>
+<ol>
+  <li>状态映射收敛为 4 类：<code>completed</code>→已完成、<code>running</code>→进行中、<code>pending</code>→计划中、<code>stopped</code>/<code>cancelled</code>/<code>failed</code>→已取消；</li>
+  <li>由「字典推导」改为「循环累加」，同一标签（如多个状态归入「已取消」）的计数正确求和，避免覆盖丢失；</li>
+  <li>图表类型仍为饼状图（<code>pie</code>），非零项显示对应扇区，全零显示「暂无数据」。</li>
+</ol>
+
+<h2>四、验证结果</h2>
+<ul>
+  <li><strong>语法检查</strong>：<code>python -m py_compile main_window.py</code> 通过。</li>
+</ul>
+
+<h2>五、影响范围</h2>
+<table>
+  <tr><th>影响面</th><th>说明</th></tr>
+  <tr><td>数据源</td><td>复用 <code>Database.get_today_status_counts()</code>（<code>scan_tasks</code> 表按状态统计），无 DB 变更</td></tr>
+  <tr><td>其它卡片</td><td>仅改卡片3，仪表盘其余 7 张卡片不受影响</td></tr>
+  <tr><td>状态口径</td><td><code>failed</code> 归入「已取消」后，失败任务不再单独展示</td></tr>
+</table>
+
+</body>
+</html>

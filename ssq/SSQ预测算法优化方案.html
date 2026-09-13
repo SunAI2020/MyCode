@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SSQ 双色球预测算法优化方案</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --card: #1e293b;
+    --border: #334155;
+    --text: #e2e8f0;
+    --text-mid: #94a3b8;
+    --accent: #38bdf8;
+    --red: #ef4444;
+    --green: #22c55e;
+    --purple: #a855f7;
+    --amber: #f59e0b;
+    --cyan: #06b6d4;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.8;
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 40px 24px;
+  }
+  h1 {
+    font-size: 2.2em;
+    text-align: center;
+    background: linear-gradient(135deg, var(--accent), var(--purple));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 8px;
+  }
+  h2 {
+    font-size: 1.5em;
+    color: var(--accent);
+    border-bottom: 2px solid var(--border);
+    padding-bottom: 8px;
+    margin: 48px 0 20px;
+  }
+  h3 {
+    font-size: 1.2em;
+    color: var(--purple);
+    margin: 28px 0 12px;
+  }
+  h4 {
+    color: var(--cyan);
+    margin: 18px 0 8px;
+  }
+  p, li { color: var(--text-mid); }
+  strong { color: var(--text); }
+  .subtitle {
+    text-align: center;
+    color: var(--text-mid);
+    margin-bottom: 40px;
+    font-size: 0.95em;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin: 20px 0;
+  }
+  .card-red { border-left: 4px solid var(--red); }
+  .card-green { border-left: 4px solid var(--green); }
+  .card-purple { border-left: 4px solid var(--purple); }
+  .card-amber { border-left: 4px solid var(--amber); }
+  .card-cyan { border-left: 4px solid var(--cyan); }
+  .highlight {
+    background: rgba(56, 189, 248, 0.1);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    border-radius: 8px;
+    padding: 16px;
+    margin: 16px 0;
+  }
+  .critical {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 8px;
+    padding: 16px;
+    margin: 16px 0;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 0.92em;
+  }
+  th {
+    background: var(--border);
+    color: var(--text);
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 600;
+  }
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-mid);
+  }
+  tr:hover td { background: rgba(56, 189, 248, 0.05); }
+  pre {
+    background: #0a0f1a;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    overflow-x: auto;
+    font-size: 0.85em;
+    line-height: 1.6;
+    color: #a5d6ff;
+  }
+  code {
+    background: rgba(168, 85, 247, 0.15);
+    color: var(--purple);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.9em;
+  }
+  pre code { background: none; color: inherit; padding: 0; }
+  ul, ol { padding-left: 24px; margin: 8px 0; }
+  li { margin: 4px 0; }
+  .badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    font-weight: 600;
+    margin: 0 4px;
+  }
+  .badge-new { background: rgba(34, 197, 94, 0.2); color: var(--green); }
+  .badge-upgrade { background: rgba(168, 85, 247, 0.2); color: var(--purple); }
+  .badge-star { background: rgba(245, 158, 11, 0.2); color: var(--amber); }
+  .phase-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: var(--bg);
+    font-weight: bold;
+    font-size: 0.85em;
+    margin-right: 8px;
+  }
+</style>
+</head>
+<body>
+
+<h1>&#127919; SSQ 双色球预测算法优化方案</h1>
+<p class="subtitle">版本 V3.0 | 2026-08-10 | 基于深度分析的全链路算法重构</p>
+
+<div class="card card-red">
+<h3>&#128202; 当前状态诊断</h3>
+<table>
+  <tr><th>指标</th><th>当前值</th><th>目标值</th></tr>
+  <tr><td>红球平均命中</td><td style="color:var(--red)">1.03 / 6</td><td style="color:var(--green)">1.8+ / 6</td></tr>
+  <tr><td>蓝球命中率</td><td style="color:var(--red)">4.9%（低于随机 6.25%）</td><td style="color:var(--green)">8%+</td></tr>
+  <tr><td>最高红球命中</td><td style="color:var(--red)">3 / 6</td><td style="color:var(--green)">4+ / 6</td></tr>
+  <tr><td>历史数据量</td><td>2,508 期（2010-2026）</td><td>—</td></tr>
+  <tr><td>PyTorch 状态</td><td style="color:var(--red)">&#10060; c10.dll 加载失败</td><td style="color:var(--green)">优先修复或使用备选</td></tr>
+</table>
+</div>
+
+<div class="critical">
+<strong>&#9888;&#65039; 核心问题：</strong>
+<ol>
+  <li><strong>无视位置特征</strong> — 6 个红球位置各有独特分布（位置 1 偏小、位置 6 偏大），但被平等对待</li>
+  <li><strong>蓝球策略失效</strong> — 比随机还差，完全未能捕捉蓝球规律</li>
+  <li><strong>策略高度同质</strong> — 频率/遗漏/趋势本质是同一信号的不同变体</li>
+  <li><strong>忽视号码关联</strong> — 号码组合的共现关系未被挖掘</li>
+  <li><strong>缺乏时间衰减</strong> — 2020 年数据与 2026 年等权重</li>
+  <li><strong>融合机制粗糙</strong> — 权重近乎均匀，温度扰动只是随机噪声</li>
+</ol>
+</div>
+
+<h2>一、位置感知分析系统 <span class="badge badge-new">最优先</span></h2>
+
+<div class="card card-green">
+<h3>原理</h3>
+<p>双色球 6 个红球位置（从小到大排序后）各有独立的统计分布。历史上位置 1 从未出现过 &gt;18，位置 6 从未出现过 &lt;10。按位置独立建模可大幅缩小搜索空间。</p>
+
+<h3>实现</h3>
+<ol>
+  <li>新增 <code>PositionalStats</code> 类，计算每个位置的频率分布、遗漏、冷热状态、移动平均趋势（10 期/30 期/50 期）、位置边界约束</li>
+  <li>新增 <code>PositionAwareStrategy</code>：逐位置采样 → 组合 → 验证，<strong>仅此一项即可替代 Frequency/Missing/Trend 三个策略</strong></li>
+  <li>修改 <code>_validate()</code> 增加位置边界检查</li>
+</ol>
+</div>
+
+<h2>二、蓝球预测系统重建</h2>
+
+<div class="card card-purple">
+<h3>问题诊断</h3>
+<p>蓝球权重计算系数太小（<code>missing * 0.03</code>），信号被噪声淹没。未利用蓝球的短周期模式。</p>
+
+<h3>实现</h3>
+<ol>
+  <li>新增 <code>BlueBallAnalyzer</code>，专注蓝球模式：奇偶交替、大小交替（1-8 小 / 9-16 大）、012 路分析、遗漏回补窗口（遗漏 20 期+）、蓝球与上期红球关系（~15% 概率蓝球=某上期红球）</li>
+  <li>新增 <code>BlueDedicatedStrategy</code>：综合 6 个独立蓝球信号加权</li>
+  <li>调整融合权重：蓝球使用独立评分体系</li>
+</ol>
+</div>
+
+<h2>三、共现/关联规则挖掘</h2>
+
+<div class="card card-amber">
+<h3>原理</h3>
+<p>某些红球号码倾向于成对出现。例如号码 5 出现时，号码 12 的出现概率从基准 18% 提升到 35%。</p>
+
+<h3>实现</h3>
+<ol>
+  <li>新增 <code>CooccurrenceMiner</code>：计算所有球对的共现频次和 <strong>lift 值</strong>（实际共现率 / 独立期望共现率），筛选 lift &gt; 1.5 的显著关联</li>
+  <li>新增 <code>AssociationBoostStrategy</code>：基于高 lift 关联对生成候选组合</li>
+  <li>在融合阶段利用共现关系调整权重</li>
+</ol>
+</div>
+
+<h2>四、指数衰减时间加权</h2>
+<div class="card card-cyan">
+<p>所有统计分析器接受 <code>decay_factor=0.98/期</code>（半衰期约 35 期）。加权频率公式：</p>
+<pre><code>freq[i] = Σ decay_factor^(total_draws - draw_idx) × indicator(draw 包含号码 i)</code></pre>
+<p>应用到：频率分析、冷热分析、转移矩阵、特征提取。2020 年数据的权重仅为 2026 年的 ~1/16。</p>
+</div>
+
+<h2>五、模块化/谐波模式分析</h2>
+<p>挖掘号码间的数学关系：同尾号（2,12,22,32）、模 3/模 5/模 7 分布、斐波那契数的聚集效应。新增 <code>ModularPatterns</code> 类和 <code>ModularPatternStrategy</code> 策略。</p>
+
+<h2>六、LSTM 模型升级</h2>
+<div class="card">
+<table>
+  <tr><th>组件</th><th>当前</th><th>升级后</th></tr>
+  <tr><td>输入维度</td><td>49 维（one-hot）</td><td>525 维（完整特征向量）</td></tr>
+  <tr><td>架构</td><td>2 层 LSTM</td><td>LSTM + Multi-Head Attention + LayerNorm + Residual</td></tr>
+  <tr><td>训练</td><td>无验证集</td><td>80/10/10 分割 + Early Stopping (patience=15)</td></tr>
+  <tr><td>正则化</td><td>Dropout 0.2</td><td>Dropout 0.3 + Gradient Clipping + LR Scheduler</td></tr>
+</table>
+</div>
+
+<h2>七、Bootstrap 集成替代温度扰动</h2>
+<p>对训练数据进行 bootstrap 重采样（有放回抽样，保留 80% 数据量），训练 N 个不同版本，每个版本独立生成预测。替代当前的 <code>softmax(score / temp) + random.uniform()</code> 噪声方案。</p>
+
+<h2>八、策略体系重组</h2>
+
+<table>
+  <tr><th>策略</th><th>核心方法</th><th>类型</th></tr>
+  <tr><td><code>position_aware</code></td><td>6 位置独立频率+遗漏+趋势 <span class="badge badge-new">新</span></td><td>替代 freq+missing+trend+zone</td></tr>
+  <tr><td><code>mcmc_v2</code></td><td>升级版 MH：目标含共现 lift <span class="badge badge-upgrade">升级</span></td><td>目标函数含关联项</td></tr>
+  <tr><td><code>lstm_v2</code></td><td>525 维 + Attention + 早停 <span class="badge badge-upgrade">升级</span></td><td>时序深度特征</td></tr>
+  <tr><td><code>xgboost_v2</code></td><td>525 维 + 位置特征 <span class="badge badge-upgrade">升级</span></td><td>特征增加位置标签</td></tr>
+  <tr><td><code>association_boost</code></td><td>共现关联驱动 <span class="badge badge-new">全新</span></td><td>关联规则挖掘</td></tr>
+  <tr><td><code>blue_dedicated</code></td><td>蓝球 6 信号融合 <span class="badge badge-new">全新</span></td><td>蓝球专项</td></tr>
+  <tr><td><code>modular_pattern</code></td><td>尾数模数韵律 <span class="badge badge-new">全新</span></td><td>谐波模式</td></tr>
+  <tr><td><code>bootstrap_rf</code></td><td>Bootstrap 集成 <span class="badge badge-new">全新</span></td><td>多重采样</td></tr>
+  <tr style="background: rgba(245,158,11,0.1)"><td><code>llm_ensemble</code> <span class="badge badge-star">★</span></td>
+      <td><strong>大模型推理融合</strong></td>
+      <td><strong>核心差异化</strong></td></tr>
+</table>
+
+<h2>九、★ 大模型 AI 增强预测</h2>
+
+<div class="highlight">
+<p><strong>核心理念：</strong>传统统计/ML 模型做"粗筛"，大模型做"精判"。通过 Claude Code Agent 调用大模型，在预测 pipeline 中插入<strong>推理校验层</strong>。</p>
+</div>
+
+<h3>9.1 整体架构</h3>
+<pre><code>历史数据 → 统计特征提取 → 8 个策略各自生成候选 →
+┌─────────────────────────────────────────────┐
+│  ★ 大模型推理层 (Claude via CC Agent) ★      │
+│  1. 分析当前统计态势（冷热/遗漏/趋势/异常）    │
+│  2. 评审各策略候选号码的合理性                │
+│  3. 调整融合权重（哪个策略当前更可信）         │
+│  4. 生成最终的 TOP 10 推荐号码                │
+└─────────────────────────────────────────────┘
+→ 保存预测 → GUI 展示</code></pre>
+
+<h3>9.2 Prompt 设计要点</h3>
+<p>将统计特征 + 候选号码打包为结构化 prompt，发送给 Claude：</p>
+<ul>
+  <li>&#128202; 数据概况：历史总期数、最新一期开奖结果</li>
+  <li>&#128200; 统计特征：热号/冷号、遗漏 TOP8、和值/跨度/奇偶比/连号概率/区间分布</li>
+  <li>&#127919; 各策略候选号码及评分</li>
+  <li>&#128203; 任务：态势判断 → 策略评审 → 生成 10 组号码 + 推理依据</li>
+</ul>
+
+<h3>9.3 大模型增强点</h3>
+<table>
+  <tr><th>增强点</th><th>传统方法</th><th>+ 大模型</th></tr>
+  <tr><td>态势判断</td><td>固定阈值（mean±3σ）</td><td style="color:var(--green)">LLM 综合判断趋势方向</td></tr>
+  <tr><td>策略选择</td><td>EMA/Elo 权重</td><td style="color:var(--green)">LLM 根据态势推理该信任谁</td></tr>
+  <tr><td>号码校验</td><td>sum/span/parity 检查</td><td style="color:var(--green)">LLM 逻辑推理合理性</td></tr>
+  <tr><td>多样性生成</td><td>随机温度扰动</td><td style="color:var(--green)">LLM 主动设计差异化方案</td></tr>
+  <tr><td>蓝球决策</td><td>加权采样</td><td style="color:var(--green)">LLM 推理蓝球模式</td></tr>
+  <tr><td>后验分析</td><td>统计均值</td><td style="color:var(--green)">LLM 分析为什么没命中 → 持续改进</td></tr>
+</table>
+
+<h3>9.4 后验分析闭环</h3>
+<p>每次开奖后，将预测 vs 实际结果发送给大模型，分析得失原因并给出下期调整建议。分析结果反馈到下一期 prompt 中，形成<strong>持续学习闭环</strong>。</p>
+
+<h3>9.5 成本估算</h3>
+<ul>
+  <li>每次预测：~2000 input + ~1000 output tokens</li>
+  <li>每次后验：~1500 input + ~500 output tokens</li>
+  <li>每周 3 次开奖 ≈ 6 次调用 ≈ 15,000 tokens/周</li>
+  <li>&#128176; 成本极低（按 token 计费模型）</li>
+</ul>
+
+<h2>十、权重更新机制修正</h2>
+<ol>
+  <li>使用<strong>相对排名</strong>替代绝对分数：每期对策略按命中数排名</li>
+  <li>权重更新使用 <strong>Elo 评分系统</strong>：<code>Δ = K × (actual_score - expected_score)</code>，K=32</li>
+  <li>加入<strong>策略正交性奖励</strong>：预测向量相关性低的策略获得额外权重</li>
+</ol>
+
+<h2>&#128193; 修改文件清单</h2>
+
+<div class="card">
+<h3>主要修改：<code>ssq_prediction_v2.py</code></h3>
+<table>
+  <tr><th>新增类（~900 行）</th><th>说明</th></tr>
+  <tr><td><code>PositionalStats</code></td><td>位置统计（~80 行）</td></tr>
+  <tr><td><code>BlueBallAnalyzer</code></td><td>蓝球专项分析（~120 行）</td></tr>
+  <tr><td><code>CooccurrenceMiner</code></td><td>共现挖掘（~100 行）</td></tr>
+  <tr><td><code>ModularPatterns</code></td><td>模数/谐波模式（~80 行）</td></tr>
+  <tr><td><code>PositionAwareStrategy</code></td><td>位置感知策略（~100 行）</td></tr>
+  <tr><td><code>BlueDedicatedStrategy</code></td><td>蓝球专项策略（~80 行）</td></tr>
+  <tr><td><code>AssociationBoostStrategy</code></td><td>关联增强策略（~80 行）</td></tr>
+  <tr><td><code>ModularPatternStrategy</code></td><td>模数韵律策略（~80 行）</td></tr>
+  <tr><td><code>BootstrapRFStrategy</code></td><td>Bootstrap 集成（~120 行）</td></tr>
+  <tr><td><code>LSTMAttentionPredictor</code></td><td>带 Attention 的 LSTM</td></tr>
+</table>
+
+<h4>修改现有类/函数</h4>
+<ul>
+  <li><code>FeatureEngineer</code>：添加 decay_factor、位置特征(198维)、模数特征(25维)、周期特征(12维)；特征向量从 233 维扩展到约 525 维</li>
+  <li><code>MCMCStrategy._target()</code>：加入共现 lift 项、位置约束项</li>
+  <li><code>LSTMStrategy</code>：输入升级为 525 维、替换为 LSTMAttentionPredictor、早停、梯度裁剪</li>
+  <li><code>StackingEnsemble._diversify()</code>：结构化多样化替代温度扰动</li>
+  <li><code>BacktestEngineV2._update_weights()</code>：Elo 评分 + 正交性奖励</li>
+  <li><code>PREDICTORS</code>：新增 5 个预测员</li>
+</ul>
+</div>
+
+<div class="card">
+<h3>新增文件：<code>llm_predictor.py</code></h3>
+<ul>
+  <li><code>LLMEnsembleStrategy</code> — 通过 CC Agent 调用 Claude 大模型做推理融合（~200 行）</li>
+  <li><code>build_analysis_prompt()</code> — 构建结构化分析 prompt</li>
+  <li><code>parse_llm_response()</code> — 解析大模型返回的预测结果</li>
+  <li><code>post_draw_analysis()</code> — 开奖后让大模型分析预测得失</li>
+</ul>
+</div>
+
+<div class="card">
+<h3>次要修改：<code>ssq_database.py</code></h3>
+<ul>
+  <li>添加 <code>get_weighted_results(decay_factor)</code> 查询函数</li>
+  <li>新增 <code>strategy_performance</code> 表（记录策略相关性和权重变化）</li>
+  <li>新增 <code>association_rules</code> 表（缓存共现规则）</li>
+</ul>
+</div>
+
+<div class="card">
+<h3>不改动：<code>ssq_gui_v2.py</code></h3>
+<p>GUI 接口保持不变（<code>predict_per_strategy()</code> 签名兼容），新增策略自动作为新 Predictor 卡片展示。</p>
+</div>
+
+<h2>&#128300; 验证方案</h2>
+<ol>
+  <li><strong>回测验证</strong>：<code>python ssq_prediction_v2.py</code> 运行递推回测，对比新旧算法的红球命中、蓝球命中率、最大命中数</li>
+  <li><strong>AB 对照</strong>：在同一数据库上运行新旧版本，对比预测报告</li>
+  <li><strong>实际跟踪</strong>：预测 <strong>2026092 期</strong>（2026-08-11 周二开奖）与实际结果对比</li>
+</ol>
+
+<h2>&#128203; 实施顺序</h2>
+
+<div class="card">
+<p><span class="phase-num">1</span> <strong>Phase 1：基础设施</strong></p>
+<p style="margin-left:36px"><code>FeatureEngineer</code> 扩展（指数衰减加权、位置统计、模数分析、共现挖掘）+ <code>ssq_database.py</code> 新增表</p>
+
+<p><span class="phase-num">2</span> <strong>Phase 2：新策略实现</strong></p>
+<p style="margin-left:36px"><code>PositionAwareStrategy</code>、<code>BlueDedicatedStrategy</code>、<code>AssociationBoostStrategy</code>、<code>ModularPatternStrategy</code></p>
+
+<p><span class="phase-num">3</span> <strong>Phase 3：现有策略升级</strong></p>
+<p style="margin-left:36px">MCMC 目标函数升级、LSTM→LSTMAttentionPredictor、XGBoost/RF 特征扩展、BootstrapRFStrategy</p>
+
+<p><span class="phase-num">4</span> <strong>Phase 4：融合层改造</strong></p>
+<p style="margin-left:36px"><code>StackingEnsemble</code> 结构化多样化、权重 Elo + 正交性奖励</p>
+
+<p><span class="phase-num">5</span> <strong>Phase 5：大模型推理层</strong></p>
+<p style="margin-left:36px">新建 <code>llm_predictor.py</code>、<code>LLMEnsembleStrategy</code>、后验分析闭环</p>
+
+<p><span class="phase-num">6</span> <strong>Phase 6：测试验证</strong></p>
+<p style="margin-left:36px">回测对比新旧算法、预测 2026092 期实际验证</p>
+</div>
+
+<div class="critical" style="margin-top:40px">
+<p style="text-align:center; color: var(--text);">
+&#9888;&#65039; <strong>免责声明</strong>：彩票为随机事件，本方案仅供学术研究参考，不构成任何投注建议。请理性购彩，量力而行。
+</p>
+</div>
+
+</body>
+</html>

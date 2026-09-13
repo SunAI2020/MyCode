@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>代码修改报告 —— deep-eye 主动 Web 漏洞检测能力集成</title>
+<style>
+  :root {
+    --bg: #f6f8fa; --card: #ffffff; --ink: #1f2328; --muted: #59636e;
+    --accent: #0969da; --border: #d0d7de; --ok: #1a7f37; --ok-bg: #dafbe1;
+    --warn: #9a6700; --warn-bg: #fff8c5; --badge: #8250df;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 15px/1.7 -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 32px 20px 64px; }
+  h1 { font-size: 26px; margin: 0 0 8px; }
+  h2 { font-size: 20px; margin: 32px 0 12px; padding-bottom: 6px; border-bottom: 2px solid var(--border); }
+  h3 { font-size: 16px; margin: 20px 0 8px; }
+  p, li { color: var(--ink); }
+  .meta { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--border); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #f6f8fa; font-weight: 600; }
+  code, pre { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; font-size: 13px; }
+  code { background: #f6f8fa; padding: 1px 5px; border-radius: 4px; }
+  pre { background: #0d1117; color: #e6edf3; padding: 14px 16px; border-radius: 8px; overflow-x: auto; }
+  pre code { background: transparent; color: inherit; padding: 0; }
+  .ok { color: var(--ok); font-weight: 600; }
+  .pill-ok { background: var(--ok-bg); color: var(--ok); padding: 1px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; }
+  .pill-warn { background: var(--warn-bg); color: var(--warn); padding: 1px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; }
+  .toc { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 12px 20px; }
+  .toc a { color: var(--accent); text-decoration: none; }
+  .toc li { margin: 3px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>代码修改报告 —— deep-eye 主动 Web 漏洞检测能力集成</h1>
+<div class="meta">
+  日期：2026-08-23 &nbsp;|&nbsp; 分支：feat/0day-scan &nbsp;|&nbsp;
+  项目：AI-VULN（下一代智能漏洞扫描系统 Pro v2.1.0）<br>
+  性质：功能新增 + 接入（不影响既有扫描链路）
+</div>
+
+<div class="toc">
+  <b>目录</b>
+  <ol>
+    <li><a href="#overview">概述</a></li>
+    <li><a href="#files">修改文件清单</a></li>
+    <li><a href="#detail">详细改动说明</a></li>
+    <li><a href="#checks">检测能力清单（29 类）</a></li>
+    <li><a href="#verify">验证结果</a></li>
+    <li><a href="#security">安全评审说明</a></li>
+    <li><a href="#usage">使用方式</a></li>
+    <li><a href="#impact">影响范围与回滚</a></li>
+    <li><a href="#review">代码评审修复记录</a></li>
+  </ol>
+</div>
+
+<h2 id="overview">一、概述</h2>
+<p>本次改动将开源项目 <b>deep-eye</b>（<a href="https://github.com/zakirkun/deep-eye">https://github.com/zakirkun/deep-eye</a>）中
+<b>自包含、零新依赖</b>的主动 Web 漏洞检测能力移植到 AI-VULN，填补了 AI-VULN 在 <b>Web 主动漏洞检测</b> 上的空白。</p>
+<ul>
+  <li><b>29 类主动检测</b>：23 类经典注入/配置/泄露检测 + 6 类深检测（JWT/CORS-CSP/SSRF云元数据/SSTI多引擎/IDOR/NoSQL）。</li>
+  <li><b>零新依赖</b>：仅复用项目已用的 <code>requests</code> + Python 标准库。</li>
+  <li><b>接入现有链路</b>：挂到 <code>WebSecurityScanner.scan()</code> 的 <code>do_active</code> 阶段，与既有被动扫描串联，结果统一落库。</li>
+</ul>
+
+<h2 id="files">二、修改文件清单</h2>
+<table>
+  <thead><tr><th>文件</th><th>状态</th><th>改动摘要</th></tr></thead>
+  <tbody>
+    <tr><td><code>web_vuln_scanner.py</code></td><td><span class="pill-ok">新增</span></td><td>主动 Web 漏洞检测核心引擎（~1200 行，29 类检测）</td></tr>
+    <tr><td><code>web_scanner.py</code></td><td><span class="pill-warn">修改</span></td><td>新增 <code>do_active</code> 阶段，聚合 + 持久化主动发现</td></tr>
+    <tr><td><code>database.py</code></td><td><span class="pill-warn">修改</span></td><td><code>web_scan_results</code> 表新增 <code>parameter</code>/<code>payload</code> 列</td></tr>
+    <tr><td><code>api/models/__init__.py</code></td><td><span class="pill-warn">修改</span></td><td><code>WebScanRequest</code> 新增 <code>do_active</code> 字段</td></tr>
+    <tr><td><code>api/routers/webscan.py</code></td><td><span class="pill-warn">修改</span></td><td>透传 <code>do_active</code> 到扫描引擎</td></tr>
+    <tr><td><code>tests/test_web_vuln_scanner.py</code></td><td><span class="pill-ok">新增</span></td><td>9 项纯逻辑单元测试</td></tr>
+    <tr><td><code>deep-eye集成分析报告_20260823.md</code></td><td><span class="pill-ok">新增</span></td><td>deep-eye 能力全景分析与映射</td></tr>
+  </tbody>
+</table>
+
+<h2 id="detail">三、详细改动说明</h2>
+
+<h3>3.1 web_vuln_scanner.py（新增）</h3>
+<p>主动 Web 漏洞检测核心引擎，移植自 deep-eye 的自包含检测能力，适配 AI-VULN 约定。</p>
+<table>
+  <thead><tr><th>组件</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td><code>Surface</code> 枚举 + <code>extract_surfaces()</code> + <code>inject()</code></td><td>多注入面发现与派发（query/form/json/cookie/header/path），纯 stdlib</td></tr>
+    <tr><td><code>SafeHTTPClient</code></td><td>requests.Session 适配器，<code>get/post/head/options/request</code>，<code>verify</code> 可配置</td></tr>
+    <tr><td><code>WebVulnScanner</code></td><td>29 类检测编排器，<code>scan(url, enabled_checks=None, progress_callback=None)</code></td></tr>
+    <tr><td><code>_normalize()</code></td><td>deep-eye 结果字段 → AI-VULN 统一 finding 结构（severity 大写）</td></tr>
+  </tbody>
+</table>
+<p><b>关键设计：</b></p>
+<ul>
+  <li>结果统一为 <code>{scan_type, category, title, severity, detail, evidence, url, parameter, payload, remediation}</code>。</li>
+  <li>severity 映射：<code>critical→CRITICAL, high→HIGH, medium→MEDIUM, low→LOW, info→INFO</code>。</li>
+  <li>默认 <code>verify=False</code>（与 <code>web_scanner.py</code> 一致，自签名/内部证书场景），现已改为<b>可配置</b>，生产环境可传 <code>verify=True</code>。</li>
+</ul>
+
+<h3>3.2 web_scanner.py（修改）</h3>
+<ul>
+  <li>顶部新增 <code>from web_vuln_scanner import WebVulnScanner</code>。</li>
+  <li><code>WebSecurityScanner.__init__</code> 新增 <code>self.vuln_scanner = WebVulnScanner()</code>。</li>
+  <li><code>scan()</code> 新增 <code>do_active: bool = True</code> 参数；结果字典新增 <code>active</code> 键；在 ZAP 之后追加主动检测阶段。</li>
+  <li><code>_aggregate_findings()</code> 将 <code>result['active']</code> 并入 <code>findings</code>。</li>
+  <li><code>_persist()</code> 写入新增的 <code>parameter</code>/<code>payload</code> 字段，并保留 <code>scan_type</code>。</li>
+</ul>
+
+<h3>3.3 database.py（修改）</h3>
+<ul>
+  <li><code>web_scan_results</code> 表新增 <code>parameter TEXT</code>、<code>payload TEXT</code> 两列（幂等 <code>ALTER TABLE</code> 迁移，兼容旧库）。</li>
+  <li><code>add_web_scan_result()</code> 的 INSERT 语句新增 <code>parameter</code>/<code>payload</code> 写入。</li>
+</ul>
+
+<h3>3.4 api/models/__init__.py（修改）</h3>
+<ul><li><code>WebScanRequest</code> 新增 <code>do_active: bool = True</code>（请求体可选字段，向后兼容）。</li></ul>
+
+<h3>3.5 api/routers/webscan.py（修改）</h3>
+<ul>
+  <li><code>_run_web_scan()</code> 签名新增 <code>do_active</code> 参数并透传 <code>scanner.scan(..., do_active=do_active)</code>。</li>
+  <li><code>run_web_scan()</code> 传入 <code>body.do_active</code>。</li>
+</ul>
+
+<h3>3.6 tests/test_web_vuln_scanner.py（新增）</h3>
+<p>12 项纯逻辑测试（无网络依赖）：severity 归一化、finding 结构、<code>extract_surfaces</code> 提取与去重、<code>_extract_forms</code> 表单解析、默认 payload 语料、默认 29 类清单、<code>enabled_checks</code> 覆盖、<code>SafeHTTPClient</code> 方法、<code>inject</code> 参数校验。</p>
+
+<h3>3.7 deep-eye集成分析报告_20260823.md（新增）</h3>
+<p>deep-eye 50+ 检测项全景、三类映射（已移植 / 已有等效 / 暂不移植）、架构分析与使用方式。</p>
+
+<h2 id="checks">四、检测能力清单（已移植 29 类）</h2>
+<table>
+  <thead><tr><th>分类</th><th>检测项</th></tr></thead>
+  <tbody>
+    <tr><td>SQL/NoSQL 注入</td><td>SQL 注入、时间盲注 SQL、NoSQL（MongoDB 操作符）注入</td></tr>
+    <tr><td>XSS</td><td>反射型 XSS</td></tr>
+    <tr><td>命令/代码注入</td><td>命令注入、SSTI（通用 + 多引擎）、RFI</td></tr>
+    <tr><td>SSRF</td><td>SSRF、SSRF 云元数据 + URL 解析绕过</td></tr>
+    <tr><td>XML</td><td>XXE、XML 注入</td></tr>
+    <tr><td>文件</td><td>路径遍历、LFI、不安全反序列化</td></tr>
+    <tr><td>认证/会话</td><td>CSRF、认证绕过、失效认证、JWT 脆弱性、JWT alg=none、JWT kid 路径遍历、IDOR/BOLA</td></tr>
+    <tr><td>配置</td><td>CORS 误配置、CORS 反射/wildcard/preflight、CSP 缺口、安全头缺失</td></tr>
+    <tr><td>注入/协议</td><td>CRLF 注入、Host 头注入、LDAP 注入、开放重定向</td></tr>
+    <tr><td>信息泄露</td><td>信息泄露、敏感数据暴露</td></tr>
+  </tbody>
+</table>
+
+<h2 id="verify">五、验证结果</h2>
+<table>
+  <thead><tr><th>验证项</th><th>结果</th></tr></thead>
+  <tbody>
+    <tr><td><code>WebVulnScanner</code> 导入 + 29 类检测初始化</td><td class="ok">✅ 通过</td></tr>
+    <tr><td>severity 归一化 + finding 结构</td><td class="ok">✅ 通过</td></tr>
+    <tr><td><code>tests/test_web_vuln_scanner.py</code>（12 项）</td><td class="ok">✅ 12 passed</td></tr>
+    <tr><td><code>tests/test_web_scanner.py</code>（12 项回归）</td><td class="ok">✅ 12 passed</td></tr>
+    <tr><td>全部改动文件 <code>py_compile</code></td><td class="ok">✅ 通过</td></tr>
+    <tr><td><code>verify</code> 参数透传（verify=True）</td><td class="ok">✅ 通过</td></tr>
+  </tbody>
+</table>
+
+<h2 id="security">六、安全评审说明</h2>
+<p>自动化安全评审提出两点，处理如下：</p>
+<ol>
+  <li><b>SSRF</b> —— 不适用。<code>WebVulnScanner</code> 本身是 SSRF <b>检测器</b>（主动发送 <code>169.254.169.254</code> 等探测 payload），且作为本地化部署的扫描器必须能访问内网/回环/RFC1918 目标。目标地址由运维人员指定，<code>POST /api/webscan</code> 已做角色门控（admin/analyst）。该「拉取任意 URL」行为在 <code>web_scanner.py</code> 中早已存在，非本次新增。</li>
+  <li><b>TLS <code>verify=False</code></b> —— 已改为<b>可配置</b>：<code>SafeHTTPClient</code> / <code>WebVulnScanner</code> 新增 <code>verify</code> 参数（默认 <code>False</code>，与 <code>web_scanner.py</code> 一致），生产环境可传 <code>verify=True</code> 或注入 CA。</li>
+</ol>
+
+<h2 id="usage">七、使用方式</h2>
+<pre><code># 独立引擎
+from web_vuln_scanner import WebVulnScanner
+findings = WebVulnScanner(verify=True).scan('https://target.example')
+
+# 完整 Web 扫描（被动 + 主动）
+from web_scanner import WebSecurityScanner
+result = WebSecurityScanner(db=db).scan('https://target.example', do_active=True)</code></pre>
+<pre><code># REST API
+curl -X POST http://127.0.0.1:8000/api/webscan \
+  -H "X-API-Key: &lt;key&gt;" -H "Content-Type: application/json" \
+  -d '{"target_url":"https://target.example","do_active":true}'</code></pre>
+
+<h2 id="impact">八、影响范围与回滚</h2>
+<ul>
+  <li><b>影响面</b>：仅 Web 扫描链路（<code>web_scanner.py</code> + REST API + <code>web_scan_results</code> 表）；不触碰网络扫描、代码审计、CVE/0day、报告等既有模块。</li>
+  <li><b>兼容性</b>：<code>do_active</code> 默认 <code>True</code> 但为可选字段；<code>do_active=False</code> 时行为与改动前完全一致；<code>ALTER TABLE</code> 幂等，旧库无感。</li>
+  <li><b>回滚</b>：删除 <code>web_vuln_scanner.py</code> + <code>tests/test_web_vuln_scanner.py</code>，<code>git checkout -- web_scanner.py database.py api/models/__init__.py api/routers/webscan.py</code> 即可恢复。</li>
+</ul>
+
+<h2 id="review">九、代码评审修复记录（2026-08-23 补充）</h2>
+<p>经 <code>/code-review</code> 自动评审，修复 4 项、确认保留 2 项：</p>
+<table>
+  <thead><tr><th>#</th><th>发现</th><th>处理</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>开放重定向检测失效（<code>inject</code> 查询面默认跟随重定向，30x 状态码捕获不到）</td><td class="ok">✅ 已修复：<code>inject()</code>/<code>_inject_and_get()</code> 增加 <code>allow_redirects</code> 参数，<code>_check_open_redirect</code> 传 <code>allow_redirects=False</code></td></tr>
+    <tr><td>2</td><td>主动扫描无爬取上下文，表单/JSON/cookie/header 注入面从未被发现</td><td class="ok">✅ 已修复：新增 <code>_extract_forms()</code>，<code>scan()</code> 从基线 HTML 解析 <code>&lt;form&gt;</code> 填充 <code>context['forms']</code></td></tr>
+    <tr><td>3</td><td><code>AC ED 00 05</code> 反序列化正则匹配不到真实字节</td><td class="ok">✅ 已修复：移除该死模式（<code>rO0</code> 已覆盖 base64 场景）</td></tr>
+    <tr><td>4</td><td>8 处被动检测重复 GET 首页</td><td class="ok">✅ 已修复：新增 <code>_baseline()</code>，7 个纯被动检测复用基线响应；<code>_check_authentication_bypass</code> 基线提升到循环外</td></tr>
+    <tr><td>5</td><td>CORS/SSTI/JWT 经典与深检测重复</td><td>⚠️ 保留：deep-eye 原设计（粗粒度经典 + 更深 feature tester），标题与洞察互补</td></tr>
+    <tr><td>6</td><td><code>html_content</code> 未使用 + <code>surface is None</code> 兜底分支死代码</td><td>⚠️ 部分解决：<code>html_content</code> 已被 <code>_extract_forms</code> 使用；死分支保留（避免跨 12+ 方法重构风险）</td></tr>
+  </tbody>
+</table>
+<p>验证：<code>tests/test_web_vuln_scanner.py</code>（12 项）+ <code>tests/test_web_scanner.py</code>（12 项回归）合计 <b>24 passed</b>。</p>
+
+</div>
+</body>
+</html>

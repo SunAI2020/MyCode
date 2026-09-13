@@ -1,0 +1,131 @@
+{
+  "employees": [
+    {
+      "name": "武凯",
+      "department": "售前服务部",
+      "position": "工程师",
+      "phone": "11223344555",
+      "id": 1
+    },
+    {
+      "name": "王家麒",
+      "department": "技术服务部",
+      "position": "工程师",
+      "phone": "22222222222",
+      "id": 2
+    },
+    {
+      "name": "吴占分",
+      "department": "党支部",
+      "position": "书记",
+      "phone": "221111113",
+      "id": 3
+    },
+    {
+      "name": "孙静波",
+      "department": "总部",
+      "position": "经理",
+      "phone": "12343455",
+      "id": 4
+    },
+    {
+      "name": "郝烨傲",
+      "department": "运维部",
+      "position": "驻场工程师",
+      "phone": "4444444",
+      "id": 5
+    }
+  ],
+  "attendance_records": [
+    {
+      "employee_id": 1,
+      "date": "2026-03-08",
+      "status": "present",
+      "check_in": "09:00",
+      "check_out": "18:00",
+      "overtime": 0.0,
+      "note": "",
+      "id": 1
+    },
+    {
+      "employee_id": 3,
+      "date": "2026-03-08",
+      "status": "present",
+      "check_in": "09:00",
+      "check_out": "18:00",
+      "overtime": 0.0,
+      "note": "",
+      "id": 2
+    },
+    {
+      "employee_id": 2,
+      "date": "2026-03-08",
+      "status": "present",
+      "check_in": "09:00",
+      "check_out": "18:00",
+      "overtime": 0.0,
+      "note": "",
+      "id": 3
+    },
+    {
+      "employee_id": 5,
+      "date": "2026-03-08",
+      "status": "absent",
+      "check_in": "09:00",
+      "check_out": "18:00",
+      "overtime": 0.0,
+      "note": "",
+      "id": 4
+    },
+    {
+      "employee_id": 4,
+      "date": "2026-03-1",
+      "status": "present",
+      "check_in": "09:00",
+      "check_out": "18:00",
+      "overtime": 0.0,
+      "note": "",
+      "id": 6
+    },
+    {
+      "employee_id": 4,
+      "date": "2026-03-2",
+      "status": "leave",
+      "check_in": "09:00",
+      "check_out": "18:00",
+      "overtime": 0.0,
+      "note": "",
+      "id": 7
+    },
+    {
+      "employee_id": 4,
+      "date": "2026-03-3",
+      "status": "present",
+      "check_in": "09:00",
+      "check_out": "18:00",
+      "overtime": 0.0,
+      "note": "",
+      "id": 8
+    },
+    {
+      "employee_id": 4,
+      "date": "2026-03-4",
+      "status": "present",
+      "check_in": "09:00",
+      "check_out": "18:00",
+      "overtime": 0.0,
+      "note": "",
+      "id": 9
+    },
+    {
+      "employee_id": 4,
+      "date": "2026-03-5",
+      "status": "late",
+      "check_in": "09:00",
+      "check_out": "18:00",
+      "overtime": 0.0,
+      "note": "",
+      "id": 10
+    }
+  ]
+}

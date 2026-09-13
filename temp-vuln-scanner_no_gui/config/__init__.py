@@ -1,0 +1,4 @@
+"""配置模块"""
+from .settings import DATABASE, SCAN, REPORT, LOGGING, CVSS_THRESHOLDS, LEGAL
+
+__all__ = ['DATABASE', 'SCAN', 'REPORT', 'LOGGING', 'CVSS_THRESHOLDS', 'LEGAL']

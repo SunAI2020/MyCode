@@ -1,0 +1,26 @@
+# 编译产物
+__pycache__/
+*.py[cod]
+*.pyd
+*.dll
+*.exe
+*.so
+*.a
+*.o
+*.pyz
+
+# 依赖
+node_modules/
+
+# 运行时数据与密钥
+*.db
+*.db-shm
+*.db-wal
+.env
+*.log
+
+# 生成的报告与构建输出
+reports/
+build/
+dist/
+_internal/

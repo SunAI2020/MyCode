@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>漏洞扫描系统 — 需求与实现差距分析报告</title>
+<style>
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Microsoft YaHei", sans-serif;
+        line-height: 1.6;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        background: #f0f2f5;
+    }
+    .container {
+        background: white;
+        padding: 40px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .header {
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        color: white;
+        padding: 30px 40px;
+        border-radius: 8px 8px 0 0;
+        margin: -40px -40px 30px -40px;
+    }
+    .header h1 { color: white; border: none; margin: 0; font-size: 24pt; }
+    .meta { color: rgba(255,255,255,0.8); font-size: 13px; margin-top: 12px; line-height: 1.8; }
+    h1 { color: #1a1a2e; border-bottom: 3px solid #0f3460; padding-bottom: 10px; font-size: 20pt; }
+    h2 { color: #16213e; border-bottom: 2px solid #0f3460; padding-bottom: 8px; margin-top: 40px; }
+    h3 { color: #16213e; margin-top: 30px; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 10pt; }
+    th, td { border: 1px solid #d0d5dd; padding: 10px 12px; text-align: left; }
+    th { background: #0f3460; color: white; font-weight: 600; }
+    tr:nth-child(even) { background: #f8f9fa; }
+    tr:hover { background: #e8f0fe; }
+    .badge-critical { background: #fce4e4; color: #c62828; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
+    .badge-moderate { background: #fff3e0; color: #e65100; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
+    .badge-done { background: #e8f5e9; color: #2e7d32; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
+    .badge-missing { background: #fce4ec; color: #880e4f; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
+    pre { background: #1e1e1e; color: #d4d4d4; padding: 15px; border-radius: 6px; overflow-x: auto; font-size: 9pt; line-height: 1.5; }
+    code { font-family: "Consolas", "Monaco", "Courier New", monospace; background: #f0f0f0; padding: 1px 4px; border-radius: 3px; font-size: 9pt; }
+    pre code { background: transparent; padding: 0; }
+    hr { border: none; border-top: 2px solid #e0e0e0; margin: 35px 0; }
+    .toc { background: #f5f7fa; padding: 20px 30px; border-radius: 6px; margin: 20px 0; border: 1px solid #e0e4e8; }
+    .toc h3 { margin-top: 0; }
+    .toc ul { list-style: none; padding-left: 15px; }
+    .toc > ul { padding-left: 0; }
+    .toc a { color: #0f3460; text-decoration: none; }
+    .toc a:hover { text-decoration: underline; }
+    .summary-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin: 20px 0; }
+    .summary-card { background: linear-gradient(135deg, #0f3460, #16213e); color: white; padding: 20px; border-radius: 8px; text-align: center; }
+    .summary-card .number { font-size: 28pt; font-weight: bold; }
+    .summary-card .label { font-size: 10pt; opacity: 0.85; margin-top: 5px; }
+    .summary-card.warn { background: linear-gradient(135deg, #e65100, #bf360c); }
+    .summary-card.good { background: linear-gradient(135deg, #2e7d32, #1b5e20); }
+    .phase-card { border: 1px solid #e0e4e8; border-radius: 8px; padding: 20px; margin: 15px 0; background: #fafbfc; }
+    .phase-card h4 { margin-top: 0; color: #0f3460; }
+    .phase-card ul { padding-left: 18px; }
+    .phase-card li { margin: 5px 0; }
+    @media print { body { background: white; } .container { box-shadow: none; padding: 20px; } .header { margin: -20px -20px 20px -20px; } }
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+    <h1>🔍 漏洞扫描系统 — 需求规格 vs 实际实现 差距分析报告</h1>
+    <div class="meta">
+        <strong>文档编号:</strong> VSS-GAP-2026-001 | <strong>版本:</strong> V1.0 | <strong>日期:</strong> 2026年8月8日<br>
+        <strong>项目:</strong> AI漏洞扫描系统 Pro (D:\projects\ai-vuln)<br>
+        <strong>对比基线:</strong> 《漏洞扫描系统需求规格说明书 v1.1》+ 《软件架构设计说明书 v1.0》
+    </div>
+</div>
+
+<div class="toc">
+<h3>📑 目录</h3>
+<ul>
+    <li><a href="#sec1">一、执行摘要</a></li>
+    <li><a href="#sec2">二、架构级差距分析</a></li>
+    <li><a href="#sec3">三、功能模块差距详细分析</a></li>
+    <li><a href="#sec4">四、非功能需求差距分析</a></li>
+    <li><a href="#sec5">五、数据层差距分析</a></li>
+    <li><a href="#sec6">六、现有系统亮点</a></li>
+    <li><a href="#sec7">七、优化路径与路线图</a></li>
+    <li><a href="#sec8">八、技术债务与风险</a></li>
+    <li><a href="#sec9">九、总结与建议</a></li>
+    <li><a href="#appendix">附录A：功能完成度矩阵</a></li>
+</ul>
+</div>
+
+<!-- ============ 一、执行摘要 ============ -->
+<h1 id="sec1">一、执行摘要</h1>
+
+<p>当前项目 <code>AI漏洞扫描系统 Pro</code> 是一个基于 <strong>PyQt5 + SQLite</strong> 的单机桌面应用，实现了漏洞扫描系统的核心功能原型。与需求规格说明书和架构设计文档中规划的<strong>微服务架构、分布式部署、全栈Web平台</strong>存在<strong>根本性的架构级差距</strong>。</p>
+
+<div class="summary-cards">
+    <div class="summary-card"><div class="number">~25%</div><div class="label">功能需求完成率</div></div>
+    <div class="summary-card warn"><div class="number">~15%</div><div class="label">非功能需求完成率</div></div>
+    <div class="summary-card warn"><div class="number">~20%</div><div class="label">外部接口完成率</div></div>
+    <div class="summary-card good"><div class="number">~50%</div><div class="label">数据需求完成率</div></div>
+</div>
+
+<table>
+<tr><th>维度</th><th>需求数量</th><th>已完成</th><th>部分完成</th><th>未开始</th><th>完成率</th></tr>
+<tr><td>功能需求 (FR)</td><td>17个模块</td><td>3</td><td>5</td><td>9</td><td>~25%</td></tr>
+<tr><td>非功能需求</td><td>6大类</td><td>0</td><td>2</td><td>4</td><td>~15%</td></tr>
+<tr><td>外部接口</td><td>5大类</td><td>1</td><td>1</td><td>3</td><td>~20%</td></tr>
+<tr><td>数据需求</td><td>4类</td><td>2</td><td>1</td><td>1</td><td>~50%</td></tr>
+</table>
+
+<!-- ============ 二、架构级差距分析 ============ -->
+<h1 id="sec2">二、架构级差距分析</h1>
+
+<h2>2.1 总体架构对比</h2>
+<table>
+<tr><th>维度</th><th>设计要求 (SAD)</th><th>实际实现</th><th>差距评级</th></tr>
+<tr><td>架构风格</td><td>微服务架构</td><td>单体桌面应用</td><td><span class="badge-critical">严重</span></td></tr>
+<tr><td>后端框架</td><td>Go/Gin + Python/FastAPI</td><td>Python/PyQt5</td><td><span class="badge-critical">严重</span></td></tr>
+<tr><td>前端框架</td><td>React 18+ / Vue 3.3+ / Flutter 3.0+</td><td>PyQt5 原生GUI</td><td><span class="badge-critical">严重</span></td></tr>
+<tr><td>数据库</td><td>PostgreSQL 14+</td><td>SQLite</td><td><span class="badge-critical">严重</span></td></tr>
+<tr><td>缓存</td><td>Redis 7+</td><td>无</td><td><span class="badge-critical">严重</span></td></tr>
+<tr><td>搜索</td><td>Elasticsearch 8.x</td><td>SQLite LIKE查询</td><td><span class="badge-critical">严重</span></td></tr>
+<tr><td>消息队列</td><td>Kafka 3.x</td><td>无</td><td><span class="badge-critical">严重</span></td></tr>
+<tr><td>对象存储</td><td>MinIO (S3兼容)</td><td>本地文件系统</td><td><span class="badge-moderate">中等</span></td></tr>
+<tr><td>容器编排</td><td>Kubernetes 1.25+</td><td>无 (PyInstaller打包)</td><td><span class="badge-critical">严重</span></td></tr>
+<tr><td>监控告警</td><td>Prometheus + Grafana</td><td>无</td><td><span class="badge-critical">严重</span></td></tr>
+<tr><td>API网关</td><td>Kong/Nginx Ingress</td><td>无</td><td><span class="badge-critical">严重</span></td></tr>
+</table>
+
+<h2>2.2 部署架构对比</h2>
+<table>
+<tr><th>设计要求</th><th>实际实现</th></tr>
+<tr><td>K8s集群 (3 Master + N Worker)</td><td>单机EXE打包 (PyInstaller)</td></tr>
+<tr><td>高可用、水平扩展</td><td>单点、不可扩展</td></tr>
+<tr><td>边缘扫描节点分布式部署</td><td>本地扫描</td></tr>
+<tr><td>数据不出域、元数据上报</td><td>全部本地存储</td></tr>
+</table>
+
+<!-- ============ 三、功能模块差距详细分析 ============ -->
+<h1 id="sec3">三、功能模块差距详细分析</h1>
+
+<h2>FR-01: 资产管理模块</h2>
+<table>
+<tr><th>子功能</th><th>要求</th><th>状态</th><th>差距说明</th></tr>
+<tr><td>FR-01-01 资产发现</td><td>ICMP/ARP/端口扫描</td><td><span class="badge-done">已实现</span></td><td>基于nmap+内置socket，支持CIDR和IP范围</td></tr>
+<tr><td>FR-01-02 资产录入</td><td>手动+批量CSV/Excel</td><td><span class="badge-moderate">部分</span></td><td>仅支持手动添加，无批量导入</td></tr>
+<tr><td>FR-01-03 资产分类</td><td>分类+标签管理</td><td><span class="badge-moderate">部分</span></td><td>有类型字段但无标签系统和批量分类</td></tr>
+<tr><td>FR-01-04 生命周期</td><td>6阶段状态流转</td><td><span class="badge-missing">未实现</span></td><td>仅有简单的在线/离线状态</td></tr>
+<tr><td>FR-15-01 树状结构</td><td>组织→部门→网络→子网→资产</td><td><span class="badge-missing">未实现</span></td><td>使用平面表格展示</td></tr>
+<tr><td>FR-15-02 资产详情</td><td>系统/服务/Web/漏洞/历史</td><td><span class="badge-moderate">部分</span></td><td>有详情弹窗但缺少服务和Web资产视图</td></tr>
+</table>
+
+<h2>FR-02/03: 扫描策略与任务模块</h2>
+<table>
+<tr><th>子功能</th><th>状态</th><th>差距说明</th></tr>
+<tr><td>FR-02-01 策略创建</td><td><span class="badge-moderate">部分</span></td><td>有扫描类型选择，无插件体系</td></tr>
+<tr><td>FR-02-02 策略模板</td><td><span class="badge-moderate">部分</span></td><td>仅有quick/standard/deep三种，缺6类预定义模板</td></tr>
+<tr><td>FR-02-03 版本管理</td><td><span class="badge-missing">未实现</span></td><td>无版本回滚/对比</td></tr>
+<tr><td>FR-03-01 任务创建</td><td><span class="badge-moderate">部分</span></td><td>基本创建流程存在，无定时和通知</td></tr>
+<tr><td>FR-03-02 任务调度</td><td><span class="badge-missing">未实现</span></td><td>无优先级调度算法，手动触发</td></tr>
+<tr><td>FR-03-03 任务执行</td><td><span class="badge-moderate">部分</span></td><td>单机执行，无分布式</td></tr>
+<tr><td>FR-03-04 任务监控</td><td><span class="badge-moderate">部分</span></td><td>有进度条，无剩余时间估算</td></tr>
+<tr><td>FR-03-05 任务控制</td><td><span class="badge-moderate">部分</span></td><td>仅有停止功能，无暂停/恢复</td></tr>
+</table>
+
+<h2>FR-04~FR-08: 漏洞管理/风险分析/修复/报告/系统管理</h2>
+<table>
+<tr><th>模块</th><th>子功能</th><th>状态</th><th>差距说明</th></tr>
+<tr><td rowspan="4">FR-04 漏洞管理</td><td>FR-04-01 漏洞列表</td><td><span class="badge-done">已实现</span></td><td>CVE数据库带分页和搜索</td></tr>
+<tr><td>FR-04-02 漏洞详情</td><td><span class="badge-moderate">部分</span></td><td>缺evidence/remediation结构化</td></tr>
+<tr><td>FR-04-03 漏洞处置</td><td><span class="badge-missing">未实现</span></td><td>无状态流转+工单</td></tr>
+<tr><td>FR-04-04 漏洞去重</td><td><span class="badge-missing">未实现</span></td><td>无相似度计算</td></tr>
+<tr><td rowspan="3">FR-05 风险分析</td><td>FR-05-01 AI辅助验证</td><td><span class="badge-done">已实现</span></td><td>Claude API LLM分析+置信度</td></tr>
+<tr><td>FR-05-02 风险评分</td><td><span class="badge-moderate">部分</span></td><td>有CVSS，缺少多因子计算</td></tr>
+<tr><td>FR-05-03 优先级排序</td><td><span class="badge-moderate">部分</span></td><td>仅按严重程度</td></tr>
+<tr><td rowspan="3">FR-06 修复管理</td><td>FR-06-01 修复建议</td><td><span class="badge-moderate">部分</span></td><td>AI生成，缺可执行脚本</td></tr>
+<tr><td>FR-06-02 工单集成</td><td><span class="badge-missing">未实现</span></td><td>无Jira/ServiceNow/钉钉/飞书</td></tr>
+<tr><td>FR-06-03 复测验证</td><td><span class="badge-missing">未实现</span></td><td>无</td></tr>
+<tr><td rowspan="3">FR-07 报告中心</td><td>FR-07-01 报告模板</td><td><span class="badge-moderate">部分</span></td><td>缺5类预定义模板</td></tr>
+<tr><td>FR-07-02 报告生成</td><td><span class="badge-moderate">部分</span></td><td>仅HTML/TXT，无PDF</td></tr>
+<tr><td>FR-07-03 报告分发</td><td><span class="badge-missing">未实现</span></td><td>无</td></tr>
+<tr><td rowspan="3">FR-08 系统管理</td><td>FR-08-01 用户管理</td><td><span class="badge-missing">未实现</span></td><td>无用户系统</td></tr>
+<tr><td>FR-08-02 角色权限</td><td><span class="badge-missing">未实现</span></td><td>无RBAC</td></tr>
+<tr><td>FR-08-03 审计日志</td><td><span class="badge-moderate">部分</span></td><td>有日志但非结构化</td></tr>
+</table>
+
+<h2>FR-09~FR-17: API/插件/多类型扫描/高级检测</h2>
+<table>
+<tr><th>模块</th><th>状态</th><th>差距说明</th></tr>
+<tr><td>FR-09 API接口 (REST/GraphQL/Webhook)</td><td><span class="badge-missing">未实现</span></td><td>无任何API层</td></tr>
+<tr><td>FR-10 插件管理 (SDK/上传/版本)</td><td><span class="badge-missing">未实现</span></td><td>无插件体系</td></tr>
+<tr><td>FR-11-01 通用OS扫描</td><td><span class="badge-moderate">部分</span></td><td>nmap OS检测，非专业漏洞检测</td></tr>
+<tr><td>FR-11-02~06 网络设备/安全/IoT/工控/国产</td><td><span class="badge-missing">未实现</span></td><td>仅端口层面</td></tr>
+<tr><td>FR-12 大数据组件扫描</td><td><span class="badge-moderate">部分</span></td><td>仅端口检测，无深度漏洞检测</td></tr>
+<tr><td>FR-13 弱口令检测</td><td><span class="badge-missing">未实现</span></td><td>无爆破/字典模块</td></tr>
+<tr><td>FR-14 漏洞库规则 (450K+条)</td><td><span class="badge-moderate">部分</span></td><td>NVD同步框架存在，数据量待扩充</td></tr>
+<tr><td>FR-16 自动化漏洞验证</td><td><span class="badge-moderate">部分</span></td><td>AI辅助验证，无PoC执行</td></tr>
+<tr><td>FR-17 隐匿站点探测</td><td><span class="badge-moderate">部分</span></td><td>端口服务识别，无暴露面报告</td></tr>
+</table>
+
+<!-- ============ 四、非功能需求差距分析 ============ -->
+<h1 id="sec4">四、非功能需求差距分析</h1>
+
+<h2>4.1 性能与安全</h2>
+<table>
+<tr><th>维度</th><th>指标</th><th>目标值</th><th>实际状态</th><th>差距</th></tr>
+<tr><td rowspan="4">性能</td><td>单节点扫描速度</td><td>≥10,000端口/分钟</td><td>取决于nmap</td><td><span class="badge-moderate">未测试</span></td></tr>
+<tr><td>并发扫描任务</td><td>≥100</td><td>单任务</td><td><span class="badge-critical">严重</span></td></tr>
+<tr><td>增量扫描</td><td>≤30分钟(5000资产)</td><td>不支持</td><td><span class="badge-critical">严重</span></td></tr>
+<tr><td>API响应时间</td><td>&lt;1秒</td><td>无API</td><td><span class="badge-critical">严重</span></td></tr>
+<tr><td rowspan="5">安全</td><td>认证</td><td>MFA+bcrypt</td><td>无</td><td><span class="badge-critical">严重</span></td></tr>
+<tr><td>授权</td><td>RBAC</td><td>无</td><td><span class="badge-critical">严重</span></td></tr>
+<tr><td>传输加密</td><td>TLS 1.3</td><td>本地应用</td><td><span class="badge-moderate">中等</span></td></tr>
+<tr><td>存储加密</td><td>AES-256</td><td>明文SQLite</td><td><span class="badge-critical">严重</span></td></tr>
+<tr><td>审计日志</td><td>不可篡改</td><td>简单日志</td><td><span class="badge-critical">严重</span></td></tr>
+</table>
+
+<h2>4.2 可靠性与可扩展性</h2>
+<table>
+<tr><th>要求</th><th>目标</th><th>状态</th></tr>
+<tr><td>系统可用率</td><td>≥99.9%</td><td><span class="badge-critical">单机无HA</span></td></tr>
+<tr><td>容错能力</td><td>节点故障自动切换</td><td><span class="badge-critical">无</span></td></tr>
+<tr><td>备份恢复</td><td>日增量+周全量 RTO≤4h</td><td><span class="badge-critical">无自动备份</span></td></tr>
+<tr><td>断点续传</td><td>支持</td><td><span class="badge-critical">不支持</span></td></tr>
+<tr><td>水平扩展</td><td>动态添加扫描节点</td><td><span class="badge-critical">不支持</span></td></tr>
+<tr><td>多租户</td><td>多租户隔离</td><td><span class="badge-critical">不支持</span></td></tr>
+<tr><td>插件热加载</td><td>支持</td><td><span class="badge-critical">不支持</span></td></tr>
+</table>
+
+<!-- ============ 五、数据层差距分析 ============ -->
+<h1 id="sec5">五、数据层差距分析</h1>
+<table>
+<tr><th>维度</th><th>设计要求</th><th>实际实现</th><th>影响</th></tr>
+<tr><td>主数据库</td><td>PostgreSQL (UUID PK, JSONB, INET)</td><td>SQLite (INTEGER PK, TEXT)</td><td>类型系统弱</td></tr>
+<tr><td>缓存层</td><td>Redis 7+</td><td>无</td><td>无会话/热数据缓存</td></tr>
+<tr><td>搜索引擎</td><td>Elasticsearch 8.x</td><td>SQLite LIKE</td><td>无全文搜索和聚合</td></tr>
+<tr><td>消息队列</td><td>Kafka 3.x</td><td>无</td><td>无异步任务解耦</td></tr>
+<tr><td>文件存储</td><td>MinIO (S3兼容)</td><td>本地文件系统</td><td>无对象存储/CDN</td></tr>
+<tr><td>ORM层</td><td>—</td><td>原生SQL（无ORM）</td><td>维护成本高</td></tr>
+<tr><td>迁移管理</td><td>—</td><td>手动CREATE TABLE</td><td>无版本化迁移</td></tr>
+</table>
+
+<!-- ============ 六、现有系统亮点 ============ -->
+<h1 id="sec6">六、现有系统亮点（已超出需求的部分）</h1>
+<ol>
+<li><strong>AI集成深度</strong>: 通过Claude API实现了AI辅助漏洞验证、AI代码安全审计、AI威胁情报分析，需求文档中仅为概念描述</li>
+<li><strong>CVE漏洞库</strong>: NVD API同步、分页查询、回填CWE/补丁链接等完整功能</li>
+<li><strong>威胁情报</strong>: 多源情报采集（RSS/API/Web），自动报告生成</li>
+<li><strong>数据库维护工具</strong>: 图形化的数据库修复/清理/回填界面（超出需求）</li>
+<li><strong>代码安全审计</strong>: 基于Claude Code的深度代码安全审计功能（超出需求）</li>
+<li><strong>扫描核验</strong>: AI扫描结果核验，可排除误报（超出需求）</li>
+</ol>
+
+<!-- ============ 七、优化路径与路线图 ============ -->
+<h1 id="sec7">七、优化路径与路线图</h1>
+
+<div class="phase-card">
+<h4>阶段一：架构升级准备（1-2个月）</h4>
+<p><strong>数据层:</strong> SQLite→PostgreSQL (SQLAlchemy+Alembic) | 引入Redis缓存<br>
+<strong>API层:</strong> FastAPI RESTful API | JWT认证 | Swagger文档</p>
+</div>
+
+<div class="phase-card">
+<h4>阶段二：核心功能补齐（2-4个月）</h4>
+<p><strong>资产:</strong> 树状结构+批量导入+标签+生命周期<br>
+<strong>扫描:</strong> 弱口令检测 + 多类型设备扫描 + 自动化漏洞验证<br>
+<strong>漏洞:</strong> 处置工作流+去重+复测验证<br>
+<strong>报告:</strong> 5类模板+PDF+图表+定时分发</p>
+</div>
+
+<div class="phase-card">
+<h4>阶段三：平台化升级（3-6个月）</h4>
+<p><strong>前端:</strong> React 18+ Web化 | 响应式设计<br>
+<strong>管理:</strong> 用户+RBAC+审计日志+配置中心<br>
+<strong>集成:</strong> Webhook+工单(Jira/钉钉/飞书)+CI/CD+SIEM</p>
+</div>
+
+<div class="phase-card">
+<h4>阶段四：企业级进阶（6-12个月）</h4>
+<p><strong>架构:</strong> 微服务拆分+Kafka+ES+MinIO<br>
+<strong>部署:</strong> Docker+K8s+HA+边缘扫描+Prometheus/Grafana<br>
+<strong>生态:</strong> 插件SDK+插件市场+沙箱<br>
+<strong>安全:</strong> TLS 1.3+AES-256+MFA+密钥管理</p>
+</div>
+
+<!-- ============ 八、技术债务与风险 ============ -->
+<h1 id="sec8">八、技术债务与风险</h1>
+
+<table>
+<tr><th>类别</th><th>问题</th><th>严重度</th><th>说明</th></tr>
+<tr><td rowspan="3">技术债务</td><td>硬编码列索引</td><td><span class="badge-critical">高</span></td><td>使用魔法数字如cellWidget(row, 9)</td></tr>
+<tr><td>无ORM</td><td><span class="badge-critical">高</span></td><td>原生SQL拼接，有注入风险</td></tr>
+<tr><td>无测试覆盖</td><td><span class="badge-critical">高</span></td><td>项目无任何自动化测试</td></tr>
+<tr><td rowspan="3">迁移风险</td><td>数据迁移丢失</td><td><span class="badge-critical">高</span></td><td>需充分测试+备份</td></tr>
+<tr><td>功能回归</td><td><span class="badge-critical">高</span></td><td>需建立自动化测试</td></tr>
+<tr><td>用户体验断层</td><td><span class="badge-moderate">中</span></td><td>桌面→Web分批过渡</td></tr>
+</table>
+
+<!-- ============ 九、总结与建议 ============ -->
+<h1 id="sec9">九、总结与建议</h1>
+
+<h2>9.1 核心结论</h2>
+<p>当前系统是一个<strong>功能原型（PoC）级别</strong>的桌面应用，在AI集成方面有创新突破，但与需求文档规划的企业级分布式平台存在四个数量级的差距：</p>
+<ol>
+<li><strong>架构差距</strong>: 单体桌面应用 vs 微服务集群 → 需要架构重构</li>
+<li><strong>功能差距</strong>: 约25%功能覆盖 → 需要系统性功能补齐</li>
+<li><strong>平台差距</strong>: 桌面单机 vs 云原生多租户 → 需要平台化升级</li>
+<li><strong>质量差距</strong>: 无测试/无监控/无安全 → 需要工程化建设</li>
+</ol>
+
+<h2>9.2 优先行动项</h2>
+<table>
+<tr><th>优先级</th><th>行动</th><th>工作量</th><th>价值</th></tr>
+<tr><td><strong>P0</strong></td><td>建立自动化测试体系</td><td>2周</td><td>保障重构安全</td></tr>
+<tr><td><strong>P0</strong></td><td>SQLite→PostgreSQL迁移</td><td>3周</td><td>数据基础升级</td></tr>
+<tr><td><strong>P0</strong></td><td>FastAPI RESTful API</td><td>4周</td><td>打开集成能力</td></tr>
+<tr><td><strong>P1</strong></td><td>Web前端重构 (React)</td><td>8周</td><td>多用户访问</td></tr>
+<tr><td><strong>P1</strong></td><td>弱口令检测模块</td><td>3周</td><td>核心扫描能力</td></tr>
+<tr><td><strong>P1</strong></td><td>漏洞处置工作流</td><td>4周</td><td>管理闭环</td></tr>
+<tr><td><strong>P1</strong></td><td>用户+RBAC系统</td><td>3周</td><td>安全基础</td></tr>
+<tr><td><strong>P2</strong></td><td>多类型设备扫描</td><td>6周</td><td>扩展覆盖面</td></tr>
+<tr><td><strong>P2</strong></td><td>报告中心完善</td><td>3周</td><td>合规要求</td></tr>
+<tr><td><strong>P2</strong></td><td>工单/CI/CD集成</td><td>4周</td><td>DevOps集成</td></tr>
+<tr><td><strong>P3</strong></td><td>微服务拆分</td><td>12周</td><td>架构升级</td></tr>
+<tr><td><strong>P3</strong></td><td>K8s容器化部署</td><td>8周</td><td>高可用</td></tr>
+<tr><td><strong>P3</strong></td><td>插件体系建设</td><td>8周</td><td>生态建设</td></tr>
+</table>
+
+<!-- ============ 附录A ============ -->
+<h1 id="appendix">附录A：功能完成度矩阵</h1>
+
+<pre><code>模块                    完成度    说明
+──────────────────────────────────────────────────
+FR-01  资产管理          ████░░░░ 40%  基础发现+CRUD，缺树状结构/生命周期
+FR-02  扫描策略          ███░░░░░ 30%  缺策略模板/版本管理
+FR-03  扫描任务          ████░░░░ 40%  基础执行，缺调度/监控/控制
+FR-04  漏洞管理          ███░░░░░ 30%  CVE库完善，缺处置/去重
+FR-05  风险分析          █████░░░ 55%  AI验证亮点，缺多因子评分
+FR-06  修复管理          ██░░░░░░ 20%  仅有建议，缺工单/复测
+FR-07  报告中心          ████░░░░ 40%  基础报告，缺模板/分发/PDF
+FR-08  系统管理          █░░░░░░░ 5%   仅有关键日志
+FR-09  API接口           ░░░░░░░░ 0%   无
+FR-10  插件管理          ░░░░░░░░ 0%   无
+FR-11  多类型扫描        ██░░░░░░ 15%  仅通用OS+端口
+FR-12  大数据组件        █░░░░░░░ 5%   仅端口检测
+FR-13  弱口令检测        ░░░░░░░░ 0%   无
+FR-14  漏洞库规则        █████░░░ 55%  NVD同步+CVE管理
+FR-15  资产管理增强      ██░░░░░░ 15%  基本详情，缺树状结构
+FR-16  自动化验证        ███░░░░░ 30%  AI辅助验证
+FR-17  隐匿站点探测      ██░░░░░░ 20%  端口服务识别
+──────────────────────────────────────────────────
+总体完成度:               ~25%
+</code></pre>
+
+<hr>
+<p><strong>文档结束</strong></p>
+<p><em>编制: AI代码审查系统 | 日期: 2026-08-08</em></p>
+<p>© 2026 山西有信网安科技有限公司</p>
+</div>
+</body>
+</html>

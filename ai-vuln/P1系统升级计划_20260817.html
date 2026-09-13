@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>P1 系统升级计划 — Web 安全扫描 + 核心能力补齐</title>
+<style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft YaHei", sans-serif; line-height: 1.6; max-width: 1200px; margin: 0 auto; padding: 20px; background: #f0f2f5; }
+    .container { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    .header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); color: white; padding: 30px 40px; border-radius: 8px 8px 0 0; margin: -40px -40px 30px -40px; }
+    .header h1 { color: white; border: none; margin: 0; font-size: 24pt; }
+    .meta { color: rgba(255,255,255,0.8); font-size: 13px; margin-top: 12px; line-height: 1.8; }
+    h1 { color: #1a1a2e; border-bottom: 3px solid #0f3460; padding-bottom: 10px; font-size: 20pt; }
+    h2 { color: #16213e; border-bottom: 2px solid #0f3460; padding-bottom: 8px; margin-top: 40px; }
+    h3 { color: #16213e; margin-top: 24px; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 10pt; }
+    th, td { border: 1px solid #d0d5dd; padding: 10px 12px; text-align: left; }
+    th { background: #0f3460; color: white; font-weight: 600; }
+    tr:nth-child(even) { background: #f8f9fa; }
+    pre { background: #1e1e1e; color: #d4d4d4; padding: 15px; border-radius: 6px; overflow-x: auto; font-size: 9pt; line-height: 1.5; }
+    code { font-family: "Consolas", "Monaco", "Courier New", monospace; background: #f0f0f0; padding: 1px 4px; border-radius: 3px; font-size: 9pt; }
+    pre code { background: transparent; padding: 0; }
+    .badge-core { background: #e8f0fe; color: #0f3460; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
+    hr { border: none; border-top: 2px solid #e0e0e0; margin: 35px 0; }
+    @media print { body { background: white; } .container { box-shadow: none; padding: 20px; } .header { margin: -20px -20px 20px -20px; } }
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+    <h1>🚀 P1 系统升级计划 — Web 安全扫描 + 核心能力补齐</h1>
+    <div class="meta">
+        <strong>项目:</strong> AI漏洞扫描系统 Pro v2.1.0 | <strong>公司:</strong> 山西有信网安科技有限公司<br>
+        <strong>日期:</strong> 2026-08-17 | <strong>基线:</strong> 《需求与实现差距分析报告 2026-08-08》 + P0 升级成果
+    </div>
+</div>
+
+<h1>一、目标与范围</h1>
+<p>本次升级在 P0（测试体系 + FastAPI API 层 + 双后端配置）基础上，聚焦两大方向：</p>
+<table>
+<tr><th>编号</th><th>方向</th><th>内容</th><th>优先级</th></tr>
+<tr><td>改进1</td><td>Web 应用安全扫描</td><td>OWASP ZAP 被动扫描、自定义 HTTP 探测、Web 指纹识别、目录枚举 + 备份文件检测</td><td><span class="badge-core">核心</span></td></tr>
+<tr><td>改进2</td><td>P1 核心能力补齐</td><td>弱口令检测、漏洞处置工作流、用户+RBAC、React Web 前端</td><td><span class="badge-core">核心</span></td></tr>
+</table>
+
+<h2>设计原则</h2>
+<ol>
+<li><strong>保守安全</strong>：ZAP 不可用 / 探测失败 → 明确降级为内置引擎，绝不丢真实漏洞。</li>
+<li><strong>零强依赖</strong>：核心功能用标准库 + 已装依赖实现，<code>paramiko</code>/<code>zaproxy</code> 为可选增强。</li>
+<li><strong>数据主权</strong>：前端 SPA 由 FastAPI 本地托管，无 CDN 外链。</li>
+<li><strong>线程安全</strong>：所有新扫描模块支持 <code>progress_callback</code>。</li>
+<li><strong>测试先行</strong>：每个新模块配 pytest 用例，零回归。</li>
+</ol>
+
+<h1>二、改进1：Web 应用安全扫描</h1>
+
+<h2>2.1 模块架构</h2>
+<pre><code>web_scanner.py
+  ├── WebFingerprinter      # Web 指纹识别（CMS/框架/中间件）
+  ├── HTTPProber            # 自定义 HTTP 请求探测
+  ├── DirectoryEnumerator   # 目录枚举 + 备份文件检测
+  ├── ZAPScanner            # OWASP ZAP 被动扫描（REST API，可选）
+  └── WebSecurityScanner    # 编排：指纹 → 探测 → 目录 → ZAP</code></pre>
+
+<h2>2.2 Web 指纹识别</h2>
+<ul>
+<li><strong>中间件</strong>：<code>Server</code>/<code>X-Powered-By</code>/<code>X-AspNet-Version</code> 响应头 → nginx/apache/IIS/Tomcat 等。</li>
+<li><strong>CMS/框架</strong>：响应体特征库（<code>wp-content</code>/<code>wp-json</code> → WordPress；<code>__VIEWSTATE</code> → ASP.NET；<code>csrfmiddlewaretoken</code> → Django 等）。</li>
+<li><strong>版本提取</strong>：正则匹配 <code>Server: Apache/2.4.49</code>、<code>X-AspNet-Version: 4.0</code>。</li>
+<li><strong>输出</strong>：<code>{product, category, version, confidence, evidence}</code> 列表，对接既有 CVE 匹配。</li>
+</ul>
+
+<h2>2.3 自定义 HTTP 请求探测</h2>
+<p>支持自定义 <code>method/headers/body/path/timeout/follow_redirects</code>；返回 <code>status/headers/body/preview/elapsed</code>；内建高危路径探测（<code>/.git/config</code>、<code>/.env</code>、<code>/actuator/env</code>、<code>/server-status</code>）。</p>
+
+<h2>2.4 目录枚举 + 备份文件检测</h2>
+<p>内置目录词表（<code>admin/backup/config/test/upload/logs</code> 等）+ 备份后缀（<code>.bak/.old/~/.swp/.sql/.zip/.tar.gz/.7z</code>）；按状态码分类命中；并发受控（默认 10 线程）。</p>
+
+<h2>2.5 OWASP ZAP 被动扫描</h2>
+<p>通过 ZAP REST API（<code>http://127.0.0.1:8080/JSON/...</code>）对接，零新 pip 依赖；流程 <code>context → openUrl → spider → passiveScan → alerts</code>；ZAP 未启动 → 优雅降级返回 <code>available:false</code>。</p>
+
+<h1>三、改进2：P1 核心能力补齐</h1>
+
+<h2>3.1 弱口令检测模块</h2>
+<table>
+<tr><th>组件</th><th>说明</th></tr>
+<tr><td><code>WeakPasswordScanner</code></td><td>编排器：按协议分发到 handler，聚合结果</td></tr>
+<tr><td><code>HTTPBasicAuthHandler</code></td><td>HTTP Basic 认证爆破（标准库）</td></tr>
+<tr><td><code>FTPHandler</code></td><td>FTP 登录（<code>ftplib</code>）</td></tr>
+<tr><td><code>SSHHandler</code></td><td>SSH 登录（<code>paramiko</code>，可选）</td></tr>
+<tr><td><code>GenericSocketHandler</code></td><td>通用 TCP banner/响应比对</td></tr>
+</table>
+<p>字典来源复用 <code>threat_intel.db</code> 的 <code>weak_passwords</code> 表；作为扫描流水线独立阶段；默认限速 + 明确授权提醒。</p>
+
+<h2>3.2 漏洞处置工作流</h2>
+<pre><code>                  ┌────────────── FALSE_POSITIVE (终态)
+                  │
+OPEN ──► CONFIRMED ──► IN_PROGRESS ──► FIXED ──► VERIFIED ──► CLOSED (终态)
+  │                         │            │
+  └────── DUPLICATE (终态)   └──► REOPENED（回退）</code></pre>
+<p>非法流转被状态机拒绝；记录 <code>assignee/note/reopen_reason</code> + 全链路时间戳审计。</p>
+
+<h2>3.3 用户 + RBAC 系统</h2>
+<ul>
+<li>密码哈希：<code>hashlib.pbkdf2_hmac</code>（10 万次迭代 + 随机盐）。</li>
+<li>会话令牌：HMAC-SHA256 签名 token，带过期时间与角色声明。</li>
+<li>角色：<code>admin</code>（全权）/ <code>analyst</code> / <code>auditor</code> / <code>viewer</code>。</li>
+<li>RBAC 依赖：FastAPI <code>require_role(...)</code> 装饰式授权。</li>
+<li>默认账号：<code>admin / admin123</code>（首次登录强制修改）。</li>
+</ul>
+
+<h2>3.4 React Web 前端</h2>
+<p>React 18（本地静态资源）+ 原生 Fetch + 无构建步骤，FastAPI <code>StaticFiles</code> 托管；页面：登录/仪表盘/资产/扫描/Web 扫描/弱口令/处置/用户/CVE；token 存 <code>localStorage</code>；预留 Vite 迁移路径。</p>
+
+<h1>四、文件变更总览</h1>
+<h2>新增文件（~14 个）</h2>
+<table>
+<tr><th>文件</th><th>用途</th></tr>
+<tr><td><code>web_scanner.py</code></td><td>Web 指纹/探测/目录枚举/ZAP 扫描</td></tr>
+<tr><td><code>weak_password_scanner.py</code></td><td>弱口令检测模块</td></tr>
+<tr><td><code>workflow.py</code></td><td>漏洞处置工作流状态机</td></tr>
+<tr><td><code>auth_rbac.py</code></td><td>密码哈希 + token + RBAC</td></tr>
+<tr><td><code>api/routers/{webscan,weakpass,workflow,auth,users}.py</code></td><td>5 个新路由</td></tr>
+<tr><td><code>frontend/{index.html,app.js,styles.css}</code></td><td>React SPA</td></tr>
+<tr><td><code>tests/test_{web_scanner,weak_password,workflow,rbac}.py</code></td><td>4 个测试文件</td></tr>
+</table>
+
+<h2>修改文件（6 个）</h2>
+<table>
+<tr><th>文件</th><th>改动概要</th></tr>
+<tr><td><code>database.py</code></td><td>新增 <code>web_scan_results</code>/<code>vuln_dispositions</code>/<code>users</code>/<code>roles</code> 表及 CRUD</td></tr>
+<tr><td><code>api/server.py</code></td><td>注册新路由 + 托管前端静态资源</td></tr>
+<tr><td><code>api/auth.py</code></td><td>新增 Bearer token 认证</td></tr>
+<tr><td><code>api/dependencies.py</code></td><td>新增 <code>get_current_user</code>/<code>require_role</code></td></tr>
+<tr><td><code>api/models/__init__.py</code></td><td>新增 WebScan/WeakPass/Workflow/User 模型</td></tr>
+<tr><td><code>requirements.txt</code></td><td>追加可选依赖注释</td></tr>
+</table>
+
+<h1>五、实施顺序</h1>
+<pre><code>Step 1  方案文档（MD + HTML）
+Step 2  数据库表扩展
+Step 3  auth_rbac.py      → 用户 + RBAC
+Step 4  web_scanner.py    → Web 指纹/探测/目录枚举/ZAP
+Step 5  weak_password_scanner.py → 弱口令检测
+Step 6  workflow.py       → 漏洞处置工作流
+Step 7  API 路由 + 模型 + server 接线
+Step 8  React 前端 SPA
+Step 9  pytest 测试 + 验证</code></pre>
+
+<h1>六、风险与缓解</h1>
+<table>
+<tr><th>风险</th><th>影响</th><th>缓解</th></tr>
+<tr><td>ZAP 未部署</td><td>被动扫描缺失</td><td>优雅降级到内置引擎</td></tr>
+<tr><td>弱口令爆破影响生产</td><td>业务中断</td><td>低并发 + 限速 + 授权提醒</td></tr>
+<tr><td>新增表破坏既有库</td><td>回归</td><td><code>CREATE TABLE IF NOT EXISTS</code></td></tr>
+<tr><td>token 泄露</td><td>越权</td><td>HMAC 签名 + 过期 + 审计日志</td></tr>
+</table>
+
+<h1>七、验收标准</h1>
+<ul>
+<li><code>pytest tests/ -v</code> 全部通过（含新增 4 个测试文件）</li>
+<li><code>python api_server.py</code> 启动，<code>/api/docs</code> 可访问</li>
+<li><code>/api/v1/auth/login</code> 成功返回 token；未授权访问被拒</li>
+<li><code>/api/v1/webscan</code> 返回指纹 + 目录枚举结果（ZAP 可选降级）</li>
+<li><code>/api/v1/weakpass</code> 复用弱口令字典执行检测</li>
+<li><code>/api/v1/workflow</code> 状态机拒绝非法流转</li>
+<li>React 前端 <code>/</code> 可登录并访问仪表盘（多用户）</li>
+<li>既有 GUI / 既有 API 功能零回归</li>
+</ul>
+
+<hr>
+<p><strong>文档结束</strong> · 编制: AI漏洞扫描系统 Pro · 日期: 2026-08-17</p>
+<p>© 2026 山西有信网安科技有限公司</p>
+</div>
+</body>
+</html>

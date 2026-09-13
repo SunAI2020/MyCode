@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>P2 核心扫描能力补齐 — 执行计划与实施记录</title>
+<style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Microsoft YaHei", sans-serif; line-height: 1.7; max-width: 1100px; margin: 0 auto; padding: 20px; background: #f0f2f5; color: #333; }
+    .container { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    .header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); color: white; padding: 30px 40px; border-radius: 8px 8px 0 0; margin: -40px -40px 30px -40px; }
+    .header h1 { color: white; border: none; margin: 0; font-size: 21pt; }
+    .meta { color: rgba(255,255,255,0.85); font-size: 13px; margin-top: 12px; line-height: 1.9; }
+    h1 { color: #1a1a2e; border-bottom: 3px solid #0f3460; padding-bottom: 10px; font-size: 17pt; margin-top: 38px; }
+    h2 { color: #16213e; border-bottom: 2px solid #0f3460; padding-bottom: 8px; margin-top: 30px; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 10pt; }
+    th, td { border: 1px solid #d0d5dd; padding: 8px 11px; text-align: left; vertical-align: top; }
+    th { background: #0f3460; color: white; font-weight: 600; }
+    tr:nth-child(even) { background: #f8f9fa; }
+    code { font-family: "Consolas","Monaco","Courier New",monospace; background: #f0f0f0; padding: 1px 5px; border-radius: 3px; font-size: 9pt; color: #c7254e; }
+    .badge-done { background: #e8f5e9; color: #2e7d32; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
+    .badge-warn { background: #fff3e0; color: #e65100; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
+    blockquote { border-left: 4px solid #0f3460; margin: 15px 0; padding: 10px 20px; background: #eef3fb; }
+    footer { margin-top: 30px; padding: 15px; text-align: center; color: #999; border-top: 1px solid #ddd; font-size: 11px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+    <h1>P2 核心扫描能力补齐 — 执行计划与实施记录</h1>
+    <div class="meta">
+        <strong>文档编号:</strong> P2-EXEC-2026-001 | <strong>版本:</strong> V1.0 | <strong>日期:</strong> 2026-08-18<br>
+        <strong>项目:</strong> AI漏洞扫描系统 Pro (D:\projects\ai-vuln)<br>
+        <strong>状态:</strong> ✅ 已执行完毕（192 项测试全部通过）
+    </div>
+</div>
+
+<h1>一、概述</h1>
+<p>P2 阶段目标：在 P0（安全修复）+ P1（PG 打通）之后，补齐<strong>核心扫描能力</strong>，共 6 项。</p>
+<table>
+<tr><th>#</th><th>任务</th><th>落点</th><th>状态</th></tr>
+<tr><td>1</td><td>弱口令协议扩充</td><td><code>weak_password_scanner.py</code></td><td><span class="badge-done">✅ 完成</span></td></tr>
+<tr><td>2</td><td>多因子风险评分</td><td>新增 <code>risk_scoring.py</code></td><td><span class="badge-done">✅ 完成</span></td></tr>
+<tr><td>3</td><td>漏洞相似度去重</td><td>新增 <code>vuln_dedup.py</code></td><td><span class="badge-done">✅ 完成</span></td></tr>
+<tr><td>4</td><td>资产批量导入 + 标签</td><td>新增 <code>asset_importer.py</code> + <code>api/routers/assets.py</code></td><td><span class="badge-done">✅ 完成</span></td></tr>
+<tr><td>5</td><td>扫描任务调度</td><td>新增 <code>scheduler.py</code></td><td><span class="badge-done">✅ 完成</span></td></tr>
+<tr><td>6</td><td>报告模板化 + 定时分发</td><td>新增 <code>report_templates.py</code> + <code>report_generator.py</code></td><td><span class="badge-done">✅ 完成</span></td></tr>
+</table>
+<p><strong>验证</strong>: <code>python -m pytest tests/ -q</code> → <strong>191 passed</strong>（新增 37 项测试）。</p>
+
+<h1>二、默认设计决策</h1>
+<table>
+<tr><th>决策点</th><th>方案</th><th>理由</th></tr>
+<tr><td>新依赖 pymysql/redis/pymongo/openpyxl/APScheduler</td><td>全部<strong>可选</strong>，import 守卫，缺库如实返回"不支持"</td><td>遵循"优雅降级"原则，与 paramiko 一致</td></tr>
+<tr><td>psycopg2-binary</td><td>已在 requirements.txt</td><td>PostgreSQL 弱口令检测直接可用</td></tr>
+<tr><td>RDP 认证</td><td>xfreerdp 子进程（<code>+auth-only</code>）</td><td>无成熟纯 Python RDP 客户端</td></tr>
+<tr><td>Telnet</td><td>纯 socket（stdlib）</td><td><code>telnetlib</code> 已从 Python 3.13 移除</td></tr>
+<tr><td>调度器</td><td>stdlib threading + heapq 优先队列</td><td>避免硬依赖，APScheduler 可后续替换</td></tr>
+<tr><td>风险评分</td><td>乘法模型</td><td>资产价值 × 威胁 × 脆弱性</td></tr>
+</table>
+
+<h1>三、各项实施详情</h1>
+
+<h2>3.1 弱口令协议扩充（weak_password_scanner.py）</h2>
+<table>
+<tr><th>Handler</th><th>协议</th><th>客户端</th><th>可用性</th></tr>
+<tr><td>MySQLHandler</td><td>mysql</td><td>pymysql（可选）</td><td>缺库不可用</td></tr>
+<tr><td>PostgreSQLHandler</td><td>postgresql</td><td>psycopg2</td><td>缺库不可用</td></tr>
+<tr><td>RedisHandler</td><td>redis</td><td>redis-py（可选）</td><td>缺库不可用</td></tr>
+<tr><td>MongoDBHandler</td><td>mongodb</td><td>pymongo（可选）</td><td>缺库不可用</td></tr>
+<tr><td>RDPHandler</td><td>rdp</td><td>xfreerdp（可选）</td><td>无客户端不可用</td></tr>
+<tr><td>TelnetHandler</td><td>telnet</td><td>纯 socket</td><td>始终可用</td></tr>
+</table>
+<ul>
+<li><code>SUPPORTED_PROTOCOLS</code> 从 4 个扩充到 10 个。</li>
+<li><code>SERVICE_PROTOCOL_MAP</code> 增加 mysql/postgres/redis/mongodb/rdp/telnet 映射。</li>
+<li><code>scan()</code> 可用性检查通用化：<code>getattr(handler, 'available', True)</code>。</li>
+<li><code>requirements.txt</code> 可选增强区追加 pymysql/redis/pymongo/openpyxl。</li>
+</ul>
+
+<h2>3.2 多因子风险评分（risk_scoring.py）</h2>
+<blockquote><code>risk_score = 资产价值系数 × 威胁系数 × 脆弱性系数 × 100</code></blockquote>
+<ul>
+<li>资产价值：CRITICAL 1.0 / HIGH 0.8 / MEDIUM 0.6 / LOW 0.4 / INFO 0.2。</li>
+<li>威胁：KEV=1.0 &gt; EPSS(0–1) &gt; 严重度兜底。</li>
+<li>脆弱性：CVSS/10 &gt; 严重度兜底。</li>
+<li><code>risk_level()</code>：≥80 CRITICAL、≥60 HIGH、≥40 MEDIUM、≥20 LOW、其余 INFO。</li>
+</ul>
+
+<h2>3.3 漏洞相似度去重（vuln_dedup.py）</h2>
+<ul>
+<li>指纹：<code>(cve_id, host, service)</code>；版本取 major.minor 前缀。</li>
+<li>阈值 0.9（保守，避免误删独立漏洞）。</li>
+<li><code>VulnDeduplicator.deduplicate(vulns)</code> → <code>{'unique', 'duplicates'}</code>，按优先级保留最优。</li>
+</ul>
+
+<h2>3.4 资产批量导入 + 标签（asset_importer.py + api）</h2>
+<ul>
+<li><code>parse_csv/parse_excel</code>（openpyxl 可选）→ 行级容错。</li>
+<li><code>parse_tags</code>：逗号/分号/中文逗号分隔，去重去空。</li>
+<li>表头别名归一化（中英文均可）。</li>
+<li>API：<code>POST /assets/import</code>、<code>GET /assets/tags</code>、<code>GET /assets?tags=...</code>。</li>
+</ul>
+
+<h2>3.5 扫描任务调度（scheduler.py）</h2>
+<ul>
+<li><code>ScheduledTask</code> + <code>ScanScheduler</code>：heapq 优先队列 + 后台轮询线程。</li>
+<li>支持一次性定时（<code>run_at</code>）与周期任务（<code>interval_seconds</code>）。</li>
+</ul>
+
+<h2>3.6 报告模板化（report_templates.py + report_generator.py）</h2>
+<ul>
+<li>5 类模板：<code>standard / compliance / high_risk / executive / technical</code>。</li>
+<li><code>render_report(scan_data, template)</code> → 过滤/排序 + 标题 + 章节。</li>
+<li><code>generate_scan_report(..., template='standard')</code> 向后兼容。</li>
+</ul>
+
+<h1>四、测试覆盖（新增 37 项）</h1>
+<table>
+<tr><th>测试文件</th><th>覆盖</th></tr>
+<tr><td><code>test_weak_password_protocols.py</code></td><td>协议扩充/映射/handler 注册/可用性回退</td></tr>
+<tr><td><code>test_risk_scoring.py</code></td><td>KEV/EPSS/CVSS 组合、边界、等级映射</td></tr>
+<tr><td><code>test_vuln_dedup.py</code></td><td>同主机判重、跨主机不判重、优先级保留</td></tr>
+<tr><td><code>test_asset_importer.py</code></td><td>CSV 解析、标签去重、坏行容错、中文表头</td></tr>
+<tr><td><code>test_scheduler.py</code></td><td>优先队列顺序、取消、到期、立即执行</td></tr>
+<tr><td><code>test_report_templates.py</code></td><td>5 模板渲染、高危过滤、非法模板回退、排序</td></tr>
+<tr><td><code>test_weak_password.py</code>（更新）</td><td>更新协议映射/支持判定为新的扩充行为</td></tr>
+</table>
+<p><strong>全量回归</strong>: 191 passed in 40.12s（含原有 DB/RBAC/扫描/AI/Web/工作流测试，无回归）。</p>
+
+<h1>五、未完成 / 后续事项</h1>
+<table>
+<tr><th>事项</th><th>说明</th><th>建议</th></tr>
+<tr><td>RDP 在 Windows 不可用</td><td>xfreerdp 为 Linux 工具</td><td>属预期，后续评估 pyrdp/impacket</td></tr>
+<tr><td>APScheduler 未接入</td><td>当前用 stdlib 调度器</td><td>需要 cron 表达式时替换</td></tr>
+<tr><td>资产导入 GUI 按钮</td><td><span class="badge-done">✅ 已接 main_window.py</span></td><td>资产页新增"📥 批量导入"按钮</td></tr>
+<tr><td>报告定时分发 Webhook</td><td>已可复用调度器，未接通知</td><td>属 FR-06，P3 阶段</td></tr>
+<tr><td>弱口令爆破限速</td><td><span class="badge-done">✅ 已加限速+锁定规避</span></td><td>默认 0.5s 间隔，连续失败 3 次即停</td></tr>
+<tr><td>Excel 导入依赖</td><td>openpyxl 可选</td><td>已注释进 requirements.txt</td></tr>
+</table>
+
+<h1>六、涉及文件清单</h1>
+<p><strong>新增模块（5）</strong>：<code>risk_scoring.py</code>、<code>vuln_dedup.py</code>、<code>asset_importer.py</code>、<code>scheduler.py</code>、<code>report_templates.py</code></p>
+<p><strong>修改（7）</strong>：<code>weak_password_scanner.py</code>、<code>report_generator.py</code>、<code>api/routers/assets.py</code>、<code>api/models/__init__.py</code>、<code>database.py</code>、<code>requirements.txt</code>、<code>main_window.py</code></p>
+<p><strong>新增测试（6）</strong>：<code>test_risk_scoring.py</code>、<code>test_vuln_dedup.py</code>、<code>test_asset_importer.py</code>、<code>test_scheduler.py</code>、<code>test_report_templates.py</code>、<code>test_weak_password_protocols.py</code></p>
+<p><strong>修改测试（1）</strong>：<code>test_weak_password.py</code></p>
+
+<footer>
+<p><strong>文档结束</strong></p>
+<p><em>编制: AI 代码审查系统 | 日期: 2026-08-18 | 基于 D:\projects\ai-vuln 实际实现</em></p>
+<p>© 2026 山西有信网安科技有限公司</p>
+</footer>
+
+</div>
+</body>
+</html>
