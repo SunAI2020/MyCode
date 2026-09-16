@@ -47,7 +47,7 @@ class ScanThread(QThread):
 
             # 导入扫描模块
             sys.path.insert(0, str(Path(__file__).parent.parent))
-            from vuln_scanner.core.engine import create_engine
+            from core.scanner import create_engine
 
             engine = create_engine()
 
@@ -83,7 +83,17 @@ class ScanThread(QThread):
                     }
                     for s in result.services
                 ],
-                "vulnerabilities": [],
+                "vulnerabilities": [
+                    {
+                        "cve_id": v.cve_id,
+                        "description": v.description,
+                        "severity": v.severity,
+                        "cvss_score": v.cvss_score,
+                        "product": v.product,
+                        "version": v.version,
+                    }
+                    for v in result.vulnerabilities
+                ],
                 "statistics": result.statistics
             }
 
@@ -116,7 +126,7 @@ class AIAnalysisThread(QThread):
         try:
             self.progress.emit("正在调用AI分析...")
 
-            from aipts.core.ai_analyzer import create_analyzer, ScannedService, Vulnerability
+            from core.ai_analyzer import create_analyzer, ScannedService, Vulnerability
 
             ai = create_analyzer(api_key=self.api_key)
 
@@ -160,6 +170,110 @@ class AIAnalysisThread(QThread):
             self.error.emit(str(e))
 
 
+# ================== 攻击链执行线程 ==================
+class ExploitChainThread(QThread):
+    """后台执行攻击链：AI 规划攻击路径 + 专项工具执行"""
+    progress = pyqtSignal(str)
+    result_ready = pyqtSignal(dict)
+    error = pyqtSignal(str)
+
+    def __init__(self, services: List, vulns: List, api_key: str,
+                 whitelist: List[str], parent=None):
+        super().__init__(parent)
+        self.services = services
+        self.vulns = vulns
+        self.api_key = api_key
+        self.whitelist = whitelist
+
+    def run(self):
+        try:
+            self.progress.emit("AI 规划攻击路径...")
+            from core.ai_analyzer import create_analyzer, ScannedService, Vulnerability
+            from core.orchestrator import create_orchestrator
+            from core.workflow import WorkflowBuilder
+            import asyncio
+
+            ai = create_analyzer(api_key=self.api_key)
+
+            services = [
+                ScannedService(
+                    host_ip=s["host_ip"],
+                    port=s["port"],
+                    service_name=s.get("service_name", ""),
+                    product=s.get("product", ""),
+                    version=s.get("version", ""),
+                    banner=s.get("banner", ""),
+                )
+                for s in self.services
+            ]
+            vulns = [
+                Vulnerability(
+                    cve_id=v["cve_id"],
+                    description=v.get("description", ""),
+                    severity=v.get("severity", "medium"),
+                    cvss_score=v.get("cvss_score", 0),
+                    product=v.get("product", ""),
+                    version=v.get("version", ""),
+                )
+                for v in self.vulns
+            ]
+
+            plan = ai.plan_exploit_path(services, vulns, target_goal="get_shell")
+            plan_dict = {
+                "plan_id": plan.plan_id,
+                "target": plan.target,
+                "steps": [
+                    {
+                        "step_id": s.step_id,
+                        "order": s.order,
+                        "exploit_type": s.exploit_type,
+                        "target": s.target,
+                        "description": s.description,
+                        "payload": s.payload,
+                        "validation_cmd": s.validation_cmd,
+                        "risk_level": s.risk_level,
+                    }
+                    for s in plan.steps
+                ],
+            }
+
+            if not plan_dict["steps"]:
+                self.error.emit("AI 未规划出可执行步骤")
+                return
+
+            self.progress.emit(f"执行 {len(plan_dict['steps'])} 步攻击链...")
+            # 已在执行前整体确认，故 require_confirmation=False；白名单 fail-closed 仍生效
+            orch = create_orchestrator(
+                api_key=self.api_key,
+                require_confirmation=False,
+                whitelist=self.whitelist,
+            )
+            steps = WorkflowBuilder.from_ai_plan(plan_dict)
+            wf = orch.build_workflow(plan_dict)
+            wf.create_workflow(plan_dict["plan_id"], steps)
+            wf_result = asyncio.run(wf.execute({}))
+
+            self.result_ready.emit({
+                "plan": plan_dict,
+                "status": wf_result.status.value,
+                "success_steps": wf_result.success_steps,
+                "failed_steps": wf_result.failed_steps,
+                "total_time": wf_result.total_time,
+                "step_results": [
+                    {
+                        "step_id": r.step_id,
+                        "status": r.status.value,
+                        "error": r.output.error,
+                        "evidence": r.output.evidence,
+                    }
+                    for r in wf_result.step_results
+                ],
+            })
+
+        except Exception as e:
+            self.error.emit(str(e))
+
+
 # ================== 主窗口 ==================
 class MainWindow(QMainWindow):
     """主窗口"""
@@ -168,6 +282,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.scan_thread: Optional[ScanThread] = None
         self.ai_thread: Optional[AIAnalysisThread] = None
+        self.exploit_thread: Optional[ExploitChainThread] = None
         self.scan_results: dict = {}
         self.api_key: str = ""
 
@@ -253,6 +368,11 @@ class MainWindow(QMainWindow):
         self.ai_btn.setEnabled(False)
         self.ai_btn.clicked.connect(self.start_ai_analysis)
         button_layout.addWidget(self.ai_btn)
+
+        self.exploit_btn = QPushButton("执行攻击链")
+        self.exploit_btn.setEnabled(False)
+        self.exploit_btn.clicked.connect(self.start_exploit_chain)
+        button_layout.addWidget(self.exploit_btn)
 
         layout.addLayout(button_layout)
 
@@ -454,9 +574,15 @@ class MainWindow(QMainWindow):
             self.service_table.setItem(i, 4, QTableWidgetItem(s.get("product", "")))
             self.service_table.setItem(i, 5, QTableWidgetItem(s.get("version", "")))
 
-        # TODO: 匹配漏洞
-        vulns = []
+        # 漏洞（扫描引擎已匹配 CVE）
+        vulns = result.get("vulnerabilities", [])
         self.vuln_table.setRowCount(len(vulns))
+        for i, v in enumerate(vulns):
+            self.vuln_table.setItem(i, 0, QTableWidgetItem(v.get("cve_id", "")))
+            self.vuln_table.setItem(i, 1, QTableWidgetItem(v.get("severity", "")))
+            self.vuln_table.setItem(i, 2, QTableWidgetItem(str(v.get("cvss_score", ""))))
+            self.vuln_table.setItem(i, 3, QTableWidgetItem(v.get("product", "")))
+            self.vuln_table.setItem(i, 4, QTableWidgetItem(v.get("description", "")))
 
         # 添加到历史
         target = self.target_input.text()
@@ -465,6 +591,7 @@ class MainWindow(QMainWindow):
         self.scan_btn.setEnabled(True)
         self.stop_btn.setEnabled(False)
         self.ai_btn.setEnabled(bool(services))
+        self.exploit_btn.setEnabled(bool(services))
 
         self.status_bar.showMessage(
             f"扫描完成: {len(services)} 个服务, {len(vulns)} 个漏洞"
@@ -486,7 +613,7 @@ class MainWindow(QMainWindow):
     # ================== AI分析相关 ==================
     def start_ai_analysis(self):
         """开始AI分析"""
-        if not self.api_key:
+        if not self.api_key and not self._has_env_api_key():
             self.set_api_key()
             if not self.api_key:
                 return
@@ -541,7 +668,7 @@ class MainWindow(QMainWindow):
 
         # 更新建议
         recommendations = result.get("recommendations", [])
-        self.ai_recommendants.setPlainText("\n".join(recommendations))
+        self.ai_recommendations.setPlainText("\n".join(recommendations))
 
         self.ai_btn.setEnabled(True)
         self.status_bar.showMessage("AI分析完成")
@@ -551,10 +678,68 @@ class MainWindow(QMainWindow):
         QMessageBox.critical(self, "错误", f"AI分析失败: {error}")
         self.ai_btn.setEnabled(True)
 
+    def start_exploit_chain(self):
+        """执行攻击链（AI 规划 + 专项工具执行，执行前整体确认）"""
+        if not self.api_key and not self._has_env_api_key():
+            self.set_api_key()
+            if not self.api_key:
+                return
+
+        services = self.scan_results.get("services", [])
+        vulns = self.scan_results.get("vulnerabilities", [])
+
+        if not services:
+            QMessageBox.warning(self, "警告", "没有可执行的目标数据")
+            return
+
+        # 目标白名单
+        hosts = sorted({s.get("host_ip", "") for s in services if s.get("host_ip")})
+        if not hosts:
+            QMessageBox.warning(self, "警告", "无法从扫描结果提取目标主机")
+            return
+
+        # 执行前整体确认（一次性放行）
+        reply = QMessageBox.question(
+            self,
+            "执行攻击链确认",
+            "即将对以下目标执行 AI 规划的攻击链（getshell/提权/横向移动）：\n\n"
+            + "\n".join(f"  - {h}" for h in hosts)
+            + "\n\n这些操作具有破坏性，仅限已授权的测试目标。\n确定继续？",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if reply != QMessageBox.Yes:
+            self.append_log("[!] 用户取消了攻击链执行")
+            return
+
+        self.exploit_btn.setEnabled(False)
+        self.status_bar.showMessage("执行攻击链中...")
+
+        self.exploit_thread = ExploitChainThread(services, vulns, self.api_key, hosts)
+        self.exploit_thread.progress.connect(lambda m: self.status_bar.showMessage(m))
+        self.exploit_thread.result_ready.connect(self.on_exploit_complete)
+        self.exploit_thread.error.connect(self.on_exploit_error)
+        self.exploit_thread.start()
+
+    def on_exploit_complete(self, result: dict):
+        """攻击链执行完成"""
+        self.append_log(f"[+] 攻击链执行完成: {result.get('status')}")
+        self.append_log(f"    成功 {result.get('success_steps')} 步 / 失败 {result.get('failed_steps')} 步")
+        for sr in result.get("step_results", []):
+            detail = f" - {sr['error']}" if sr.get("error") else ""
+            self.append_log(f"    [{sr['status']}] {sr['step_id']}{detail}")
+        self.exploit_btn.setEnabled(True)
+        self.status_bar.showMessage("攻击链执行完成")
+
+    def on_exploit_error(self, error: str):
+        """攻击链执行错误"""
+        QMessageBox.critical(self, "错误", f"攻击链执行失败: {error}")
+        self.append_log(f"[-] 攻击链执行失败: {error}")
+        self.exploit_btn.setEnabled(True)
+
     def plan_exploit(self):
-        """规划攻击路径"""
-        # TODO: 实现
-        pass
+        """规划攻击路径（并可选执行）——复用攻击链流程"""
+        self.start_exploit_chain()
 
     # ================== 菜单动作 ==================
     def new_scan(self):
@@ -592,6 +777,11 @@ class MainWindow(QMainWindow):
         """更新漏洞库"""
         QMessageBox.information(self, "更新", "正在从NVD更新漏洞库...")
         # TODO: 实现
+
+    @staticmethod
+    def _has_env_api_key() -> bool:
+        """是否已通过本机 CC Switch 环境变量提供密钥"""
+        return bool(os.environ.get("ANTHROPIC_AUTH_TOKEN") or os.environ.get("ANTHROPIC_API_KEY"))
 
     def set_api_key(self):
         """设置API密钥"""

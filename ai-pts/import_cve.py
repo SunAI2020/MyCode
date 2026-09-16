@@ -287,8 +287,7 @@ def main():
         # 查找CVE文件
         possible_paths = [
             args.file,
-            Path("d:/0有信网安/漏洞扫描系统/漏洞库.json"),
-            Path("d:/python files/漏洞库.json")
+            Path(__file__).parent / "data" / "漏洞库.json",
         ]
 
         for path in possible_paths:

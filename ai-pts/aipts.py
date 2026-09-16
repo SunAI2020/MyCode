@@ -11,11 +11,6 @@ PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 if PROJECT_DIR not in sys.path:
     sys.path.insert(0, PROJECT_DIR)
 
-# 添加vuln-scanner路径
-VULN_SCANNER_DIR = os.path.join(PROJECT_DIR, "vuln-scanner")
-if VULN_SCANNER_DIR not in sys.path:
-    sys.path.insert(0, VULN_SCANNER_DIR)
-
 
 def run_gui():
     """运行GUI"""

@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 
 # 获取项目根目录
-BASE_DIR = Path(__file__).parent.parent
+BASE_DIR = Path(__file__).parent
 DATA_DIR = BASE_DIR / "data"
 REPORTS_DIR = BASE_DIR / "reports"
 LOGS_DIR = BASE_DIR / "logs"
@@ -42,7 +42,7 @@ def get_default_config() -> dict:
         },
         "ai": {
             "provider": "anthropic",
-            "model": "claude-sonnet-4-20250514",
+            "model": None,  # 为空时回退环境变量 ANTHROPIC_MODEL（本机 CC Switch 通道）
             "max_tokens": 4096,
             "temperature": 0.7,
             "api_key": None  # 用户需配置
@@ -50,7 +50,21 @@ def get_default_config() -> dict:
         "exploit": {
             "auto_execute": False,
             "require_confirmation": True,
-            "allowed_types": ["rce", "sql_injection", "privesc"]
+            "allowed_types": ["rce", "sql_injection", "privesc", "lateral_movement"]
+        },
+        "tools": {
+            "whitelist": [],
+            "allow_all": False,
+            "require_confirmation": True,
+            "max_steps": 20,
+            "timeout": 300,
+            "impacket_method": "wmiexec.py",
+            "metasploit": {
+                "rpc_host": "127.0.0.1",
+                "rpc_port": 55553,
+                "lhost": "127.0.0.1",
+                "lport": 4444
+            }
         },
         "report": {
             "formats": ["html", "pdf", "json"],

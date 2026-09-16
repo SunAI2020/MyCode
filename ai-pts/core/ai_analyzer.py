@@ -9,6 +9,7 @@ AI分析引擎 - 使用Claude进行智能渗透测试分析
 import anthropic
 import json
 import logging
+import os
 from typing import List, Dict, Optional, Any
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -119,15 +120,38 @@ class AIAnalyzer:
 - 强调防御建议
 - 考虑法律和道德边界"""
 
-    def __init__(self, api_key: str, model: str = "claude-sonnet-4-20250514"):
+    def __init__(self, api_key: str = None, model: str = None, base_url: str = None):
         """
         初始化AI分析器
 
+        认证/端点/模型均支持回退到本机 CC Switch 注入的环境变量：
+        - ANTHROPIC_AUTH_TOKEN / ANTHROPIC_API_KEY -> 认证密钥
+        - ANTHROPIC_BASE_URL -> API 端点（如 https://api.deepseek.com/anthropic）
+        - ANTHROPIC_MODEL -> 模型名
+
         Args:
-            api_key: Claude API密钥
-            model: 使用的模型
+            api_key: API 密钥（可空，回退环境变量）
+            model: 使用的模型（可空，回退环境变量 ANTHROPIC_MODEL）
+            base_url: API 端点（可空，回退环境变量 ANTHROPIC_BASE_URL）
         """
-        self.client = anthropic.Anthropic(api_key=api_key)
+        api_key = (
+            api_key
+            or os.environ.get("ANTHROPIC_AUTH_TOKEN")
+            or os.environ.get("ANTHROPIC_API_KEY")
+        )
+        base_url = base_url or os.environ.get("ANTHROPIC_BASE_URL")
+        model = model or os.environ.get("ANTHROPIC_MODEL") or "claude-sonnet-4-20250514"
+
+        if not api_key:
+            raise ValueError(
+                "未提供 API key，且环境变量无 ANTHROPIC_AUTH_TOKEN / ANTHROPIC_API_KEY"
+            )
+
+        kwargs = {"api_key": api_key}
+        if base_url:
+            kwargs["base_url"] = base_url
+
+        self.client = anthropic.Anthropic(**kwargs)
         self.model = model
 
     def analyze_scan_results(
@@ -574,9 +598,9 @@ CVE: {vuln.cve_id}
         )
 
 
-def create_analyzer(api_key: str, model: str = "claude-sonnet-4-20250514") -> AIAnalyzer:
-    """创建AI分析器实例"""
-    return AIAnalyzer(api_key=api_key, model=model)
+def create_analyzer(api_key: str = None, model: str = None, base_url: str = None) -> AIAnalyzer:
+    """创建AI分析器实例（api_key/model/base_url 均可空，回退本机 CC Switch 环境变量）"""
+    return AIAnalyzer(api_key=api_key, model=model, base_url=base_url)
 
 
 # 测试

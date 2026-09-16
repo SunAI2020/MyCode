@@ -4,6 +4,10 @@ anthropic>=0.25.0
 
 # 扫描
 python-nmap>=0.7.1
+requests>=2.31.0
+
+# 弱口令/凭据扫描的可选依赖（缺省自动降级跳过）
+# paramiko, psycopg2, pymysql, pymongo, redis, winrm
 
 # GUI
 PyQt5>=5.15.10
