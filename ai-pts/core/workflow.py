@@ -140,6 +140,23 @@ class PrivilegeEscalationExecutor(BaseExecutor):
         return True
 
 
+class ManualReviewExecutor(BaseExecutor):
+    """暂无自动化专项工具的漏洞类型：标记为 SKIPPED 并提示人工验证"""
+
+    def __init__(self, note: str = "该漏洞类型暂无自动化专项工具，需人工验证"):
+        self.note = note
+
+    async def execute(self, step_input: StepInput, step_config: Dict) -> StepOutput:
+        logger.info(f"需人工验证: {step_input.target} ({self.note})")
+        return StepOutput(status=StepStatus.SKIPPED, error=self.note)
+
+    async def validate(self, step_input: StepInput) -> bool:
+        return True
+
+    async def rollback(self, step_output: StepOutput) -> bool:
+        return True
+
+
 class ExecutorRegistry:
     """执行器注册表"""
 

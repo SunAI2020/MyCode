@@ -178,12 +178,13 @@ class ExploitChainThread(QThread):
     error = pyqtSignal(str)
 
     def __init__(self, services: List, vulns: List, api_key: str,
-                 whitelist: List[str], parent=None):
+                 whitelist: List[str], credentials: dict = None, parent=None):
         super().__init__(parent)
         self.services = services
         self.vulns = vulns
         self.api_key = api_key
         self.whitelist = whitelist
+        self.credentials = credentials or {}
 
     def run(self):
         try:
@@ -251,7 +252,7 @@ class ExploitChainThread(QThread):
             steps = WorkflowBuilder.from_ai_plan(plan_dict)
             wf = orch.build_workflow(plan_dict)
             wf.create_workflow(plan_dict["plan_id"], steps)
-            wf_result = asyncio.run(wf.execute({}))
+            wf_result = asyncio.run(wf.execute({"credentials": self.credentials}))
 
             self.result_ready.emit({
                 "plan": plan_dict,
@@ -698,6 +699,20 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "警告", "无法从扫描结果提取目标主机")
             return
 
+        # 收集目标凭据（可选；留空则各工具退回默认 administrator）
+        creds_raw, ok = QInputDialog.getText(
+            self, "目标凭据",
+            "输入目标凭据 user:pass（留空使用默认 administrator）:",
+            QLineEdit.Normal,
+        )
+        creds = {}
+        if ok and creds_raw.strip():
+            if ":" in creds_raw:
+                u, _, p = creds_raw.partition(":")
+                creds = {"username": u, "password": p}
+            else:
+                creds = {"username": creds_raw}
+
         # 执行前整体确认（一次性放行）
         reply = QMessageBox.question(
             self,
@@ -715,7 +730,7 @@ class MainWindow(QMainWindow):
         self.exploit_btn.setEnabled(False)
         self.status_bar.showMessage("执行攻击链中...")
 
-        self.exploit_thread = ExploitChainThread(services, vulns, self.api_key, hosts)
+        self.exploit_thread = ExploitChainThread(services, vulns, self.api_key, hosts, creds)
         self.exploit_thread.progress.connect(lambda m: self.status_bar.showMessage(m))
         self.exploit_thread.result_ready.connect(self.on_exploit_complete)
         self.exploit_thread.error.connect(self.on_exploit_error)

@@ -18,7 +18,8 @@ from core.executors.base import ToolExecutor
 from core.executors.getshell import ImpacketExecExecutor, MSFGetShellExecutor
 from core.executors.privesc import SecretsDumpExecutor, LinPEASExecutor
 from core.executors.lateral import NetExecExecutor, BloodHoundCollector, MimikatzExecutor
-from core.workflow import StepInput, StepOutput, StepStatus
+from core.workflow import StepInput, StepOutput, StepStatus, ManualReviewExecutor
+from core.scanner import _to_vulnerability
 
 
 def _input(target="10.0.0.1", credentials=None, **creds):
@@ -56,6 +57,13 @@ class TestToolExecutorBase(unittest.TestCase):
         )
         self.assertNotIn("secret", out[1])
         self.assertIn("***", out[1])
+
+    def test_redact_cmd_masks_hashes(self):
+        out = ToolExecutor._redact_cmd(
+            ["secretsdump.py", "-hashes", "aad3b435b51404ee:0x00", "admin@10.0.0.1"]
+        )
+        self.assertIn("***", out[2])  # -hashes 后的值被替换
+        self.assertNotIn("aad3b435b51404ee", out[2])
 
 
 class TestBuildCommands(unittest.TestCase):
@@ -156,6 +164,39 @@ class TestValidationGate(unittest.TestCase):
         ex._tool_available = lambda tool=None: True
         out = asyncio.run(ex.execute(_input(target="10.0.0.1"), {}))
         self.assertEqual(out.status, StepStatus.SKIPPED)
+
+
+class TestManualReviewExecutor(unittest.TestCase):
+    """暂无自动化专项工具的漏洞类型（sql_injection/xss/...）"""
+
+    def test_returns_skipped_with_note(self):
+        ex = ManualReviewExecutor()
+        out = asyncio.run(ex.execute(_input(), {}))
+        self.assertEqual(out.status, StepStatus.SKIPPED)
+        self.assertIn("人工验证", out.error)
+
+
+class TestVulnMapping(unittest.TestCase):
+    """非 CVE 发现（弱口令/蜜罐/设备指纹）不应被丢弃"""
+
+    def test_finding_type_preserved(self):
+        v = _to_vulnerability({
+            "cve_id": None, "finding_type": "weak_password",
+            "severity": "HIGH", "description": "[弱口令] ...",
+        })
+        self.assertIsNotNone(v)
+        self.assertEqual(v.cve_id, "FINDING:weak_password")
+        self.assertEqual(v.severity, "high")
+
+    def test_plain_cve_preserved(self):
+        v = _to_vulnerability({
+            "cve_id": "CVE-2025-0001", "severity": "critical",
+            "cvss_score": 9.8, "description": "x",
+        })
+        self.assertEqual(v.cve_id, "CVE-2025-0001")
+
+    def test_empty_finding_dropped(self):
+        self.assertIsNone(_to_vulnerability({"cve_id": None}))
 
 
 if __name__ == "__main__":

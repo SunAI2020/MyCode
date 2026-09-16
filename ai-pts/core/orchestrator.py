@@ -10,7 +10,7 @@ from typing import Optional, List, Dict, Callable
 
 from core.scanner import create_engine, ScanResult
 from core.ai_analyzer import create_analyzer, ScannedService
-from core.workflow import create_workflow, WorkflowBuilder
+from core.workflow import create_workflow, WorkflowBuilder, ManualReviewExecutor
 from core.executors.getshell import ImpacketExecExecutor, MSFGetShellExecutor
 from core.executors.privesc import SecretsDumpExecutor, LinPEASExecutor
 from core.executors.lateral import NetExecExecutor, BloodHoundCollector, MimikatzExecutor
@@ -38,7 +38,11 @@ class PenTestOrchestrator:
         self.confirm_callback = confirm_callback
 
         self.scan_engine = create_engine()
-        self.analyzer = create_analyzer(api_key) if api_key else None
+        try:
+            self.analyzer = create_analyzer(api_key)
+        except ValueError:
+            self.analyzer = None
+            logger.warning("AI 分析器未初始化：无 API key 且环境变量无 CC Switch 通道")
 
     def scan(self, target: str, ports: str = None) -> ScanResult:
         """执行扫描"""
@@ -97,6 +101,9 @@ class PenTestOrchestrator:
         wf.executors.register("lateral_movement", NetExecExecutor(**kw))
         wf.executors.register("bloodhound", BloodHoundCollector(**kw))
         wf.executors.register("credential_dump", MimikatzExecutor(**kw))
+        # 暂无自动化专项工具的漏洞类型：标记需人工验证，避免占位符静默空跑或无执行器中断链
+        for t in ("sql_injection", "xss", "auth_bypass", "info_disclosure"):
+            wf.executors.register(t, ManualReviewExecutor())
         return wf
 
     def run(self, target: str, ports: str = None, target_goal: str = "get_shell",

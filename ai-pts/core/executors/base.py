@@ -65,16 +65,26 @@ class ToolExecutor(BaseExecutor):
 
     @staticmethod
     def _redact_cmd(cmd: List[str]) -> List[str]:
-        """打码命令行中的凭据（user:pass@host -> user:***@host），避免泄露到日志/evidence"""
+        """打码命令行中的凭据，避免泄露到日志/evidence：
+        - user:pass@host -> user:***@host
+        - -hashes <LM:NT> -> -hashes ***
+        """
         out = []
+        prev = None
         for c in cmd:
+            if prev in ("-hashes", "--hashes"):
+                out.append("***")
+                prev = c
+                continue
             if "@" in c:
                 user, _, host = c.rpartition("@")
                 if ":" in user:
                     name, _, _ = user.partition(":")
                     out.append(f"{name}:***@{host}")
+                    prev = c
                     continue
             out.append(c)
+            prev = c
         return out
 
     # ---- BaseExecutor 接口 ----

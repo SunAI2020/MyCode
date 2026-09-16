@@ -13,8 +13,9 @@ from datetime import datetime
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# 数据库路径
-DB_PATH = Path(__file__).parent / "data" / "vuln.db"
+# 数据库路径：与扫描器（vendor/database.py 的 CVEDatabase）共用同一个库，
+# 使"导入 CVE 数据"真正影响扫描结果，避免导入到无人读取的 data/vuln.db。
+DB_PATH = Path(__file__).parent / "vendor" / "cve_database.db"
 
 
 def get_db_path():
@@ -29,27 +30,31 @@ def init_database():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
-    # CVE表
+    # CVE表（schema 与 vendor/database.py 的 CVEDatabase 对齐，保证与扫描器共用同一库）
     cursor.execute('''
-        CREATE TABLE IF NOT EXISTS cve (
-            cve_id TEXT PRIMARY KEY,
+        CREATE TABLE IF NOT EXISTS cve_database (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            cve_id TEXT NOT NULL UNIQUE,
             name TEXT,
             description TEXT,
             cvss_score REAL,
-            severity TEXT,
+            severity TEXT DEFAULT 'UNKNOWN',
             published_date TEXT,
-            cwe_id TEXT,
+            modified_date TEXT,
             affected_products TEXT,
-            references TEXT,
-            exploit_available BOOLEAN DEFAULT 0,
-            patch_available BOOLEAN DEFAULT 1
+            references_url TEXT,
+            ai_analysis TEXT,
+            exploit_available INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT (datetime('now','localtime')),
+            cwe TEXT,
+            patch_link TEXT
         )
     ''')
 
     # 索引
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_severity ON cve(severity)')
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_cvss ON cve(cvss_score)')
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_products ON cve(affected_products)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_severity ON cve_database(severity)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_cvss ON cve_database(cvss_score)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_products ON cve_database(affected_products)')
 
     conn.commit()
     conn.close()
@@ -103,7 +108,7 @@ def import_from_json(json_path: str) -> int:
             cvss_score = 3.0
 
         cursor.execute('''
-            INSERT OR REPLACE INTO cve (
+            INSERT OR REPLACE INTO cve_database (
                 cve_id, name, description, cvss_score, severity,
                 published_date, affected_products, exploit_available
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -123,7 +128,7 @@ def import_from_json(json_path: str) -> int:
     for item in data.get("数据源", {}).get("厂商公告", {}).get("Debian", []):
         cve_id = f"DSA-{item.get('DSA', '')}"
         cursor.execute('''
-            INSERT OR REPLACE INTO cve (
+            INSERT OR REPLACE INTO cve_database (
                 cve_id, name, description, severity, published_date
             ) VALUES (?, ?, ?, ?, ?)
         ''', (
@@ -138,7 +143,7 @@ def import_from_json(json_path: str) -> int:
     # 解析厂商公告 - Ubuntu
     for item in data.get("数据源", {}).get("厂商公告", {}).get("Ubuntu", []):
         cursor.execute('''
-            INSERT OR REPLACE INTO cve (
+            INSERT OR REPLACE INTO cve_database (
                 cve_id, name, description, severity
             ) VALUES (?, ?, ?, ?)
         ''', (
@@ -162,15 +167,15 @@ def get_statistics() -> dict:
     cursor = conn.cursor()
 
     # 总数
-    cursor.execute("SELECT COUNT(*) FROM cve")
+    cursor.execute("SELECT COUNT(*) FROM cve_database")
     total = cursor.fetchone()[0]
 
     # 按严重程度
-    cursor.execute("SELECT severity, COUNT(*) FROM cve GROUP BY severity")
+    cursor.execute("SELECT severity, COUNT(*) FROM cve_database GROUP BY severity")
     by_severity = {row[0]: row[1] for row in cursor.fetchall()}
 
     # 平均CVSS
-    cursor.execute("SELECT AVG(cvss_score) FROM cve WHERE cvss_score > 0")
+    cursor.execute("SELECT AVG(cvss_score) FROM cve_database WHERE cvss_score > 0")
     avg_cvss = cursor.fetchone()[0] or 0
 
     conn.close()
@@ -192,7 +197,7 @@ def search_vulns(
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
-    query = "SELECT * FROM cve WHERE 1=1"
+    query = "SELECT * FROM cve_database WHERE 1=1"
     params = []
 
     if product:
@@ -232,7 +237,7 @@ def export_to_json(output_path: str = "cve_export.json", limit: int = None):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
-    query = "SELECT * FROM cve"
+    query = "SELECT * FROM cve_database"
     if limit:
         query += f" LIMIT {limit}"
 

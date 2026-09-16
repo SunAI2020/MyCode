@@ -50,8 +50,12 @@ class ScanResult:
 def _to_vulnerability(v: Dict[str, Any]) -> Optional[Vulnerability]:
     """把 vendored 扫描引擎的漏洞 dict 转成 core.ai_analyzer.Vulnerability"""
     cve_id = v.get("cve_id")
-    if not cve_id:
+    finding_type = v.get("finding_type")
+    if not cve_id and not finding_type:
         return None
+    if not cve_id:
+        # 非 CVE 发现（弱口令/蜜罐/设备指纹），用 finding_type 作为标识，保留进结果
+        cve_id = f"FINDING:{finding_type}"
 
     sev = str(v.get("severity") or "").strip().lower()
     sev_map = {
@@ -177,11 +181,14 @@ class ScanEngine:
         min_cvss: float = None,
         limit: int = 100,
     ) -> List[Dict[str, Any]]:
-        rows = []
+        # 需要后置过滤时先取全量，避免"先 limit 后 filter"导致结果不足 limit
+        need_post_filter = bool(severity) or (product is not None and min_cvss is not None)
+        fetch_limit = 9990000 if need_post_filter else limit
+
         if product:
-            rows = self._db.search_cve_by_product(product, limit=limit)
+            rows = self._db.search_cve_by_product(product, limit=fetch_limit)
         else:
-            rows = self._db.search_cve(keyword=None, min_cvss=min_cvss or 0, limit=limit)
+            rows = self._db.search_cve(keyword=None, min_cvss=min_cvss or 0, limit=fetch_limit)
 
         if severity:
             rows = [r for r in rows if str(r.get("severity", "")).lower() == severity.lower()]
