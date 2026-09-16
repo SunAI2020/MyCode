@@ -21,39 +21,59 @@ logger = logging.getLogger(__name__)
 
 
 def load_cc_switch_env() -> Dict[str, str]:
-    """从本机 CC Switch 数据库读取当前 provider 的环境变量（api_key/base_url/model）。
+    """读取本机 CC Switch 当前激活通道的环境变量（api_key/base_url/model）。
 
-    CC Switch 只把环境变量注入它启动的进程（如 Claude Code）；从独立终端启动
-    GUI/CLI 时进程里没有这些变量。这里直接读 ~/.cc-switch/cc-switch.db 的当前
-    provider 配置，让工具无论从哪个终端启动都能复用「本机 CC Switch 通道」。
+    CC Switch 把激活通道的 env 写入 ~/.claude/settings.json（Claude Code 实际读取的
+    位置，密钥与当前生效的一致），同时在自己的 ~/.cc-switch/cc-switch.db 也存一份
+    （可能是过期的旧 key）。因此优先读 settings.json，缺失时再回退数据库。
 
     Returns:
         dict: 形如 {"ANTHROPIC_BASE_URL": ..., "ANTHROPIC_AUTH_TOKEN": ...}，
               读取失败时返回空 dict。
     """
+    env: Dict[str, str] = {}
+
+    # 1) Claude Code 的 settings.json / settings.local.json（CC Switch 激活时写入）
+    for name in ("settings.json", "settings.local.json"):
+        p = Path.home() / ".claude" / name
+        try:
+            if not p.exists():
+                continue
+            data = json.loads(p.read_text(encoding="utf-8"))
+            e = data.get("env") or {}
+            if isinstance(e, dict):
+                for k, v in e.items():
+                    if isinstance(v, str):
+                        env[k] = v  # settings.local.json 覆盖 settings.json
+        except Exception:  # noqa: BLE001
+            continue
+    if env.get("ANTHROPIC_AUTH_TOKEN") or env.get("ANTHROPIC_API_KEY"):
+        return env
+
+    # 2) CC Switch 数据库（回退）
     db = Path.home() / ".cc-switch" / "cc-switch.db"
     try:
-        if not db.exists():
-            return {}
-        con = sqlite3.connect(str(db))
-        try:
-            cur = con.cursor()
-            cur.execute(
-                "SELECT settings_config FROM providers "
-                "WHERE is_current = 1 AND app_type = 'claude' "
-                "ORDER BY sort_index LIMIT 1"
-            )
-            row = cur.fetchone()
-        finally:
-            con.close()
-        if not row or not row[0]:
-            return {}
-        cfg = json.loads(row[0])
-        env = cfg.get("env", {})
-        return {k: v for k, v in env.items() if isinstance(v, str)}
+        if db.exists():
+            con = sqlite3.connect(str(db))
+            try:
+                cur = con.cursor()
+                cur.execute(
+                    "SELECT settings_config FROM providers "
+                    "WHERE is_current = 1 AND app_type = 'claude' "
+                    "ORDER BY sort_index LIMIT 1"
+                )
+                row = cur.fetchone()
+            finally:
+                con.close()
+            if row and row[0]:
+                e = (json.loads(row[0]) or {}).get("env") or {}
+                if isinstance(e, dict):
+                    for k, v in e.items():
+                        if isinstance(v, str):
+                            env.setdefault(k, v)
     except Exception as e:  # noqa: BLE001
-        logger.warning("读取 CC Switch 配置失败: %s", e)
-        return {}
+        logger.warning("读取 CC Switch 数据库失败: %s", e)
+    return env
 
 
 class Severity(Enum):
@@ -270,7 +290,7 @@ class AIAnalyzer:
             )
 
             # 解析响应
-            result_text = response.content[0].text
+            result_text = self._extract_text(response)
             result = self._parse_json_response(result_text)
 
             return AnalysisReport(
@@ -346,7 +366,7 @@ class AIAnalyzer:
                 messages=[{"role": "user", "content": prompt}]
             )
 
-            result_text = response.content[0].text
+            result_text = self._extract_text(response)
             result = self._parse_json_response(result_text)
 
             # 构建ExploitPlan
@@ -426,7 +446,7 @@ class AIAnalyzer:
                 messages=[{"role": "user", "content": prompt}]
             )
 
-            return response.content[0].text
+            return self._extract_text(response)
 
         except Exception as e:
             logger.error(f"生成失败: {e}")
@@ -471,7 +491,7 @@ CVE: {vuln.cve_id}
                 messages=[{"role": "user", "content": prompt}]
             )
 
-            return self._parse_json_response(response.content[0].text)
+            return self._parse_json_response(self._extract_text(response))
 
         except Exception as e:
             logger.error(f"验证失败: {e}")
@@ -516,7 +536,7 @@ CVE: {vuln.cve_id}
                 messages=[{"role": "user", "content": prompt}]
             )
 
-            return self._parse_json_response(response.content[0].text)
+            return self._parse_json_response(self._extract_text(response))
 
         except Exception as e:
             logger.error(f"评估失败: {e}")
@@ -572,6 +592,19 @@ CVE: {vuln.cve_id}
         ])
 
         return f"""漏洞: \n{vuln_info}\n\n受影响服务:\n{service_info}"""
+
+    @staticmethod
+    def _extract_text(response) -> str:
+        """从 Anthropic 响应中提取文本。
+
+        推理模型（如 deepseek-v4-pro）会把思考过程作为 thinking 块放在前面，
+        content[0] 可能是 ThinkingBlock 而非 TextBlock。这里取第一个 type=='text'
+        的块，兼容普通与推理模型。
+        """
+        for block in getattr(response, "content", []) or []:
+            if getattr(block, "type", "") == "text":
+                return block.text
+        return ""
 
     def _parse_json_response(self, text: str) -> Dict:
         """解析JSON响应"""

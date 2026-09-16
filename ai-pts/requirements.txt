@@ -17,3 +17,13 @@ jinja2>=3.1.3
 
 # 报告生成
 weasyprint>=60.2
+
+# 渗透专项工具执行器（getshell / 提权 / 横向移动）
+impacket>=0.11.0
+paramiko>=3.4.0
+pywinrm>=0.4.3
+
+# 可选：以下工具依赖外部二进制或 Linux 专用环境，未安装时执行器自动降级跳过
+# netexec>=1.0.0        # nxc/netexec（横向移动，Linux 首选）
+# bloodhound-python     # BloodHound 采集
+# Metasploit (msfconsole) / mimikatz.exe 需另行安装，非 pip 包
