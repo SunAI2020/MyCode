@@ -18,7 +18,7 @@ from core.executors.base import ToolExecutor
 from core.executors.getshell import ImpacketExecExecutor, MSFGetShellExecutor
 from core.executors.privesc import SecretsDumpExecutor, LinPEASExecutor
 from core.executors.lateral import NetExecExecutor, BloodHoundCollector, MimikatzExecutor
-from core.workflow import StepInput, StepOutput, StepStatus, ManualReviewExecutor
+from core.workflow import StepInput, StepOutput, StepStatus, ManualReviewExecutor, resolve_step_targets
 from core.scanner import _to_vulnerability
 
 
@@ -174,6 +174,27 @@ class TestManualReviewExecutor(unittest.TestCase):
         out = asyncio.run(ex.execute(_input(), {}))
         self.assertEqual(out.status, StepStatus.SKIPPED)
         self.assertIn("人工验证", out.error)
+
+
+class TestResolveStepTargets(unittest.TestCase):
+    """AI/fallback 计划的描述性 target 应归一化为真实主机 IP"""
+
+    def test_descriptive_target_falls_back_to_host(self):
+        steps = [{"target": "Microsoft Windows RPC"}, {"target": "Apache HTTPD"}]
+        resolve_step_targets(steps, ["10.0.0.1"])
+        self.assertEqual(steps[0]["target"], "10.0.0.1")
+        self.assertEqual(steps[1]["target"], "10.0.0.1")
+
+    def test_host_port_normalized(self):
+        steps = [{"target": "192.168.1.100:8080"}, {"target": "http://host/path"}]
+        resolve_step_targets(steps, [])
+        self.assertEqual(steps[0]["target"], "192.168.1.100")
+        self.assertEqual(steps[1]["target"], "host")
+
+    def test_no_hosts_and_descriptive_yields_empty(self):
+        steps = [{"target": "some description"}]
+        resolve_step_targets(steps, [])
+        self.assertEqual(steps[0]["target"], "")
 
 
 class TestVulnMapping(unittest.TestCase):

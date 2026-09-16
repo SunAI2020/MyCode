@@ -4,6 +4,7 @@
 """
 import asyncio
 import logging
+import re
 import uuid
 from typing import List, Dict, Optional, Callable, Any
 from dataclasses import dataclass, field
@@ -488,6 +489,37 @@ class WorkflowBuilder:
                 "rollback_on_fail": True
             })
         return workflow
+
+
+_HOST_TOKEN_RE = re.compile(r"[A-Za-z0-9.\-]+")
+
+
+def resolve_step_targets(steps: List[Dict], hosts: List[str]) -> List[Dict]:
+    """把 AI/fallback 计划中的描述性 target 归一化为真实主机 IP。
+
+    AI 返回的 step.target 可能是 "目标服务" 之类的描述文本，而执行器的
+    _validate_host 只接受 IP/主机名。这里优先从已有 target 中提取合法主机，
+    否则回退到扫描发现的主目标主机，避免「含非法字符，拒绝执行」。
+
+    Args:
+        steps: WorkflowBuilder.from_ai_plan 产出的步骤列表
+        hosts: 扫描发现的主机 IP 列表（可为空）
+
+    Returns:
+        就地修改后的 steps（同时返回，便于链式调用）
+    """
+    primary = (hosts[0] if hosts else "") or ""
+    for s in steps:
+        t = (s.get("target") or "").strip()
+        for prefix in ("http://", "https://"):
+            if t.lower().startswith(prefix):
+                t = t[len(prefix):]
+        host = t.split("/")[0].split(":")[0]
+        if host and _HOST_TOKEN_RE.fullmatch(host):
+            s["target"] = host
+        else:
+            s["target"] = primary
+    return steps
 
 
 def create_workflow(auto_confirm: bool = True) -> ExploitWorkflow:

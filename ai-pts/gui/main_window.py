@@ -356,7 +356,7 @@ class MainWindow(QMainWindow):
         # 操作按钮
         button_layout = QHBoxLayout()
         self.scan_btn = QPushButton("开始扫描")
-        self.scan_btn.setIcon(QStyle.SP_MediaPlay)
+        self.scan_btn.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
         self.scan_btn.clicked.connect(self.start_scan)
         button_layout.addWidget(self.scan_btn)
 
@@ -507,11 +507,12 @@ class MainWindow(QMainWindow):
         toolbar.setMovable(False)
         self.addToolBar(toolbar)
 
-        toolbar.addAction(QStyle.SP_MediaPlay, "开始", self.start_scan)
-        toolbar.addAction(QStyle.SP_MediaStop, "停止", self.stop_scan)
+        style = self.style()
+        toolbar.addAction(style.standardIcon(QStyle.SP_MediaPlay), "开始", self.start_scan)
+        toolbar.addAction(style.standardIcon(QStyle.SP_MediaStop), "停止", self.stop_scan)
         toolbar.addSeparator()
-        toolbar.addAction(QStyle.SP_DialogOpenButton, "导入", self.open_targets)
-        toolbar.addAction(QStyle.SP_DialogSaveButton, "导出", self.export_report)
+        toolbar.addAction(style.standardIcon(QStyle.SP_DialogOpenButton), "导入", self.open_targets)
+        toolbar.addAction(style.standardIcon(QStyle.SP_DialogSaveButton), "导出", self.export_report)
         toolbar.addSeparator()
 
         # API状态
@@ -700,18 +701,28 @@ class MainWindow(QMainWindow):
             return
 
         # 收集目标凭据（可选；留空则各工具退回默认 administrator）
-        creds_raw, ok = QInputDialog.getText(
-            self, "目标凭据",
-            "输入目标凭据 user:pass（留空使用默认 administrator）:",
+        # 用户名与密码分开收集，密码用掩码回显，避免在界面上明文泄露
+        username, ok = QInputDialog.getText(
+            self, "目标用户名",
+            "输入目标用户名（留空使用默认 administrator）:",
             QLineEdit.Normal,
         )
+        if not ok:
+            self.append_log("[!] 用户取消了凭据输入")
+            return
+        password, ok = QInputDialog.getText(
+            self, "目标密码",
+            "输入目标密码（留空则不带密码）:",
+            QLineEdit.Password,
+        )
+        if not ok:
+            self.append_log("[!] 用户取消了凭据输入")
+            return
         creds = {}
-        if ok and creds_raw.strip():
-            if ":" in creds_raw:
-                u, _, p = creds_raw.partition(":")
-                creds = {"username": u, "password": p}
-            else:
-                creds = {"username": creds_raw}
+        if username.strip():
+            creds["username"] = username.strip()
+        if password:
+            creds["password"] = password
 
         # 执行前整体确认（一次性放行）
         reply = QMessageBox.question(
@@ -795,8 +806,15 @@ class MainWindow(QMainWindow):
 
     @staticmethod
     def _has_env_api_key() -> bool:
-        """是否已通过本机 CC Switch 环境变量提供密钥"""
-        return bool(os.environ.get("ANTHROPIC_AUTH_TOKEN") or os.environ.get("ANTHROPIC_API_KEY"))
+        """是否已有可用密钥：进程环境变量 或 本机 CC Switch 配置"""
+        if os.environ.get("ANTHROPIC_AUTH_TOKEN") or os.environ.get("ANTHROPIC_API_KEY"):
+            return True
+        try:
+            from core.ai_analyzer import load_cc_switch_env
+            env = load_cc_switch_env()
+            return bool(env.get("ANTHROPIC_AUTH_TOKEN") or env.get("ANTHROPIC_API_KEY"))
+        except Exception:
+            return False
 
     def set_api_key(self):
         """设置API密钥"""

@@ -10,12 +10,50 @@ import anthropic
 import json
 import logging
 import os
+import sqlite3
+from pathlib import Path
 from typing import List, Dict, Optional, Any
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 
 logger = logging.getLogger(__name__)
+
+
+def load_cc_switch_env() -> Dict[str, str]:
+    """从本机 CC Switch 数据库读取当前 provider 的环境变量（api_key/base_url/model）。
+
+    CC Switch 只把环境变量注入它启动的进程（如 Claude Code）；从独立终端启动
+    GUI/CLI 时进程里没有这些变量。这里直接读 ~/.cc-switch/cc-switch.db 的当前
+    provider 配置，让工具无论从哪个终端启动都能复用「本机 CC Switch 通道」。
+
+    Returns:
+        dict: 形如 {"ANTHROPIC_BASE_URL": ..., "ANTHROPIC_AUTH_TOKEN": ...}，
+              读取失败时返回空 dict。
+    """
+    db = Path.home() / ".cc-switch" / "cc-switch.db"
+    try:
+        if not db.exists():
+            return {}
+        con = sqlite3.connect(str(db))
+        try:
+            cur = con.cursor()
+            cur.execute(
+                "SELECT settings_config FROM providers "
+                "WHERE is_current = 1 AND app_type = 'claude' "
+                "ORDER BY sort_index LIMIT 1"
+            )
+            row = cur.fetchone()
+        finally:
+            con.close()
+        if not row or not row[0]:
+            return {}
+        cfg = json.loads(row[0])
+        env = cfg.get("env", {})
+        return {k: v for k, v in env.items() if isinstance(v, str)}
+    except Exception as e:  # noqa: BLE001
+        logger.warning("读取 CC Switch 配置失败: %s", e)
+        return {}
 
 
 class Severity(Enum):
@@ -134,17 +172,31 @@ class AIAnalyzer:
             model: 使用的模型（可空，回退环境变量 ANTHROPIC_MODEL）
             base_url: API 端点（可空，回退环境变量 ANTHROPIC_BASE_URL）
         """
+        # 认证/端点/模型三级回退：显式参数 -> 进程环境变量 -> 本机 CC Switch 配置
+        cc_env = load_cc_switch_env()
         api_key = (
             api_key
             or os.environ.get("ANTHROPIC_AUTH_TOKEN")
             or os.environ.get("ANTHROPIC_API_KEY")
+            or cc_env.get("ANTHROPIC_AUTH_TOKEN")
+            or cc_env.get("ANTHROPIC_API_KEY")
         )
-        base_url = base_url or os.environ.get("ANTHROPIC_BASE_URL")
-        model = model or os.environ.get("ANTHROPIC_MODEL") or "claude-sonnet-4-20250514"
+        base_url = (
+            base_url
+            or os.environ.get("ANTHROPIC_BASE_URL")
+            or cc_env.get("ANTHROPIC_BASE_URL")
+        )
+        model = (
+            model
+            or os.environ.get("ANTHROPIC_MODEL")
+            or cc_env.get("ANTHROPIC_MODEL")
+            or "claude-sonnet-4-20250514"
+        )
 
         if not api_key:
             raise ValueError(
-                "未提供 API key，且环境变量无 ANTHROPIC_AUTH_TOKEN / ANTHROPIC_API_KEY"
+                "未提供 API key，且环境变量 / 本机 CC Switch 配置均无 "
+                "ANTHROPIC_AUTH_TOKEN / ANTHROPIC_API_KEY"
             )
 
         kwargs = {"api_key": api_key}
@@ -576,13 +628,16 @@ CVE: {vuln.cve_id}
         vulns: List[Vulnerability]
     ) -> ExploitPlan:
         """备用计划"""
+        # 备用计划的 step target 必须是真实主机 IP（执行器 _validate_host 只接受
+        # IP/主机名），不能是漏洞的产品描述，否则会被「含非法字符」拒绝。
+        host = services[0].host_ip if services else ""
         steps = []
         for i, v in enumerate(vulns[:5]):
             steps.append(ExploitStep(
                 step_id=f"step_{i+1}",
                 order=i+1,
                 exploit_type="rce",
-                target=f"{v.product} {v.version}",
+                target=host,
                 description=v.description[:100],
                 risk_level=v.severity,
                 success_probability=v.cvss_score / 10.0

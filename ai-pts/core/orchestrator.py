@@ -10,7 +10,7 @@ from typing import Optional, List, Dict, Callable
 
 from core.scanner import create_engine, ScanResult
 from core.ai_analyzer import create_analyzer, ScannedService
-from core.workflow import create_workflow, WorkflowBuilder, ManualReviewExecutor
+from core.workflow import create_workflow, WorkflowBuilder, ManualReviewExecutor, resolve_step_targets
 from core.executors.getshell import ImpacketExecExecutor, MSFGetShellExecutor
 from core.executors.privesc import SecretsDumpExecutor, LinPEASExecutor
 from core.executors.lateral import NetExecExecutor, BloodHoundCollector, MimikatzExecutor
@@ -125,6 +125,9 @@ class PenTestOrchestrator:
         plan_dict = self._plan_to_dict(plan)
         wf = self.build_workflow(plan)
         steps = WorkflowBuilder.from_ai_plan(plan_dict)
+        # 把 AI 计划的描述性 target 归一化为扫描发现的真实主机 IP
+        hosts = sorted({s.host_ip for s in result.services if s.host_ip})
+        steps = resolve_step_targets(steps, hosts)
         wf.create_workflow(plan.plan_id, steps)
 
         wf_result = asyncio.run(wf.execute(context or {}))

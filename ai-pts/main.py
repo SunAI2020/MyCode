@@ -216,8 +216,10 @@ class AIPTSystem:
             confirm_callback=confirm_callback,
         )
 
-        # 构建工作流步骤
+        # 构建工作流步骤（把 AI 计划的描述性 target 归一化为真实主机 IP）
+        from core.workflow import resolve_step_targets
         steps = WorkflowBuilder.from_ai_plan(plan)
+        steps = resolve_step_targets(steps, whitelist or [])
         wf = orch.build_workflow(plan)
         wf.create_workflow(plan.get("plan_id", "plan"), steps)
 
@@ -454,6 +456,9 @@ def main():
                     allow_all=tools_cfg.get("allow_all", False),
                 )
                 steps = WorkflowBuilder.from_ai_plan(plan)
+                from core.workflow import resolve_step_targets
+                hosts = sorted({s.host_ip for s in result.services if s.host_ip})
+                steps = resolve_step_targets(steps, hosts)
                 wf = orch.build_workflow(plan)
                 wf.create_workflow(plan.get("plan_id", "plan"), steps)
                 wf_result = asyncio.run(wf.execute({}))
