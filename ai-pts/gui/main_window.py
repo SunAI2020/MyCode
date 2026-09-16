@@ -632,7 +632,7 @@ class MainWindow(QMainWindow):
         self.status_bar.showMessage("AI分析中...")
 
         # 启动AI分析线程
-        self.ai_thread = AIAnalysisThread(services, vulns, self.api_key)
+        self.ai_thread = AIAnalysisThread(services, vulns, self._effective_api_key())
         self.ai_thread.progress.connect(lambda m: self.status_bar.showMessage(m))
         self.ai_thread.result_ready.connect(self.on_ai_complete)
         self.ai_thread.error.connect(self.on_ai_error)
@@ -741,7 +741,7 @@ class MainWindow(QMainWindow):
         self.exploit_btn.setEnabled(False)
         self.status_bar.showMessage("执行攻击链中...")
 
-        self.exploit_thread = ExploitChainThread(services, vulns, self.api_key, hosts, creds)
+        self.exploit_thread = ExploitChainThread(services, vulns, self._effective_api_key(), hosts, creds)
         self.exploit_thread.progress.connect(lambda m: self.status_bar.showMessage(m))
         self.exploit_thread.result_ready.connect(self.on_exploit_complete)
         self.exploit_thread.error.connect(self.on_exploit_error)
@@ -815,6 +815,17 @@ class MainWindow(QMainWindow):
             return bool(env.get("ANTHROPIC_AUTH_TOKEN") or env.get("ANTHROPIC_API_KEY"))
         except Exception:
             return False
+
+    def _effective_api_key(self):
+        """返回实际应使用的 api_key：优先本机 CC Switch 通道，否则回退 GUI 手动保存的 key。
+
+        用户指定「大模型用本机 CC SWITCH 的通道」，而 gui/settings.json 里可能残留
+        旧的手动 key，若直接传 create_analyzer 会以最高优先级覆盖 CC Switch。这里在
+        CC Switch 可用时返回 None，让 create_analyzer 走 CC Switch 回退链。
+        """
+        if self._has_env_api_key():
+            return None
+        return self.api_key or None
 
     def set_api_key(self):
         """设置API密钥"""
