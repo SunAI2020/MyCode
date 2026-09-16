@@ -92,4 +92,5 @@ class LinPEASExecutor(ToolExecutor):
         remote = f"{username}@{host}"
 
         # 假设脚本已上传到目标；执行并捕获输出
-        return ["ssh", "-o", "StrictHostKeyChecking=no", remote, f"{shell} {peas_path}"]
+        # accept-new：首次连接未知靶机自动接受，但主机密钥变更时拒绝（防 MITM，优于 no）
+        return ["ssh", "-o", "StrictHostKeyChecking=accept-new", remote, f"{shell} {peas_path}"]
