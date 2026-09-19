@@ -485,12 +485,6 @@ class MainWindow(QMainWindow):
         self.api_status_label = QLabel("API: 未配置")
         self.api_status_label.setStyleSheet("color: #cfe0ef; font-size: 15px;")
         lay.addWidget(self.api_status_label)
-
-        self.exit_btn = QPushButton("✕")
-        self.exit_btn.setFixedSize(36, 36)
-        self.exit_btn.setToolTip("退出")
-        self.exit_btn.clicked.connect(self.close)
-        lay.addWidget(self.exit_btn)
         return bar
 
     # ---- 扫描配置栏 ----
@@ -1387,21 +1381,24 @@ class MainWindow(QMainWindow):
         return pw if ok else ""
 
     def set_api_key(self):
-        """设置API密钥"""
-        key, ok = QInputDialog.getText(
-            self, "设置API密钥", "输入Anthropic API Key:",
-            QLineEdit.Password
-        )
-        if ok and key:
-            self.api_key = key
-            self.api_status_label.setText("API: 已配置")
-            self.settings["api_key"] = key
+        """设置 API 密钥（Anthropic + NVD）。"""
+        from gui.settings_dialog import ApiKeyDialog
+        dlg = ApiKeyDialog(self.settings, self)
+        if dlg.exec_() == QDialog.Accepted:
+            self.settings["api_key"] = dlg.get_api_key()
+            self.settings["nvd_api_key"] = dlg.get_nvd_api_key()
             self.save_settings()
+            self._apply_settings()
 
     def show_settings(self):
         """显示设置对话框（报告目录/API密钥/首选项/定时扫描）。"""
         from gui.settings_dialog import SettingsDialog
         dlg = SettingsDialog(self.settings, self)
+        # 用当前扫描栏勾选状态初始化（用户可能已直接改过勾选框）
+        dlg.version_detect_check.setChecked(self.version_check.isChecked())
+        dlg.os_detect_check.setChecked(self.os_check.isChecked())
+        dlg.web_scan_check.setChecked(self.web_scan_check.isChecked())
+        dlg.weak_pass_check.setChecked(self.weak_pass_check.isChecked())
         if dlg.exec_() == QDialog.Accepted:
             self.settings = dlg.get_settings()
             self.save_settings()
@@ -1418,9 +1415,13 @@ class MainWindow(QMainWindow):
             self.status_bar.showMessage(f"已登录: {name}", 5000)
 
     def _apply_settings(self):
-        """把设置同步到运行态：API 状态、扫描模式、攻击强度、定时扫描。"""
+        """把设置同步到运行态：API 状态、扫描模式、扫描选项、攻击强度、定时扫描。"""
         self.api_key = (self.settings or {}).get("api_key", "") or self.api_key
         self.api_status_label.setText("API: 已配置" if self.api_key else "API: 未配置")
+
+        nvd_key = (self.settings or {}).get("nvd_api_key") or ""
+        if nvd_key:
+            os.environ["NVD_API_KEY"] = nvd_key
 
         prefs = (self.settings or {}).get("preferences", {}) or {}
         mode = prefs.get("scan_mode")
@@ -1428,6 +1429,13 @@ class MainWindow(QMainWindow):
             idx = self.port_mode_combo.findData(mode)
             if idx >= 0:
                 self.port_mode_combo.setCurrentIndex(idx)
+        # 扫描选项（仅当已保存时同步，避免首次运行覆盖界面默认值）
+        for key, widget in (("version_detect", self.version_check),
+                            ("os_detect", self.os_check),
+                            ("web_scan", self.web_scan_check),
+                            ("weak_pass", self.weak_pass_check)):
+            if key in prefs:
+                widget.setChecked(bool(prefs[key]))
         self.attack_intensity = prefs.get("attack_intensity", "中") or "中"
         self._setup_schedule()
 

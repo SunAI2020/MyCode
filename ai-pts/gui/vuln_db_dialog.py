@@ -45,9 +45,15 @@ class NvdFetchThread(QThread):
     def run(self):
         try:
             import requests
+            import os
         except ImportError:
             self.error.emit("缺少 requests 依赖，无法联网更新漏洞库")
             return
+
+        # NVD 建议携带明确的 User-Agent；有 API Key 时一并带上（大幅提升限流与稳定性）
+        headers = {"User-Agent": "AI-PTS/1.0"}
+        if os.environ.get("NVD_API_KEY"):
+            headers["apiKey"] = os.environ["NVD_API_KEY"]
 
         try:
             from database import CVEDatabase
@@ -75,14 +81,16 @@ class NvdFetchThread(QThread):
         retry = 0
         while not self._stop and params["startIndex"] < 2000:
             try:
-                resp = requests.get(NVD_API, params=params, timeout=(10, 60))
+                resp = requests.get(NVD_API, params=params, headers=headers,
+                                    timeout=(30, 120))
             except requests.exceptions.RequestException as e:
                 retry += 1
-                if retry > 4:
-                    self.error.emit(f"网络连接失败: {e}")
+                delay = min(2 ** retry, 30)  # 指数退避 2/4/8/16/30 秒
+                if retry > 6:
+                    self.error.emit(f"网络连接失败（已重试 {retry} 次）: {e}")
                     return
-                self.progress.emit(f"网络异常，{retry * 2} 秒后重试…")
-                time.sleep(retry * 2)
+                self.progress.emit(f"网络异常，{delay} 秒后重试…")
+                time.sleep(delay)
                 continue
             if resp.status_code == 429:
                 self.progress.emit("触发 NVD 限流，等待 6 秒…")

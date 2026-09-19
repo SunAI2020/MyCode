@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 from PyQt5.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QFormLayout, QLineEdit, QComboBox,
+    QDialog, QWidget, QVBoxLayout, QHBoxLayout, QFormLayout, QLineEdit, QComboBox,
     QCheckBox, QPushButton, QSpinBox, QLabel, QGroupBox, QFileDialog,
     QDialogButtonBox, QMessageBox,
 )
@@ -44,6 +44,10 @@ class SettingsDialog(QDialog):
         self.api_key_edit = QLineEdit()
         self.api_key_edit.setEchoMode(QLineEdit.Password)
         al.addRow("API Key:", self.api_key_edit)
+        self.nvd_api_key_edit = QLineEdit()
+        self.nvd_api_key_edit.setEchoMode(QLineEdit.Password)
+        self.nvd_api_key_edit.setPlaceholderText("用于漏洞库在线更新（NVD）")
+        al.addRow("NVD API Key:", self.nvd_api_key_edit)
         lay.addWidget(api_group)
 
         pref_group = QGroupBox("首选项")
@@ -53,6 +57,20 @@ class SettingsDialog(QDialog):
         self.scan_mode_combo.addItem("Quick（常用端口）", "quick")
         self.scan_mode_combo.addItem("Custom（自定义）", "custom")
         pl.addRow("扫描模式:", self.scan_mode_combo)
+
+        scan_opts = QHBoxLayout()
+        self.version_detect_check = QCheckBox("版本检测")
+        self.os_detect_check = QCheckBox("OS检测")
+        self.web_scan_check = QCheckBox("Web扫描")
+        self.weak_pass_check = QCheckBox("弱口令爆破")
+        for cb in (self.version_detect_check, self.os_detect_check,
+                   self.web_scan_check, self.weak_pass_check):
+            scan_opts.addWidget(cb)
+        scan_opts.addStretch(1)
+        scan_opts_widget = QWidget()
+        scan_opts_widget.setLayout(scan_opts)
+        pl.addRow("扫描选项:", scan_opts_widget)
+
         self.ai_analysis_check = QCheckBox("扫描完成后自动启用 AI 分析")
         pl.addRow("", self.ai_analysis_check)
         self.intensity_combo = QComboBox()
@@ -93,10 +111,15 @@ class SettingsDialog(QDialog):
         prefs = self.settings.get("preferences", {}) or {}
         self.report_dir_edit.setText(self.settings.get("report_dir", ""))
         self.api_key_edit.setText(self.settings.get("api_key", ""))
+        self.nvd_api_key_edit.setText(self.settings.get("nvd_api_key", ""))
         mode = prefs.get("scan_mode", "full")
         idx = self.scan_mode_combo.findData(mode)
         if idx >= 0:
             self.scan_mode_combo.setCurrentIndex(idx)
+        self.version_detect_check.setChecked(bool(prefs.get("version_detect", True)))
+        self.os_detect_check.setChecked(bool(prefs.get("os_detect", False)))
+        self.web_scan_check.setChecked(bool(prefs.get("web_scan", False)))
+        self.weak_pass_check.setChecked(bool(prefs.get("weak_pass", False)))
         self.ai_analysis_check.setChecked(bool(prefs.get("ai_analysis_enabled", False)))
         intensity = prefs.get("attack_intensity", "中")
         if intensity in ("低", "中", "高"):
@@ -114,12 +137,17 @@ class SettingsDialog(QDialog):
     def _on_accept(self):
         self.settings["report_dir"] = self.report_dir_edit.text().strip()
         self.settings["api_key"] = self.api_key_edit.text().strip()
+        self.settings["nvd_api_key"] = self.nvd_api_key_edit.text().strip()
         self.settings["preferences"] = {
             "scan_mode": self.scan_mode_combo.currentData(),
             "ai_analysis_enabled": self.ai_analysis_check.isChecked(),
             "attack_intensity": self.intensity_combo.currentText(),
             "username": self.username_edit.text().strip(),
             "password": self.password_edit.text(),
+            "version_detect": self.version_detect_check.isChecked(),
+            "os_detect": self.os_detect_check.isChecked(),
+            "web_scan": self.web_scan_check.isChecked(),
+            "weak_pass": self.weak_pass_check.isChecked(),
         }
         self.settings["scheduled_scan"] = {
             "enabled": self.schedule_check.isChecked(),
@@ -178,3 +206,33 @@ class LoginDialog(QDialog):
 
     def get_user(self):
         return self.user
+
+
+class ApiKeyDialog(QDialog):
+    """API 密钥对话框：Anthropic API Key + NVD API Key。"""
+
+    def __init__(self, settings: dict, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("设置 API 密钥")
+        self.resize(400, 150)
+        self.settings = dict(settings or {})
+        lay = QVBoxLayout(self)
+        form = QFormLayout()
+        self.api_key_edit = QLineEdit(self.settings.get("api_key", ""))
+        self.api_key_edit.setEchoMode(QLineEdit.Password)
+        form.addRow("API Key:", self.api_key_edit)
+        self.nvd_api_key_edit = QLineEdit(self.settings.get("nvd_api_key", ""))
+        self.nvd_api_key_edit.setEchoMode(QLineEdit.Password)
+        self.nvd_api_key_edit.setPlaceholderText("用于漏洞库在线更新（NVD）")
+        form.addRow("NVD API Key:", self.nvd_api_key_edit)
+        lay.addLayout(form)
+        buttons = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        lay.addWidget(buttons)
+
+    def get_api_key(self) -> str:
+        return self.api_key_edit.text().strip()
+
+    def get_nvd_api_key(self) -> str:
+        return self.nvd_api_key_edit.text().strip()
