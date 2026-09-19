@@ -413,6 +413,9 @@ class MainWindow(QMainWindow):
         self.ai_analysis: dict = {}
         self.attack_results: dict = {}
         self.api_key: str = ""
+        self.current_user: Optional[dict] = None
+        self.schedule_timer: Optional[QTimer] = None
+        self.attack_intensity: str = "中"
 
         self.init_ui()
         self.load_settings()
@@ -636,6 +639,13 @@ class MainWindow(QMainWindow):
         path_layout.addWidget(self.ai_path_tree)
         self.tabs.addTab(path_tab, "攻击路径")
 
+        attack_detail_tab = QWidget()
+        attack_detail_layout = QVBoxLayout(attack_detail_tab)
+        self.attack_detail_text = QTextEdit()
+        self.attack_detail_text.setReadOnly(True)
+        attack_detail_layout.addWidget(self.attack_detail_text)
+        self.tabs.addTab(attack_detail_tab, "攻击详情")
+
         rec_tab = QWidget()
         rec_layout = QVBoxLayout(rec_tab)
         self.ai_recommendations = QTextEdit()
@@ -649,6 +659,14 @@ class MainWindow(QMainWindow):
         self.log_text.setReadOnly(True)
         log_layout.addWidget(self.log_text)
         self.tabs.addTab(log_tab, "日志/详情")
+
+        # 漏洞库（嵌入中间详情页，更新进度复用上方进度条）
+        from gui.vuln_db_dialog import VulnDBManagerWidget
+        self.vuln_db_widget = VulnDBManagerWidget()
+        self.vuln_db_widget.update_started.connect(self._on_vuln_update_started)
+        self.vuln_db_widget.progress_message.connect(self.progress_label.setText)
+        self.vuln_db_widget.update_finished.connect(self._on_vuln_update_finished)
+        self.tabs.addTab(self.vuln_db_widget, "漏洞库")
 
         lay.addWidget(self.tabs, 1)
         return panel
@@ -692,7 +710,7 @@ class MainWindow(QMainWindow):
         if name == "扫描结果":
             self.tabs.setCurrentIndex(0)
         elif name == "AI修复建议":
-            self.tabs.setCurrentIndex(3)
+            self.tabs.setCurrentIndex(4)
 
     def _is_busy(self) -> bool:
         """是否有扫描/AI分析/攻击链任一任务在运行。"""
@@ -741,57 +759,32 @@ class MainWindow(QMainWindow):
         handlers.get(name, lambda: None)()
 
     def _show_tool_library(self):
-        try:
-            from core.capabilities import CAPABILITIES
-            lines = ["【渗透测试工具库】\n"]
-            for etype, cap in CAPABILITIES.items():
-                lines.append(f"■ {etype}：{cap.get('desc', '')}（工具：{cap.get('tool', 'manual')}）")
-            self._show_info("\n".join(lines))
-        except Exception as e:
-            self._show_info(f"工具库加载失败: {e}")
+        from gui.tool_dialogs import ToolLibraryDialog
+        ToolLibraryDialog(tab=0, parent=self).exec_()
 
     def _show_manual_review(self):
-        self._show_info(
-            "【渗透结果人工复核】\n\n"
-            "对扫描/攻击发现的每一处结果，建议人工按以下方式核验：\n"
-            "1. 打开报告中的漏洞详情，对照 CVE 编号在 NVD 官网核实受影响产品/版本是否匹配。\n"
-            "2. 对攻击成功条目，按报告的「人工核验方法」打开对应 shell/页面，截图保存证据。\n"
-            "3. 确认弱口令/开放服务等发现真实可复现，排除环境误报。\n"
-            "4. 复核通过后在报告中心导出最终报告。"
-        )
+        from gui.tool_dialogs import ManualReviewDialog
+        ManualReviewDialog(self.attack_results, parent=self).exec_()
 
     def _show_tool_usage(self):
-        self._show_info(
-            "【渗透测试工具使用方法】\n\n"
-            "Nmap：端口/服务/版本识别（-sV -T4）\n"
-            "Web扫描器：SQLi/XSS/SSRF/XXE/路径遍历等 45+ 项主动检测\n"
-            "弱口令爆破器：SSH/FTP/MySQL/PostgreSQL/Redis/MongoDB/HTTP/RDP/Telnet\n"
-            "Metasploit：getshell（msfconsole）\n"
-            "Impacket：wmiexec/psexec/secretsdump\n"
-            "NetExec：横向移动；BloodHound：域攻击路径；Mimikatz：凭据提取"
-        )
+        from gui.tool_dialogs import ToolLibraryDialog
+        ToolLibraryDialog(tab=1, parent=self).exec_()
 
     def _report_dir(self) -> Path:
-        """报告统一输出目录（项目根 reports/）。"""
+        """报告统一输出目录（优先用设置里的报告目录，否则项目根 reports/）。"""
+        rd = (self.settings or {}).get("report_dir") or ""
+        if rd:
+            return Path(rd)
         return Path(__file__).parent.parent / "reports"
 
     def _show_report_center(self):
-        report_dir = self._report_dir()
-        files = []
-        if report_dir.exists():
-            files = sorted(
-                [str(p) for p in report_dir.glob("*.html")] +
-                [str(p) for p in report_dir.glob("*.json")]
-            )
-        if not files:
-            self._show_info("【报告中心】\n\n暂无报告。扫描后点「生成报告」导出。")
-            return
-        self._show_info("【报告中心】\n\n" + "\n".join(files))
+        from gui.tool_dialogs import ReportCenterDialog
+        ReportCenterDialog(self._report_dir(), parent=self).exec_()
 
     def _show_info(self, text: str):
         """在日志/详情标签页展示文本。"""
         self.log_text.setPlainText(text)
-        self.tabs.setCurrentIndex(4)
+        self.tabs.setCurrentIndex(5)
 
     def create_menu_bar(self):
         """创建菜单栏"""
@@ -816,10 +809,18 @@ class MainWindow(QMainWindow):
 
         # 工具菜单
         tool_menu = menubar.addMenu("工具(&T)")
-        tool_menu.addAction("漏洞库更新...", self.update_vuln_db)
-        tool_menu.addAction("设置API密钥...", self.set_api_key)
+        tool_menu.addAction("漏洞库管理...", self.update_vuln_db)
         tool_menu.addSeparator()
-        tool_menu.addAction("首选项...", self.show_settings)
+        tool_menu.addAction("渗透测试工具库...", self._show_tool_library)
+        tool_menu.addAction("渗透测试工具使用方法...", self._show_tool_usage)
+
+        # 设置菜单
+        settings_menu = menubar.addMenu("设置(&O)")
+        settings_menu.addAction("首选项...", self.show_settings)
+        settings_menu.addAction("定时扫描...", self.show_settings)
+        settings_menu.addAction("登录...", self.show_login)
+        settings_menu.addSeparator()
+        settings_menu.addAction("设置API密钥...", self.set_api_key)
 
         # 帮助菜单
         help_menu = menubar.addMenu("帮助(&H)")
@@ -878,7 +879,7 @@ class MainWindow(QMainWindow):
 
         self.animation.set_scene("scan")
         self.set_stage("扫描结果")
-        self.tabs.setCurrentIndex(4)
+        self.tabs.setCurrentIndex(5)
         self.status_bar.showMessage(f"正在扫描 {target}...")
 
     def stop_scan(self):
@@ -946,6 +947,11 @@ class MainWindow(QMainWindow):
         self.status_bar.showMessage(
             f"扫描完成: {len(services)} 个服务, {len(vulns)} 个漏洞"
         )
+
+        # 首选项：扫描完成后自动启用 AI 分析（需已配置密钥，避免弹密钥框）
+        if (self.settings or {}).get("preferences", {}).get("ai_analysis_enabled") \
+                and services and (self.api_key or self._has_env_api_key()):
+            self.start_ai_analysis()
 
     def on_scan_error(self, error: str):
         """扫描错误"""
@@ -1094,6 +1100,8 @@ class MainWindow(QMainWindow):
                 f"    第{i}步 [{s.get('exploit_type')}] 工具={s.get('tool') or '-'} "
                 f"目标={s.get('target')} - {s.get('description', '')}")
 
+        self._render_attack_detail(result)
+
         self._set_running(False)
         self.animation.set_scene("done", "攻击链规划完成")
         self.set_stage("攻击链规划")
@@ -1121,11 +1129,13 @@ class MainWindow(QMainWindow):
             return
 
         # 收集目标凭据（可选；留空则各工具退回默认 administrator）
-        # 用户名与密码分开收集，密码用掩码回显，避免在界面上明文泄露
+        # 用户名与密码分开收集，密码用掩码回显，避免在界面上明文泄露；预填首选项默认值
+        prefs = (self.settings or {}).get("preferences", {}) or {}
         username, ok = QInputDialog.getText(
             self, "目标用户名",
             "输入目标用户名（留空使用默认 administrator）:",
             QLineEdit.Normal,
+            prefs.get("username", ""),
         )
         if not ok:
             self.append_log("[!] 用户取消了凭据输入")
@@ -1134,6 +1144,7 @@ class MainWindow(QMainWindow):
             self, "目标密码",
             "输入目标密码（留空则不带密码）:",
             QLineEdit.Password,
+            prefs.get("password", ""),
         )
         if not ok:
             self.append_log("[!] 用户取消了凭据输入")
@@ -1162,7 +1173,7 @@ class MainWindow(QMainWindow):
         self.status_bar.showMessage("执行攻击链中...")
         self.animation.set_scene("execute")
         self.set_stage("执行攻击")
-        self.tabs.setCurrentIndex(4)
+        self.tabs.setCurrentIndex(5)
 
         self.exploit_thread = ExploitChainThread(services, vulns, self._effective_api_key(), hosts, creds,
                                                 credential_callback=self._credential_callback,
@@ -1180,9 +1191,13 @@ class MainWindow(QMainWindow):
         for sr in result.get("step_results", []):
             detail = f" - {sr['error']}" if sr.get("error") else ""
             self.append_log(f"    [{sr['status']}] {sr['step_id']}{detail}")
+
+        self._render_attack_detail(result)
+
         self._set_running(False)
         self.animation.set_scene("done", "攻击链执行完成")
         self.set_stage("执行攻击")
+        self.tabs.setCurrentIndex(3)  # 攻击详情标签页
         self.status_bar.showMessage("攻击链执行完成")
 
     def on_exploit_error(self, error: str):
@@ -1190,6 +1205,36 @@ class MainWindow(QMainWindow):
         QMessageBox.critical(self, "错误", f"攻击链执行失败: {error}")
         self.append_log(f"[-] 攻击链执行失败: {error}")
         self._set_running(False)
+
+    def _render_attack_detail(self, result: dict):
+        """在「攻击详情」标签页渲染攻击链执行结果（步骤/状态/证据/错误）。"""
+        lines = ["【攻击详情】\n"]
+        plan = result.get("plan", {})
+        steps = result.get("steps") or plan.get("steps", [])
+        sr_map = {sr.get("step_id"): sr for sr in result.get("step_results", [])}
+        if not steps:
+            lines.append("暂无攻击步骤。请先执行「攻击链规划」。")
+        for i, s in enumerate(steps, 1):
+            sr = sr_map.get(s.get("step_id"), {})
+            status = sr.get("status", "未执行")
+            lines.append(
+                f"\n第{i}步 [{s.get('exploit_type')}] 工具={s.get('tool') or '-'} "
+                f"目标={s.get('target') or '-'}")
+            lines.append(f"  状态: {status}")
+            if s.get("description"):
+                lines.append(f"  策略: {s.get('description')}")
+            if s.get("payload"):
+                lines.append(f"  脚本: {s.get('payload')}")
+            if s.get("validation_cmd"):
+                lines.append(f"  验证: {s.get('validation_cmd')}")
+            if sr.get("error"):
+                lines.append(f"  错误: {sr['error']}")
+            ev = sr.get("evidence") or []
+            if isinstance(ev, str):
+                ev = [ev]
+            for e in ev:
+                lines.append(f"  证据: {e}")
+        self.attack_detail_text.setPlainText("\n".join(lines))
 
     def plan_exploit(self):
         """规划攻击路径（并可选执行）——复用攻击链流程"""
@@ -1275,9 +1320,19 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, "导出失败", str(e))
 
     def update_vuln_db(self):
-        """更新漏洞库"""
-        QMessageBox.information(self, "更新", "正在从NVD更新漏洞库...")
-        # TODO: 实现
+        """切换到「漏洞库」标签页（浏览/搜索/在线从 NVD 更新）。"""
+        self.tabs.setCurrentIndex(6)
+
+    def _on_vuln_update_started(self):
+        """漏洞库在线更新开始：上方进度条切换为不确定（转圈）模式。"""
+        self.progress_bar.setRange(0, 0)
+        self.progress_label.setText("正在从 NVD 更新漏洞库…")
+
+    def _on_vuln_update_finished(self):
+        """漏洞库在线更新结束：进度条复位。"""
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+        self.progress_label.setText("")
 
     @staticmethod
     def _has_env_api_key() -> bool:
@@ -1344,9 +1399,60 @@ class MainWindow(QMainWindow):
             self.save_settings()
 
     def show_settings(self):
-        """显示设置"""
-        # TODO: 实现
-        pass
+        """显示设置对话框（报告目录/API密钥/首选项/定时扫描）。"""
+        from gui.settings_dialog import SettingsDialog
+        dlg = SettingsDialog(self.settings, self)
+        if dlg.exec_() == QDialog.Accepted:
+            self.settings = dlg.get_settings()
+            self.save_settings()
+            self._apply_settings()
+
+    def show_login(self):
+        """显示登录对话框（接入 vendor 用户库 + auth_rbac 校验）。"""
+        from gui.settings_dialog import LoginDialog
+        dlg = LoginDialog(self)
+        if dlg.exec_() == QDialog.Accepted:
+            self.current_user = dlg.get_user()
+            name = (self.current_user or {}).get("full_name") or \
+                   (self.current_user or {}).get("username") or "未知"
+            self.status_bar.showMessage(f"已登录: {name}", 5000)
+
+    def _apply_settings(self):
+        """把设置同步到运行态：API 状态、扫描模式、攻击强度、定时扫描。"""
+        self.api_key = (self.settings or {}).get("api_key", "") or self.api_key
+        self.api_status_label.setText("API: 已配置" if self.api_key else "API: 未配置")
+
+        prefs = (self.settings or {}).get("preferences", {}) or {}
+        mode = prefs.get("scan_mode")
+        if mode in ("full", "quick", "custom"):
+            idx = self.port_mode_combo.findData(mode)
+            if idx >= 0:
+                self.port_mode_combo.setCurrentIndex(idx)
+        self.attack_intensity = prefs.get("attack_intensity", "中") or "中"
+        self._setup_schedule()
+
+    def _setup_schedule(self):
+        """按设置启停定时扫描定时器。"""
+        if self.schedule_timer is None:
+            self.schedule_timer = QTimer(self)
+            self.schedule_timer.timeout.connect(self._on_schedule_timeout)
+        sched = (self.settings or {}).get("scheduled_scan", {}) or {}
+        if sched.get("enabled"):
+            try:
+                minutes = int(sched.get("interval_minutes", 60))
+            except (TypeError, ValueError):
+                minutes = 60
+            self.schedule_timer.start(max(1, minutes) * 60 * 1000)
+        else:
+            self.schedule_timer.stop()
+
+    def _on_schedule_timeout(self):
+        """定时扫描触发：有目标且空闲时自动开始扫描。"""
+        target = self.target_input.text().strip()
+        if not target or self._is_busy():
+            return
+        self.append_log("[定时] 触发定时扫描")
+        self.start_scan()
 
     def show_help(self):
         """显示帮助"""
@@ -1385,19 +1491,20 @@ class MainWindow(QMainWindow):
         """加载设置"""
         config_path = Path(__file__).parent / "settings.json"
         if config_path.exists():
-            with open(config_path, "r") as f:
+            with open(config_path, "r", encoding="utf-8") as f:
                 self.settings = json.load(f)
             self.api_key = self.settings.get("api_key", "")
             if self.api_key:
                 self.api_status_label.setText("API: 已配置")
         else:
             self.settings = {}
+        self._apply_settings()
 
     def save_settings(self):
         """保存设置"""
         config_path = Path(__file__).parent / "settings.json"
-        with open(config_path, "w") as f:
-            json.dump(self.settings, f, indent=2)
+        with open(config_path, "w", encoding="utf-8") as f:
+            json.dump(self.settings, f, indent=2, ensure_ascii=False)
 
     def closeEvent(self, event):
         """关闭事件"""
