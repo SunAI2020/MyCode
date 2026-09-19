@@ -326,16 +326,29 @@ def _render_attack_steps(steps: List[Dict], evidence_dir: str) -> str:
             rel = os.path.relpath(shot, evidence_dir) if os.path.isabs(shot) else shot
             shot_html = f'<p><img src="{_esc(rel)}" style="max-width:100%;border:1px solid #e0e0e0;"/></p>'
         verify = _VERIFY_METHODS.get(etype, "核对攻击输出与目标状态，确认攻击是否成功")
-        cmd = s.get("command") or s.get("validation_cmd") or s.get("payload") or "-"
+        # 攻击策略 / 攻击脚本 / 验证命令 分块展示
+        desc = s.get("description") or ""
+        payload = s.get("payload") or ""
+        val_cmd = s.get("validation_cmd") or ""
+        strategy_html = f'<p><b>攻击策略：</b>{_esc(desc)}</p>' if desc else ""
+        payload_html = f'<p><b>攻击脚本：</b><code>{_esc(payload)}</code></p>' if payload else ""
+        val_html = f'<p><b>验证命令：</b><code>{_esc(val_cmd)}</code></p>' if val_cmd else ""
+        error = s.get("error") or ""
+        status_text = "成功" if status in ("SUCCESS", "COMPLETED", "成功") else (
+            "失败" if status in ("FAILED", "ERROR") else "未执行/跳过")
+        if error:
+            status_text += f"（{_esc(error)}）"
         rows.append(f"""
         <div class="risk-card" style="border-left:5px solid {status_color};">
           <div class="risk-card-header">
             <span class="risk-card-title">#{i} {_esc(etype)} — {_esc(tool)}</span>
-            <span style="color:{status_color};font-weight:bold;">{_esc(status)}</span>
+            <span style="color:{status_color};font-weight:bold;">{_esc(status_text)}</span>
           </div>
           <div class="risk-card-body">
-            <p><b>目标：</b>{_esc(s.get('target') or '-')}　<b>描述：</b>{_esc(s.get('description') or '-')}</p>
-            <p><b>命令/配置：</b><code>{_esc(cmd)}</code></p>
+            <p><b>目标：</b>{_esc(s.get('target') or '-')}</p>
+            {strategy_html}
+            {payload_html}
+            {val_html}
             {ev_html}
             {shot_html}
             <p><b>人工核验方法：</b>{_esc(verify)}（核验后截图保存，供报告佐证）</p>

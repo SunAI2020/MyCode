@@ -24,6 +24,7 @@ class SecretsDumpExecutor(ToolExecutor):
         whitelist=None,
         allow_all: bool = False,
         confirm_callback=None,
+        credential_callback=None,
     ):
         super().__init__(
             tool_name="secretsdump.py",
@@ -32,6 +33,7 @@ class SecretsDumpExecutor(ToolExecutor):
             whitelist=whitelist,
             allow_all=allow_all,
             confirm_callback=confirm_callback,
+            credential_callback=credential_callback,
         )
 
     def build_command(self, step_input, step_config) -> Optional[List[str]]:
@@ -50,15 +52,20 @@ class SecretsDumpExecutor(ToolExecutor):
         # 必须用当前解释器执行脚本全路径（同 getshell.py 的 ImpacketExecExecutor）。
         script = shutil.which(self.tool_name)
         if not script:
+            self._build_error = f"工具 {self.tool_name} 未安装"
             return None
+        # 无密码且无哈希时，通过回调向用户索取密码（弹框），避免工具后台卡在 Password: 提示
+        if not hashes and not password:
+            password = self._request_credential(host, username) or ""
+            if not password:
+                self._build_error = "未提供密码（用户取消或未输入）"
+                return None
         cmd = [sys.executable, script]
         if hashes:
             cmd += ["-hashes", hashes]
             target = f"{user_at}@{host}"
-        elif password:
-            target = f"{user_at}:{password}@{host}"
         else:
-            target = f"{user_at}@{host}"
+            target = f"{user_at}:{password}@{host}"
         cmd += [target]
         return cmd
 
@@ -75,6 +82,7 @@ class LinPEASExecutor(ToolExecutor):
         whitelist=None,
         allow_all: bool = False,
         confirm_callback=None,
+        credential_callback=None,
     ):
         super().__init__(
             tool_name="ssh",
@@ -83,6 +91,7 @@ class LinPEASExecutor(ToolExecutor):
             whitelist=whitelist,
             allow_all=allow_all,
             confirm_callback=confirm_callback,
+            credential_callback=credential_callback,
         )
         self.peas_remote_path = peas_remote_path
         self.shell = shell

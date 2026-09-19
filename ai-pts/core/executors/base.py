@@ -17,6 +17,13 @@ from core.workflow import BaseExecutor, StepInput, StepOutput, StepStatus
 
 logger = logging.getLogger(__name__)
 
+# 常见退出码 → 友好中文提示（用于 StepOutput.error）
+_EXIT_CODE_HINTS = {
+    1: "命令执行失败（通用错误）",
+    127: "命令未找到（工具可能未安装或路径错误）",
+    255: "连接失败（目标不可达、端口未开放或认证被拒）",
+}
+
 
 class ToolExecutor(BaseExecutor):
     """封装外部工具调用的执行器基类"""
@@ -29,6 +36,7 @@ class ToolExecutor(BaseExecutor):
         whitelist: Optional[List[str]] = None,
         allow_all: bool = False,
         confirm_callback=None,
+        credential_callback=None,
     ):
         self.tool_name = tool_name
         self.timeout = timeout
@@ -36,8 +44,26 @@ class ToolExecutor(BaseExecutor):
         self.whitelist = whitelist or []
         self.allow_all = allow_all
         self.confirm_callback = confirm_callback
+        self.credential_callback = credential_callback
+        self._build_error = None  # build_command 返回 None 时附带的具体原因
 
     # ---- 辅助 ----
+
+    def _request_credential(self, host: str, username: str) -> Optional[str]:
+        """缺凭据时通过回调向用户索取密码；无回调或用户取消返回 None。
+
+        credential_callback(host, username) -> Optional[str]（密码，None/空=取消）。
+        供需要密码认证的工具（wmiexec/secretsdump/nxc 等）在 build_command 里
+        密码缺失时调用，避免工具在后台卡在「Password:」交互提示。
+        """
+        if not self.credential_callback:
+            return None
+        try:
+            pw = self.credential_callback(host, username)
+            return pw if pw else None
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"凭据回调异常: {e}")
+            return None
 
     @staticmethod
     def _extract_host(target: str) -> str:
@@ -124,7 +150,8 @@ class ToolExecutor(BaseExecutor):
 
         cmd = self.build_command(step_input, step_config)
         if not cmd:
-            return StepOutput(status=StepStatus.FAILED, error="无法构建命令（参数校验失败）")
+            error = getattr(self, "_build_error", "") or "无法构建命令（参数校验失败）"
+            return StepOutput(status=StepStatus.FAILED, error=error)
 
         return await self._run(cmd)
 
@@ -152,7 +179,9 @@ class ToolExecutor(BaseExecutor):
             return StepOutput(status=StepStatus.SUCCESS, result=result,
                               evidence=evidence, execution_time=dt)
         logger.warning(f"命令退出码 {rc}: {(err or '').strip()[:500]}")
-        return StepOutput(status=StepStatus.FAILED, error=f"命令退出码 {rc}",
+        hint = _EXIT_CODE_HINTS.get(rc, "")
+        err_msg = f"命令退出码 {rc}" + (f"：{hint}" if hint else "")
+        return StepOutput(status=StepStatus.FAILED, error=err_msg,
                           result=result, evidence=evidence, execution_time=dt)
 
     def _run_sync(self, cmd: List[str]):

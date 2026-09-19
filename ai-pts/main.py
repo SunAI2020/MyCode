@@ -390,6 +390,12 @@ def _execute_chain(system: AIPTSystem, plan: dict, scan_result) -> None:
         print(line)
 
 
+def run_gui():
+    """启动图形界面（默认入口）。"""
+    from gui.main_window import main as gui_main
+    gui_main()
+
+
 def main():
     """主函数"""
     parser = argparse.ArgumentParser(description="AI-PTS")
@@ -486,8 +492,8 @@ def main():
             print(f"报告已导出: {path}")
 
     else:
-        # 交互模式
-        interactive_mode()
+        # 默认直接打开图形界面
+        run_gui()
 
 
 if __name__ == "__main__":

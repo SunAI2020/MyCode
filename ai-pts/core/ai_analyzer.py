@@ -350,7 +350,7 @@ class AIAnalyzer:
 
         capability_list = build_capability_prompt()
 
-        prompt = f"""基于以下扫描结果，请规划从初始入口到目标的渗透攻击路径：
+        prompt = f"""基于以下扫描结果，请规划从初始入口到目标的完整渗透攻击路径，要求规划详尽、可执行、分步清晰：
 
 {plan_input}
 
@@ -358,6 +358,13 @@ class AIAnalyzer:
 
 可用 exploit_type 及其对应工具（只使用清单内的值）：
 {capability_list}
+
+规划要求（务必详尽，每步都要说清楚）：
+1. 明确每一步针对哪个漏洞/CVE、哪个服务（端口/版本），并说明选择理由。
+2. 说明该步调用的渗透工具及具体用法（命令、参数、模块名）。
+3. 编写详尽的攻击脚本/payload（如针对 SQL 注入的具体 SQL 语句、XSS 注入脚本、提权命令序列、exploit 关键参数）。
+4. 说明如何提权（本地提权枚举与利用方法）、如何横向移动（凭据喷洒/域内横向）。
+5. 每一步给出「如何判断是否成功」的验证命令与成功特征。
 
 请以JSON格式返回详细的攻击计划：
 {{
@@ -372,9 +379,9 @@ class AIAnalyzer:
             "exploit_type": "msf/rce/privesc/...（仅限上面清单）",
             "tool": "具体模块名或方法名：msf 填模块路径（如 exploit/windows/smb/ms17_010_eternalblue），rce 填 wmiexec.py/psexec.py/smbexec.py/atexec.py 之一，其余留空",
             "target": "目标服务",
-            "description": "步骤描述",
-            "payload": "示例payload（不执行，仅用于分析）",
-            "validation_cmd": "验证命令",
+            "description": "详尽的攻击策略：针对的漏洞/服务、选择理由、工具用法、提权或横向方法、成功判定标准",
+            "payload": "详尽的攻击脚本/payload（SQL语句、命令序列、exploit参数等，仅用于分析展示，不直接执行）",
+            "validation_cmd": "验证是否成功的命令",
             "risk_level": "high",
             "success_probability": 0.8
         }}

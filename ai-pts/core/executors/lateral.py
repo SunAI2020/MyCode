@@ -26,6 +26,7 @@ class NetExecExecutor(ToolExecutor):
         allow_all: bool = False,
         confirm_callback=None,
         wsl_bin: str = "nxc",
+        credential_callback=None,
     ):
         super().__init__(
             tool_name="nxc",
@@ -34,6 +35,7 @@ class NetExecExecutor(ToolExecutor):
             whitelist=whitelist,
             allow_all=allow_all,
             confirm_callback=confirm_callback,
+            credential_callback=credential_callback,
         )
         self.protocol = protocol
         self.wsl_bin = wsl_bin
@@ -54,6 +56,12 @@ class NetExecExecutor(ToolExecutor):
         module = step_config.get("module") or "shares"
 
         args = [protocol, host]
+        if username and not password:
+            # 有用户名无密码：通过回调向用户索取密码（弹框），避免工具卡在交互提示
+            password = self._request_credential(host, username) or ""
+            if not password:
+                self._build_error = "未提供密码（用户取消或未输入）"
+                return None
         if username:
             args += ["-u", username]
         if password:
@@ -78,6 +86,7 @@ class BloodHoundCollector(ToolExecutor):
         whitelist=None,
         allow_all: bool = False,
         confirm_callback=None,
+        credential_callback=None,
     ):
         super().__init__(
             tool_name="bloodhound-python",
@@ -86,6 +95,7 @@ class BloodHoundCollector(ToolExecutor):
             whitelist=whitelist,
             allow_all=allow_all,
             confirm_callback=confirm_callback,
+            credential_callback=credential_callback,
         )
 
     def build_command(self, step_input, step_config) -> Optional[List[str]]:
@@ -98,6 +108,11 @@ class BloodHoundCollector(ToolExecutor):
         password = creds.get("password") or step_config.get("password") or ""
         domain = creds.get("domain") or step_config.get("domain") or ""
 
+        if username and not password:
+            password = self._request_credential(host, username) or ""
+            if not password:
+                self._build_error = "未提供密码（用户取消或未输入）"
+                return None
         cmd = ["bloodhound-python", "-c", "All", "-u", username, "-p", password, "-ns", host]
         if domain:
             cmd += ["-d", domain]
@@ -115,6 +130,7 @@ class MimikatzExecutor(ToolExecutor):
         whitelist=None,
         allow_all: bool = False,
         confirm_callback=None,
+        credential_callback=None,
     ):
         super().__init__(
             tool_name="mimikatz.exe",
@@ -123,6 +139,7 @@ class MimikatzExecutor(ToolExecutor):
             whitelist=whitelist,
             allow_all=allow_all,
             confirm_callback=confirm_callback,
+            credential_callback=credential_callback,
         )
         self.mimikatz_path = mimikatz_path
 

@@ -30,6 +30,7 @@ class PenTestOrchestrator:
         whitelist: Optional[List[str]] = None,
         allow_all: bool = False,
         confirm_callback: Optional[Callable[[str], bool]] = None,
+        credential_callback: Optional[Callable[[str, str], Optional[str]]] = None,
     ):
         self.config = config or {}
         self.api_key = api_key
@@ -37,6 +38,7 @@ class PenTestOrchestrator:
         self.whitelist = whitelist or []
         self.allow_all = allow_all
         self.confirm_callback = confirm_callback
+        self.credential_callback = credential_callback
 
         self.scan_engine = create_engine()
         try:
@@ -95,6 +97,7 @@ class PenTestOrchestrator:
             whitelist=self.whitelist,
             allow_all=self.allow_all,
             confirm_callback=self.confirm_callback,
+            credential_callback=self.credential_callback,
         )
         wf.executors.register("rce", ImpacketExecExecutor(**kw))
         wf.executors.register("msf", MSFGetShellExecutor(**kw))
