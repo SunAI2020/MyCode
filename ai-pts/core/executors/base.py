@@ -151,6 +151,7 @@ class ToolExecutor(BaseExecutor):
         if rc == 0:
             return StepOutput(status=StepStatus.SUCCESS, result=result,
                               evidence=evidence, execution_time=dt)
+        logger.warning(f"命令退出码 {rc}: {(err or '').strip()[:500]}")
         return StepOutput(status=StepStatus.FAILED, error=f"命令退出码 {rc}",
                           result=result, evidence=evidence, execution_time=dt)
 

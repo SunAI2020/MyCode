@@ -33,6 +33,31 @@ tempfile.tempdir = _APP_TEMP_DIR
 logger.info(f"运行时临时目录: {_APP_TEMP_DIR}")
 
 
+def _clean_stale_wal(path: str):
+    """清理崩溃残留的 -shm/-wal 文件。
+
+    -shm 是 WAL 共享内存映射，无持久数据，总是安全移走；
+    -wal 仅在其为空（0 字节，无未落盘事务）时移走，避免丢数据。
+    崩溃进程留下的失效 shm 会让后续连接报 "disk I/O error"。
+    Windows 下被映射的 shm 可能「可重命名但不可删除」，故先删后改名兜底。
+    """
+    import time
+    ts = str(int(time.time() * 1000))
+    for suffix in ('-shm', '-wal'):
+        src = path + suffix
+        if not os.path.exists(src):
+            continue
+        if suffix == '-wal' and os.path.getsize(src) > 0:
+            continue
+        try:
+            os.remove(src)
+        except OSError:
+            try:
+                os.rename(src, f'{src}.stale.{ts}')
+            except OSError:
+                pass
+
+
 def _connect(db_name):
     """创建数据库连接（WAL模式，临时文件定向到D盘）。
 
@@ -56,8 +81,23 @@ def _connect(db_name):
     path = os.path.join(BASE_DIR, db_name)
     conn = sqlite3.connect(path, check_same_thread=False, timeout=30)
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
+    # busy_timeout 必须在 WAL 之前设置，否则锁竞争时 WAL 立即失败而非等待
     conn.execute("PRAGMA busy_timeout=5000")
+    try:
+        conn.execute("PRAGMA journal_mode=WAL")
+    except sqlite3.OperationalError as e:
+        # 崩溃残留的 -shm/-wal 会导致 "disk I/O error"（Windows 下 shm 内存映射失效）。
+        # 关闭连接后清理残留，重连重试；仍失败则回退默认日志模式保证可读写。
+        logger.warning(f"WAL 设置失败({e})，尝试清理残留 shm/wal 后重试: {path}")
+        conn.close()
+        _clean_stale_wal(path)
+        conn = sqlite3.connect(path, check_same_thread=False, timeout=30)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA busy_timeout=5000")
+        try:
+            conn.execute("PRAGMA journal_mode=WAL")
+        except sqlite3.OperationalError:
+            logger.warning("WAL 仍失败，回退默认日志模式")
     # 临时表使用内存，避免写磁盘临时文件
     conn.execute("PRAGMA temp_store=2")  # 2=MEMORY
     # WAL 自动检查点：当WAL超过1MB时自动合并，防止WAL无限增长
@@ -876,6 +916,35 @@ class ThreatIntelDB:
             return c.lastrowid
         except sqlite3.IntegrityError:
             return -1
+
+    def import_weak_passwords_file(self, file_path, usernames=None, source='seclists'):
+        """从密码文件导入弱口令字典，与常见用户名做笛卡尔积写入 weak_passwords 表。
+
+        file_path: 每行一个密码的文本文件（如 SecLists 10k-most-common.txt）。
+        usernames: 常见用户名列表；缺省用内置集合。
+        导入前先清除同 source 的旧条目，保证幂等。
+        """
+        default_usernames = ['admin', 'root', 'sa', 'system', 'postgres', 'oracle',
+                             'scott', 'tomcat', 'guest', 'test', 'user', 'mysql',
+                             'redis', 'ubuntu', 'pi', 'administrator', 'manager']
+        usernames = usernames or default_usernames
+        if not os.path.exists(file_path):
+            logger.warning(f"弱口令字典文件不存在: {file_path}")
+            return 0
+        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            passwords = [line.strip() for line in f if line.strip()]
+        # 去重并限制规模，避免极端字典导致海量插入
+        seen = set()
+        passwords = [p for p in passwords if not (p in seen or seen.add(p))][:10000]
+        c = self.conn.cursor()
+        c.execute('DELETE FROM weak_passwords WHERE source=?', (source,))
+        rows = [(u, p, 'generic', source) for u in usernames for p in passwords]
+        c.executemany(
+            'INSERT INTO weak_passwords (username,password,protocol,source) VALUES (?,?,?,?)',
+            rows)
+        self.conn.commit()
+        logger.info(f"弱口令字典导入完成: {len(rows)} 条 (来自 {file_path})")
+        return len(rows)
 
     # ---- 设置 ----
     def get_setting(self, key, default=None):

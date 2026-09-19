@@ -12,6 +12,8 @@ from datetime import datetime
 from enum import Enum
 from abc import ABC, abstractmethod
 
+from core.capabilities import route_ai_steps
+
 logger = logging.getLogger(__name__)
 
 
@@ -272,14 +274,13 @@ class ExploitWorkflow:
             if callback:
                 callback(i, result)
 
-            # 检查结果
+            # 检查结果：单步失败不终止整条链——AI 规划的步骤多为并行尝试，
+            # 一个服务不可达（如 SSH 22 关闭、docker 未起）不应掐断其余步骤，
+            # 失败在末尾统一汇总（failed_steps / 最终 status）。
             if result.status == StepStatus.FAILED:
+                logger.warning(f"步骤 {i+1} 失败，继续执行后续步骤: {result.output.error}")
                 if step.get("rollback_on_fail", True):
-                    logger.warning(f"步骤 {i+1} 失败，尝试���滚")
                     await self._rollback_step(i, result.output)
-                else:
-                    logger.error(f"步骤 {i+1} 失败，终止工作流")
-                    break
 
         # 计算结果
         end_time = datetime.now()
@@ -322,10 +323,12 @@ class ExploitWorkflow:
     ) -> StepResult:
         """执行单个步骤"""
         step_id = step.get("step_id", f"step_{index+1}")
-        logger.info(f"执行步骤 {index+1}: {step_id}")
+        exploit_type = step.get("exploit_type", "rce")
+        target = step.get("target", "")
+        tool = step.get("tool") or ""
+        logger.info(f"执行步骤 {index+1}: {step_id} [{exploit_type}] tool={tool!r} target={target!r}")
 
         # 准备输入
-        target = step.get("target", "")
         port = context.get(f"{target}_port", 0)
 
         step_input = StepInput(
@@ -336,7 +339,6 @@ class ExploitWorkflow:
         )
 
         # 获取执行器
-        exploit_type = step.get("exploit_type", "rce")
         executor = self.executors.get(exploit_type)
 
         if not executor:
@@ -370,6 +372,11 @@ class ExploitWorkflow:
         try:
             output = await executor.execute(step_input, step)
             logger.info(f"步骤完成: {step_id}, 状态: {output.status}")
+            if output.status == StepStatus.FAILED:
+                rc = None
+                if isinstance(getattr(output, "result", None), dict):
+                    rc = output.result.get("returncode")
+                logger.error(f"步骤 {step_id} 失败: {output.error} (returncode={rc})")
             return StepResult(
                 step_id=step_id,
                 status=output.status,
@@ -456,6 +463,7 @@ class WorkflowBuilder:
             steps.append({
                 "step_id": step.get("step_id", ""),
                 "exploit_type": step.get("exploit_type", "rce"),
+                "tool": step.get("tool", ""),
                 "target": step.get("target", ""),
                 "description": step.get("description", ""),
                 "payload": step.get("payload", ""),
@@ -463,7 +471,8 @@ class WorkflowBuilder:
                 "risk_level": step.get("risk_level", "medium"),
                 "rollback_on_fail": step.get("risk_level") in ["high", "critical"]
             })
-        return steps
+        # 关键词/CVE 兜底路由：修正 AI 输出含糊的 exploit_type / tool
+        return route_ai_steps(steps)
 
     @staticmethod
     def create_manual_workflow(

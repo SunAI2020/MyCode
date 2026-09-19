@@ -70,7 +70,7 @@ class NetworkScanner:
         5601: 'kibana', 50070: 'hadoop', 7077: 'spark', 9092: 'kafka'
     }
 
-    DEFAULT_PORT_LIST = '21-23,25,53,80,110,143,443,445,993,995,1433,1521,3306,3389,5432,5900,6379,8080,8443,27017,2181,9200'
+    DEFAULT_PORT_LIST = '1-1000,3306,3389,5432,6379,8080,8443'
 
     # 服务版本探测指纹
     SERVICE_FINGERPRINTS = {
@@ -301,6 +301,18 @@ class NetworkScanner:
                 if 'hostnames' in nm[host] and nm[host]['hostnames']:
                     host_info['hostname'] = nm[host]['hostnames'][0].get('name', '')
 
+                # MAC / 厂商（来自 ARP 地址信息；回环/跨网段时可能缺失）
+                addrs = nm[host].get('addresses', {})
+                if addrs.get('mac'):
+                    host_info['mac'] = addrs['mac']
+                    vendor_map = nm[host].get('vendor', {})
+                    host_info['vendor'] = vendor_map.get(addrs['mac'], '')
+                # OS 指纹（os_detect=True 且参数含 -O 时才返回）
+                osmatches = nm[host].get('osmatch', [])
+                if osmatches:
+                    host_info['os'] = osmatches[0].get('name', '')
+                    host_info['os_accuracy'] = str(osmatches[0].get('accuracy', ''))
+
                 for proto in ['tcp', 'udp']:
                     if proto in nm[host]:
                         for port, port_info in nm[host][proto].items():
@@ -479,19 +491,24 @@ class VulnScanner:
 
     def scan_target(self, target: str, ports: str = None,
                    scan_type: str = 'quick', weak_pass: bool = False,
-                   zero_day_focus: bool = False) -> Dict[str, Any]:
+                   zero_day_focus: bool = False,
+                   version_detect: bool = True, os_detect: bool = False,
+                   web_scan: bool = False) -> Dict[str, Any]:
         start_time = datetime.now()
 
-        # 根据扫描类型设置参数
-        if scan_type == 'quick':
-            ports = ports or NetworkScanner.DEFAULT_PORT_LIST
-            nmap_args = '-sV -T4'
-        elif scan_type == 'full':
+        # 根据扫描类型设置端口范围，再按选项拼装 Nmap 参数
+        if scan_type == 'full':
             ports = ports or '1-65535'
-            nmap_args = '-sV -sC -T4'
         else:
             ports = ports or NetworkScanner.DEFAULT_PORT_LIST
-            nmap_args = '-sV -T4'
+
+        nmap_args = '-T4'
+        if version_detect:
+            nmap_args += ' -sV'
+        if os_detect:
+            nmap_args += ' -O'
+        if scan_type == 'full':
+            nmap_args += ' -sC'
 
         logger.info(f"VulnScanner开始扫描: {target}, 端口: {ports}")
 
@@ -518,6 +535,43 @@ class VulnScanner:
         if weak_pass:
             weak_findings = self._scan_weak_passwords(
                 scan_result, progress_callback=self.network_scanner.progress_callback)
+
+        # Web 应用主动漏洞扫描（可选）：对 http/https 开放端口执行 DAST 检测，
+        # 结果并入 web_scan_results（结构对齐 web_scan_results 表）。
+        web_scan_results = []
+        if web_scan:
+            try:
+                from web_vuln_scanner import WebVulnScanner
+                web_scanner = WebVulnScanner()
+                for host_info in scan_result.get('hosts', []):
+                    if host_info.get('status') != 'up':
+                        continue
+                    host = host_info.get('ip') or host_info.get('host', '')
+                    for p in host_info.get('ports', []):
+                        if p.get('state') != 'open':
+                            continue
+                        if p.get('protocol', 'tcp') != 'tcp':
+                            continue
+                        svc = (p.get('service', '') or '').lower()
+                        port = p.get('port')
+                        # 端口兜底：即使 -sV 未识别服务名，已知 web 端口也纳入扫描
+                        web_ports = (80, 443, 8080, 8443, 8000, 8888)
+                        if svc not in ('http', 'https', 'http-proxy', 'www') and port not in web_ports:
+                            continue
+                        scheme = 'https' if (svc == 'https' or port in (443, 8443)) else 'http'
+                        url = f'{scheme}://{host}:{port}'
+                        try:
+                            findings = web_scanner.scan(url)
+                        except Exception as e:
+                            logger.warning(f'Web 扫描 {url} 失败: {e}')
+                            continue
+                        for f in findings or []:
+                            f.setdefault('url', url)
+                            f.setdefault('host', host)
+                            f.setdefault('port', port)
+                            web_scan_results.append(f)
+            except ImportError as e:
+                logger.warning(f'Web 扫描模块导入失败，跳过: {e}')
 
         # 多因子风险评分（资产价值×威胁×脆弱性），供去重优先级与报告使用
         try:
@@ -578,6 +632,8 @@ class VulnScanner:
             'dedup_stats': dedup_stats,
             'weak_password_count': len(weak_findings),
             'zero_day_count': zero_day_count,
+            'web_scan_results': web_scan_results,
+            'web_scan_count': len(web_scan_results),
             'summary': self._generate_summary(vulnerabilities)
         }
 
@@ -687,8 +743,13 @@ class VulnScanner:
                         'description': (cve.get('description', '') or '')[:500],
                         'affected_versions': affected_raw[:300],
                         'references_url': (cve.get('references_url', '') or '')[:300],
+                        'patch_link': cve.get('patch_link', '') or '',
+                        'cwe': cve.get('cwe', '') or '',
+                        'match_confidence': cve.get('_match_confidence', ''),
+                        'matched_by': cve.get('_matched_by', ''),
                     })
             else:
+                # 无 CVE 命中（版本未知/无法识别产品）：输出开放服务兜底发现，不再堆 CVE
                 results.append({
                     'host': host, 'port': port,
                     'protocol': port_info.get('protocol', 'tcp'),
@@ -699,6 +760,7 @@ class VulnScanner:
                     'description': f'开放服务: {service} {version or product or ""} (端口{port})',
                     'affected_versions': '',
                     'references_url': '',
+                    'finding_type': 'open_service',
                 })
             return results
 
@@ -830,124 +892,52 @@ class VulnScanner:
 
     def _get_matched_cves(self, service: str, version: str = '', product: str = '',
                           port: int = None) -> List[Dict]:
-        """获取匹配的CVE - 多维度搜索"""
+        """获取匹配的 CVE - 精确匹配（产品名一致 + 版本判定）。
+
+        旧实现为关键词召回，会把无关产品的 CVE 挂到端口上（误报）。现改为：
+        1. version_match.detect_product_key 归一化探测到的产品；
+        2. 按规范键的召回词对 affected_products 做 LIKE 召回候选；
+        3. version_match.cve_applies 逐条严格校验产品名 + 版本，命中才返回，
+           并附带 match_confidence / matched_by。
+        无法识别产品时返回空（由 _match_port 输出 open_service 兜底发现）。
+        """
         if not self.db:
             return []
+        from version_match import detect_product_key, recall_terms, cve_applies
 
-        all_cves = {}
-        search_terms = []
+        key = detect_product_key(product, service)
+        if not key:
+            return []
 
-        # 服务名翻译
-        nmap_service_map = {
-            'msrpc': ['windows rpc', 'microsoft rpc', 'dcom'],
-            'microsoft-ds': ['samba', 'smb', 'microsoft ds', 'cifs'],
-            'ms-wbt-server': ['remote desktop', 'rdp', 'terminal services'],
-            'ms-sql-s': ['sql server', 'mssql', 'microsoft sql'],
-            'netbios-ssn': ['samba', 'netbios', 'smb'],
-            'domain': ['dns', 'bind', 'named'],
-            'http': ['apache', 'nginx', 'iis', 'httpd'],
-            'https': ['openssl', 'apache', 'nginx', 'iis'],
-            'http-proxy': ['tomcat', 'jetty', 'nginx', 'squid'],
-            'mongod': ['mongodb'],
-            'mysql': ['mysql', 'mariadb'],
-            'postgresql': ['postgresql', 'postgres'],
-            'ftp': ['vsftpd', 'proftpd', 'pure-ftpd'],
-            'ssh': ['openssh', 'ssh', 'dropbear'],
-            'smtp': ['sendmail', 'postfix', 'exim'],
-            'pop3': ['pop3', 'dovecot'],
-            'imap': ['imap', 'dovecot', 'cyrus'],
-            'vnc': ['vnc', 'realvnc', 'tightvnc'],
-            'oracle': ['oracle', 'oracledb'],
-            'telnet': ['telnetd', 'telnet'],
-        }
-
-        # 端口→产品映射
-        port_product_map = {
-            135: ['windows rpc', 'dcom', 'msrpc'],
-            139: ['samba', 'smb', 'netbios'],
-            80: ['apache', 'nginx', 'iis', 'httpd'],
-            443: ['openssl', 'apache', 'nginx', 'iis'],
-            8080: ['tomcat', 'jetty', 'apache tomcat', 'glassfish'],
-            3306: ['mysql', 'mariadb', 'percona server'],
-            5432: ['postgresql', 'postgres'],
-            6379: ['redis'],
-            27017: ['mongodb'],
-            9200: ['elasticsearch'],
-            5601: ['kibana'],
-            22: ['openssh', 'ssh', 'dropbear'],
-            445: ['samba', 'smb', 'cifs', 'microsoft ds'],
-            3389: ['remote desktop', 'rdp'],
-            21: ['vsftpd', 'proftpd', 'pure-ftpd', 'ftp'],
-            25: ['sendmail', 'postfix', 'exim'],
-            1433: ['sql server', 'mssql'],
-            1521: ['oracle'],
-        }
-
-        # 收集搜索词
-        if service and service in nmap_service_map:
-            search_terms.extend(nmap_service_map[service])
-        elif service and service != 'unknown':
-            search_terms.append(service)
-
-        if product and product != service:
-            search_terms.append(product)
-
-        if port and port in port_product_map:
-            for term in port_product_map[port]:
-                if term not in search_terms:
-                    search_terms.append(term)
-
-        # 从版本中提取产品名
-        if version:
-            ver_lower = version.lower()
-            product_kws = ['apache', 'nginx', 'openssh', 'mysql', 'mariadb', 'redis',
-                          'mongodb', 'postgresql', 'tomcat', 'iis', 'samba',
-                          'vsftpd', 'proftpd', 'sendmail', 'postfix', 'dovecot',
-                          'elasticsearch', 'kibana', 'docker', 'kubernetes',
-                          'jenkins', 'gitlab', 'wordpress', 'drupal',
-                          'oracle', 'mssql', 'vnc', 'rdp']
-            for kw in product_kws:
-                if kw in ver_lower and kw not in search_terms:
-                    search_terms.append(kw)
-                    break
-
-        # 精确搜索 (affected_products)
-        for term in search_terms:
-            if hasattr(self.db, 'search_cve_by_product'):
-                results = self.db.search_cve_by_product(term, limit=200)
-            else:
-                results = self.db.search_cve(keyword=term, min_cvss=0, limit=200)
-            for cve in results:
+        candidates = {}
+        for term in recall_terms(key):
+            rows = []
+            try:
+                if hasattr(self.db, 'search_cve_by_product'):
+                    rows = self.db.search_cve_by_product(term, limit=300)
+                else:
+                    rows = self.db.search_cve(keyword=term, min_cvss=0, limit=300)
+            except Exception as e:
+                logger.warning(f"CVE 召回失败 (term={term}): {e}")
+                continue
+            for cve in rows:
                 cve_id = cve.get('cve_id', '')
-                if cve_id and cve_id not in all_cves:
-                    all_cves[cve_id] = cve
+                if cve_id and cve_id not in candidates:
+                    candidates[cve_id] = cve
 
-        # 泛搜索 (全部字段, 仅高危)
-        if service and service != 'unknown':
-            results = self.db.search_cve(keyword=service, min_cvss=0, limit=50)
-            for cve in results:
-                cve_id = cve.get('cve_id', '')
-                if cve_id and cve_id not in all_cves:
-                    all_cves[cve_id] = cve
+        matched = []
+        detected_name = product or service
+        for cve in candidates.values():
+            verdict = cve_applies(cve, detected_name, version)
+            if not verdict:
+                continue
+            item = dict(cve)
+            item['_match_confidence'] = verdict['confidence']
+            item['_matched_by'] = verdict['matched_by']
+            matched.append(item)
 
-        # 版本号匹配
-        if version:
-            import re
-            ver_match = re.search(r'(\d+\.\d+(?:\.\d+)?)', version)
-            if ver_match:
-                ver_num = ver_match.group(1)
-                results = self.db.search_cve(keyword=ver_num, min_cvss=0, limit=30)
-                for cve in results:
-                    cve_id = cve.get('cve_id', '')
-                    if cve_id and cve_id not in all_cves:
-                        all_cves[cve_id] = cve
-
-        sorted_cves = sorted(
-            all_cves.values(),
-            key=lambda x: (x.get('cvss_score') or 0),
-            reverse=True
-        )
-        return sorted_cves
+        matched.sort(key=lambda x: (x.get('cvss_score') or 0), reverse=True)
+        return matched
 
     def _flag_zero_day(self, vulnerabilities: List[Dict]) -> int:
         """0day/高危利用风险标记（最高优先级，重点提示）。

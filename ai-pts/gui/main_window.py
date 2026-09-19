@@ -33,10 +33,16 @@ class ScanThread(QThread):
     error = pyqtSignal(str)  # error message
     log_message = pyqtSignal(str)  # log message
 
-    def __init__(self, target: str, ports: str = None, parent=None):
+    def __init__(self, target: str, ports: str = None,
+                 version_detect: bool = True, os_detect: bool = False,
+                 web_scan: bool = False, weak_pass: bool = False, parent=None):
         super().__init__(parent)
         self.target = target
         self.ports = ports
+        self.version_detect = version_detect
+        self.os_detect = os_detect
+        self.web_scan = web_scan
+        self.weak_pass = weak_pass
         self._running = True
 
     def run(self):
@@ -57,18 +63,25 @@ class ScanThread(QThread):
             result = engine.scan_sync(
                 target=self.target,
                 ports=self.ports,
-                version_detect=True
+                version_detect=self.version_detect,
+                os_detect=self.os_detect,
+                web_scan=self.web_scan,
+                weak_pass=self.weak_pass,
             )
 
             self.progress.emit("处理结果...", 80)
 
-            # 转换为字典
+            # 转换为字典（保留完整字段 + web_findings + scan_config，供报告使用）
             result_dict = {
                 "hosts": [
                     {
                         "ip": h.ip,
                         "status": h.status,
-                        "hostname": h.hostname
+                        "hostname": h.hostname,
+                        "mac": h.mac,
+                        "vendor": h.vendor,
+                        "os": h.os,
+                        "os_accuracy": h.os_accuracy,
                     }
                     for h in result.hosts
                 ],
@@ -79,7 +92,8 @@ class ScanThread(QThread):
                         "protocol": s.protocol,
                         "service_name": s.service_name,
                         "product": s.product,
-                        "version": s.version
+                        "version": s.version,
+                        "banner": s.banner,
                     }
                     for s in result.services
                 ],
@@ -91,10 +105,25 @@ class ScanThread(QThread):
                         "cvss_score": v.cvss_score,
                         "product": v.product,
                         "version": v.version,
+                        "cwe_id": v.cwe_id,
+                        "host": v.host,
+                        "port": v.port,
+                        "service": v.service,
+                        "protocol": v.protocol,
+                        "finding_type": v.finding_type,
+                        "affected_versions": v.affected_versions,
+                        "references_url": v.references_url,
+                        "patch_link": v.patch_link,
+                        "match_confidence": v.match_confidence,
+                        "matched_by": v.matched_by,
+                        "evidence": v.evidence,
+                        "remediation": v.remediation,
                     }
                     for v in result.vulnerabilities
                 ],
-                "statistics": result.statistics
+                "statistics": result.statistics,
+                "web_findings": result.web_findings,
+                "scan_config": result.scan_config,
             }
 
             self.progress.emit("完成", 100)
@@ -228,6 +257,7 @@ class ExploitChainThread(QThread):
                         "step_id": s.step_id,
                         "order": s.order,
                         "exploit_type": s.exploit_type,
+                        "tool": s.tool,
                         "target": s.target,
                         "description": s.description,
                         "payload": s.payload,
@@ -249,13 +279,17 @@ class ExploitChainThread(QThread):
                 require_confirmation=False,
                 whitelist=self.whitelist,
             )
+            from core.workflow import resolve_step_targets
             steps = WorkflowBuilder.from_ai_plan(plan_dict)
+            # 与 CLI 路径保持一致：把 AI 的描述性 target 归一化为真实主机 IP
+            steps = resolve_step_targets(steps, self.whitelist)
             wf = orch.build_workflow(plan_dict)
             wf.create_workflow(plan_dict["plan_id"], steps)
             wf_result = asyncio.run(wf.execute({"credentials": self.credentials}))
 
             self.result_ready.emit({
                 "plan": plan_dict,
+                "steps": steps,  # 归一化后的步骤（resolve_step_targets + route_ai_steps 后）
                 "status": wf_result.status.value,
                 "success_steps": wf_result.success_steps,
                 "failed_steps": wf_result.failed_steps,
@@ -285,6 +319,8 @@ class MainWindow(QMainWindow):
         self.ai_thread: Optional[AIAnalysisThread] = None
         self.exploit_thread: Optional[ExploitChainThread] = None
         self.scan_results: dict = {}
+        self.ai_analysis: dict = {}
+        self.attack_results: dict = {}
         self.api_key: str = ""
 
         self.init_ui()
@@ -348,6 +384,12 @@ class MainWindow(QMainWindow):
 
         self.os_check = QCheckBox("OS检测")
         options_layout.addWidget(self.os_check)
+
+        self.web_scan_check = QCheckBox("Web扫描")
+        options_layout.addWidget(self.web_scan_check)
+
+        self.weak_pass_check = QCheckBox("弱口令爆破")
+        options_layout.addWidget(self.weak_pass_check)
         options_layout.addStretch()
 
         target_layout.addLayout(options_layout)
@@ -541,7 +583,13 @@ class MainWindow(QMainWindow):
         self.scan_results = {}
 
         # 启动扫描线程
-        self.scan_thread = ScanThread(target, ports)
+        self.scan_thread = ScanThread(
+            target, ports,
+            version_detect=self.version_check.isChecked(),
+            os_detect=self.os_check.isChecked(),
+            web_scan=self.web_scan_check.isChecked(),
+            weak_pass=self.weak_pass_check.isChecked(),
+        )
         self.scan_thread.progress.connect(self.update_progress)
         self.scan_thread.result_ready.connect(self.on_scan_complete)
         self.scan_thread.error.connect(self.on_scan_error)
@@ -640,6 +688,7 @@ class MainWindow(QMainWindow):
 
     def on_ai_complete(self, result: dict):
         """AI分析完成"""
+        self.ai_analysis = result
         # 更新漏洞树
         self.ai_vuln_tree.clear()
         vulns = result.get("vulnerabilities", [])
@@ -749,6 +798,7 @@ class MainWindow(QMainWindow):
 
     def on_exploit_complete(self, result: dict):
         """攻击链执行完成"""
+        self.attack_results = result
         self.append_log(f"[+] 攻击链执行完成: {result.get('status')}")
         self.append_log(f"    成功 {result.get('success_steps')} 步 / 失败 {result.get('failed_steps')} 步")
         for sr in result.get("step_results", []):
@@ -786,18 +836,56 @@ class MainWindow(QMainWindow):
             self.target_input.setText(",".join(targets))
 
     def export_report(self):
-        """导出报告"""
+        """导出报告（HTML，含完整章节；亦可导出 JSON）"""
         if not self.scan_results:
             QMessageBox.warning(self, "警告", "没有可导出的数据")
             return
 
         file_path, _ = QFileDialog.getSaveFileName(
-            self, "导出报告", "", "JSON文件 (*.json);;HTML文件 (*.html)"
+            self, "导出报告", "", "HTML报告 (*.html);;JSON文件 (*.json)"
         )
-        if file_path:
-            with open(file_path, "w", encoding="utf-8") as f:
-                json.dump(self.scan_results, f, indent=2, ensure_ascii=False)
+        if not file_path:
+            return
+
+        try:
+            from core.report_builder import build_report_context, build_report_html
+
+            # 组装攻击步骤：优先用归一化后的 steps（resolve_step_targets + route_ai_steps
+            # 后的真实 target/tool），与 step_results 按 step_id 合并；无归一化数据时回退 AI 计划。
+            attack_steps = []
+            plan = self.attack_results.get("plan", {})
+            norm_steps = self.attack_results.get("steps") or plan.get("steps", [])
+            sr_map = {sr.get("step_id"): sr for sr in self.attack_results.get("step_results", [])}
+            for s in norm_steps:
+                sr = sr_map.get(s.get("step_id"), {})
+                attack_steps.append({
+                    "step_id": s.get("step_id"),
+                    "order": s.get("order"),
+                    "exploit_type": s.get("exploit_type"),
+                    "tool": s.get("tool"),
+                    "target": s.get("target"),
+                    "description": s.get("description"),
+                    "command": s.get("validation_cmd") or s.get("payload") or "",
+                    "status": sr.get("status", ""),
+                    "error": sr.get("error", ""),
+                    "evidence": sr.get("evidence", []),
+                })
+
+            context = build_report_context(
+                scan_result=self.scan_results,
+                ai_analysis=self.ai_analysis,
+                attack_steps=attack_steps,
+            )
+
+            if file_path.lower().endswith(".json"):
+                with open(file_path, "w", encoding="utf-8") as f:
+                    json.dump(context, f, indent=2, ensure_ascii=False, default=str)
+            else:
+                with open(file_path, "w", encoding="utf-8") as f:
+                    f.write(build_report_html(context))
             QMessageBox.information(self, "完成", f"报告已导出到 {file_path}")
+        except Exception as e:
+            QMessageBox.critical(self, "导出失败", str(e))
 
     def update_vuln_db(self):
         """更新漏洞库"""

@@ -354,17 +354,37 @@ class WeakPasswordScanner:
                  delay_between_attempts: float = 0.5,
                  max_failures_before_break: int = 3):
         self.db = db
+        self._weak_db = None
         self.max_attempts_per_service = max_attempts_per_service
         self.delay = delay_between_attempts
         # 账户锁定规避：连续失败达到阈值即停止该服务，避免触发目标账户锁定
         self.max_failures_before_break = max_failures_before_break
 
+    def _get_weak_db(self):
+        """返回持有弱口令字典的 DB。
+
+        弱口令字典存在 threat_intel.db（ThreatIntelDB），但调用方（如
+        scanner_engine）传入的是 CVEDatabase，二者不同。传入的 db 若无
+        get_weak_passwords 方法，则改用 ThreatIntelDB。
+        """
+        if self.db is not None and hasattr(self.db, 'get_weak_passwords'):
+            return self.db
+        if self._weak_db is None:
+            try:
+                from database import ThreatIntelDB
+                self._weak_db = ThreatIntelDB()
+            except Exception as e:
+                logger.warning(f"初始化弱口令字典库失败: {e}")
+                return None
+        return self._weak_db
+
     def get_credentials(self, protocol: Optional[str] = None) -> List[Dict]:
         """获取弱口令字典（优先 db，回退内置）"""
-        if self.db:
+        db = self._get_weak_db()
+        if db:
             try:
-                creds = self.db.get_weak_passwords(protocol=protocol,
-                                                   limit=self.max_attempts_per_service)
+                creds = db.get_weak_passwords(protocol=protocol,
+                                              limit=self.max_attempts_per_service)
                 if creds:
                     return creds
             except Exception as e:

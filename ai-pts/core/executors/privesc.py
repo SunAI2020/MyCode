@@ -5,6 +5,8 @@
 - LinPEASExecutor：通过 SSH 在目标上执行 LinPEAS/WinPEAS 枚举提权线索
 """
 import logging
+import shutil
+import sys
 from typing import List, Optional
 
 from core.executors.base import ToolExecutor
@@ -44,7 +46,12 @@ class SecretsDumpExecutor(ToolExecutor):
         domain = creds.get("domain") or step_config.get("domain") or ""
 
         user_at = f"{domain}/{username}" if domain else username
-        cmd = ["secretsdump.py"]
+        # impacket 脚本是 Python 源码，Windows 上直接执行会报 WinError 193，
+        # 必须用当前解释器执行脚本全路径（同 getshell.py 的 ImpacketExecExecutor）。
+        script = shutil.which(self.tool_name)
+        if not script:
+            return None
+        cmd = [sys.executable, script]
         if hashes:
             cmd += ["-hashes", hashes]
             target = f"{user_at}@{host}"

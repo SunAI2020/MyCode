@@ -24,6 +24,10 @@ class ScannedHost:
     ip: str
     status: str = "up"
     hostname: str = ""
+    mac: str = ""
+    vendor: str = ""
+    os: str = ""
+    os_accuracy: str = ""
 
 
 @dataclass
@@ -45,6 +49,8 @@ class ScanResult:
     services: List[ScannedService] = field(default_factory=list)
     vulnerabilities: List[Vulnerability] = field(default_factory=list)
     statistics: Dict[str, Any] = field(default_factory=dict)
+    web_findings: List[Dict[str, Any]] = field(default_factory=list)
+    scan_config: Dict[str, Any] = field(default_factory=dict)
 
 
 def _to_vulnerability(v: Dict[str, Any]) -> Optional[Vulnerability]:
@@ -76,6 +82,21 @@ def _to_vulnerability(v: Dict[str, Any]) -> Optional[Vulnerability]:
         cvss_score=cvss_score,
         product=(v.get("product") or ""),
         version=(v.get("version") or ""),
+        cwe_id=(v.get("cwe") or ""),
+        exploit_available=bool(v.get("exploit_available")),
+        host=(v.get("host") or ""),
+        port=(v.get("port") or 0),
+        service=(v.get("service") or ""),
+        protocol=(v.get("protocol") or "tcp"),
+        finding_type=(finding_type or ""),
+        affected_versions=(v.get("affected_versions") or ""),
+        references_url=(v.get("references_url") or ""),
+        patch_link=(v.get("patch_link") or ""),
+        match_confidence=(v.get("match_confidence") or ""),
+        matched_by=(v.get("matched_by") or ""),
+        evidence=(v.get("evidence") or {}),
+        remediation=(v.get("remediation") or {}),
+        raw=v,
     )
 
 
@@ -100,6 +121,7 @@ class ScanEngine:
         weak_pass: bool = False,
         zero_day_focus: bool = False,
         scan_type: str = "quick",
+        web_scan: bool = False,
     ) -> ScanResult:
         """
         执行扫描，返回统一结构的 ScanResult。
@@ -109,6 +131,7 @@ class ScanEngine:
             ports: 端口范围（None 使用引擎默认端口）
             weak_pass: 是否做弱口令爆破（耗时）
             zero_day_focus: 是否做 0day 专项扫描
+            web_scan: 是否做 Web 应用主动漏洞扫描
             scan_type: quick / full
         """
         raw = self._scanner.scan_target(
@@ -117,6 +140,9 @@ class ScanEngine:
             scan_type=scan_type,
             weak_pass=weak_pass,
             zero_day_focus=zero_day_focus,
+            version_detect=version_detect,
+            os_detect=os_detect,
+            web_scan=web_scan,
         )
 
         hosts: List[ScannedHost] = []
@@ -129,6 +155,10 @@ class ScanEngine:
                 ip=ip,
                 status=h.get("status", "up"),
                 hostname=h.get("hostname", ""),
+                mac=h.get("mac", ""),
+                vendor=h.get("vendor", ""),
+                os=h.get("os", ""),
+                os_accuracy=h.get("os_accuracy", ""),
             ))
             for p in h.get("ports", []):
                 if p.get("state") not in (None, "", "open"):
@@ -152,6 +182,8 @@ class ScanEngine:
             if vuln is not None
         ]
 
+        web_findings = raw.get("web_scan_results") or []
+
         statistics = {
             "host_count": len(hosts),
             "service_count": len(services),
@@ -159,8 +191,23 @@ class ScanEngine:
             "zero_day_count": raw.get("zero_day_count", 0),
             "weak_password_count": raw.get("weak_password_count", 0),
             "honeypot_count": raw.get("honeypot_count", 0),
+            "web_finding_count": len(web_findings),
             "duration": raw.get("duration", 0),
             "summary": raw.get("summary", {}),
+        }
+
+        scan_config = {
+            "target": target,
+            "ports": ports or "",
+            "version_detect": version_detect,
+            "os_detect": os_detect,
+            "weak_pass": weak_pass,
+            "zero_day_focus": zero_day_focus,
+            "web_scan": web_scan,
+            "scan_type": scan_type,
+            "start_time": raw.get("start_time", ""),
+            "end_time": raw.get("end_time", ""),
+            "duration": raw.get("duration", 0),
         }
 
         result = ScanResult(
@@ -168,6 +215,8 @@ class ScanEngine:
             services=services,
             vulnerabilities=vulnerabilities,
             statistics=statistics,
+            web_findings=web_findings,
+            scan_config=scan_config,
         )
         self.last_result = result
         return result

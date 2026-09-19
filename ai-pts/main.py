@@ -85,13 +85,16 @@ class AIPTSystem:
         )
         logger.info("渗透编排器已初始化")
 
-    def scan(self, target: str, ports: str = None) -> dict:
+    def scan(self, target: str, ports: str = None, web_scan: bool = False,
+             weak_pass: bool = False) -> dict:
         """
         执行扫描
 
         Args:
             target: 扫描目标
             ports: 端口范围
+            web_scan: 是否做 Web 应用主动漏洞扫描
+            weak_pass: 是否做弱口令爆破
 
         Returns:
             dict: 扫描结果
@@ -102,7 +105,8 @@ class AIPTSystem:
         try:
             from core.scanner import create_engine
             scanner = create_engine()
-            result = scanner.scan_sync(target=target, ports=ports)
+            result = scanner.scan_sync(target=target, ports=ports,
+                                       web_scan=web_scan, weak_pass=weak_pass)
             self.scan_results = result
             logger.info(f"扫描完成: {len(result.hosts)} 主机, {len(result.services)} 服务")
             return result
@@ -168,8 +172,11 @@ class AIPTSystem:
                     "step_id": s.step_id,
                     "order": s.order,
                     "exploit_type": s.exploit_type,
+                    "tool": s.tool,
                     "target": s.target,
                     "description": s.description,
+                    "payload": s.payload,
+                    "validation_cmd": s.validation_cmd,
                     "risk_level": s.risk_level,
                     "success_probability": s.success_probability
                 }
@@ -393,6 +400,9 @@ def main():
     parser.add_argument("--plan", action="store_true", help="规划攻击路径")
     parser.add_argument("--execute", action="store_true",
                         help="执行攻击链（需配合 --plan；依赖 tools 白名单，未配置将 fail-closed）")
+    parser.add_argument("--web-scan", action="store_true", help="执行 Web 应用主动漏洞扫描")
+    parser.add_argument("--weak-pass", action="store_true", help="执行弱口令爆破")
+    parser.add_argument("--report", action="store_true", help="生成 HTML 渗透测试报告")
     parser.add_argument("-v", "--verbose", action="store_true", help="详细输出")
     args = parser.parse_args()
 
@@ -413,7 +423,8 @@ def main():
         system.initialize()
 
         # 扫描
-        result = system.scan(args.target, args.ports)
+        result = system.scan(args.target, args.ports,
+                             web_scan=args.web_scan, weak_pass=args.weak_pass)
         if not result:
             print("扫描失败")
             return
@@ -467,6 +478,12 @@ def main():
                 for r in wf_result.step_results:
                     detail = f" - {r.output.error}" if r.output.error else ""
                     print(f"  [{r.status.value}] {r.step_id}{detail}")
+
+        if args.report:
+            from core.report_builder import build_report_context, save_report
+            ctx = build_report_context(scan_result=system.scan_results)
+            path = save_report(ctx, output_dir="reports")
+            print(f"报告已导出: {path}")
 
     else:
         # 交互模式

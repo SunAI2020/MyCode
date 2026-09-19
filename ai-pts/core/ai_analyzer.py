@@ -17,6 +17,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 
+from core.capabilities import build_capability_prompt
+
 logger = logging.getLogger(__name__)
 
 
@@ -118,6 +120,20 @@ class Vulnerability:
     cwe_id: str = ""
     exploit_available: bool = False
     patch_available: bool = True
+    # 富化字段（自 vendor 引擎透传，供报告使用）
+    host: str = ""
+    port: int = 0
+    service: str = ""
+    protocol: str = "tcp"
+    finding_type: str = ""
+    affected_versions: str = ""
+    references_url: str = ""
+    patch_link: str = ""
+    match_confidence: str = ""
+    matched_by: str = ""
+    evidence: Dict = field(default_factory=dict)
+    remediation: Dict = field(default_factory=dict)
+    raw: Dict = field(default_factory=dict)
 
 
 @dataclass
@@ -132,6 +148,7 @@ class ExploitStep:
     validation_cmd: str = ""
     risk_level: str = "medium"
     success_probability: float = 0.5
+    tool: str = ""  # 具体模块名（msf）或 impacket 方法名（rce），其余留空
 
 
 @dataclass
@@ -284,7 +301,11 @@ class AIAnalyzer:
         try:
             response = self.client.messages.create(
                 model=self.model,
-                max_tokens=4096,
+                max_tokens=16384,
+                # 推理模型（如 deepseek-v4-pro）默认开启 thinking，会把 max_tokens
+                # 全部用于思考、正文为空导致 JSON 解析失败。这里显式禁用 thinking，
+                # 让模型直接输出正文；同时放大 max_tokens 避免 300+ 漏洞的 JSON 被截断。
+                thinking={"type": "disabled"},
                 system=[{"type": "text", "text": self.SYSTEM_PROMPT}],
                 messages=[{"role": "user", "content": prompt}]
             )
@@ -327,11 +348,16 @@ class AIAnalyzer:
         # 构建输入数据
         plan_input = self._build_planning_input(services, vulns, target_goal)
 
+        capability_list = build_capability_prompt()
+
         prompt = f"""基于以下扫描结果，请规划从初始入口到目标的渗透攻击路径：
 
 {plan_input}
 
 目标: {target_goal}
+
+可用 exploit_type 及其对应工具（只使用清单内的值）：
+{capability_list}
 
 请以JSON格式返回详细的攻击计划：
 {{
@@ -343,10 +369,11 @@ class AIAnalyzer:
         {{
             "step_id": "step_1",
             "order": 1,
-            "exploit_type": "rce/sql_injection/privesc",
+            "exploit_type": "msf/rce/privesc/...（仅限上面清单）",
+            "tool": "具体模块名或方法名：msf 填模块路径（如 exploit/windows/smb/ms17_010_eternalblue），rce 填 wmiexec.py/psexec.py/smbexec.py/atexec.py 之一，其余留空",
             "target": "目标服务",
             "description": "步骤描述",
-            "payload": "示例payload（不执行，仅���分��）",
+            "payload": "示例payload（不执行，仅用于分析）",
             "validation_cmd": "验证命令",
             "risk_level": "high",
             "success_probability": 0.8
@@ -361,7 +388,8 @@ class AIAnalyzer:
         try:
             response = self.client.messages.create(
                 model=self.model,
-                max_tokens=4096,
+                max_tokens=8192,
+                thinking={"type": "disabled"},
                 system=[{"type": "text", "text": self.SYSTEM_PROMPT}],
                 messages=[{"role": "user", "content": prompt}]
             )
@@ -381,7 +409,8 @@ class AIAnalyzer:
                     payload=step_data.get("payload", ""),
                     validation_cmd=step_data.get("validation_cmd", ""),
                     risk_level=step_data.get("risk_level", "medium"),
-                    success_probability=step_data.get("success_probability", 0.5)
+                    success_probability=step_data.get("success_probability", 0.5),
+                    tool=step_data.get("tool", "")
                 ))
 
             return ExploitPlan(
@@ -442,6 +471,7 @@ class AIAnalyzer:
             response = self.client.messages.create(
                 model=self.model,
                 max_tokens=2048,
+                thinking={"type": "disabled"},
                 system=[{"type": "text", "text": "你是一名安全专家，提供防御建议而非攻击工具。"}],
                 messages=[{"role": "user", "content": prompt}]
             )
@@ -488,6 +518,7 @@ CVE: {vuln.cve_id}
             response = self.client.messages.create(
                 model=self.model,
                 max_tokens=1024,
+                thinking={"type": "disabled"},
                 messages=[{"role": "user", "content": prompt}]
             )
 
@@ -533,6 +564,7 @@ CVE: {vuln.cve_id}
             response = self.client.messages.create(
                 model=self.model,
                 max_tokens=2048,
+                thinking={"type": "disabled"},
                 messages=[{"role": "user", "content": prompt}]
             )
 
@@ -606,8 +638,48 @@ CVE: {vuln.cve_id}
                 return block.text
         return ""
 
+    @staticmethod
+    def _strip_trailing_commas(text: str) -> str:
+        """去除对象/数组末尾的尾逗号（LLM 常见 JSON 错误，如 {"a":1,}）。"""
+        out = []
+        in_str = False
+        esc = False
+        n = len(text)
+        i = 0
+        while i < n:
+            c = text[i]
+            if in_str:
+                out.append(c)
+                if esc:
+                    esc = False
+                elif c == "\\":
+                    esc = True
+                elif c == '"':
+                    in_str = False
+                i += 1
+                continue
+            if c == '"':
+                in_str = True
+                out.append(c)
+                i += 1
+                continue
+            if c == ",":
+                j = i + 1
+                while j < n and text[j] in " \t\r\n":
+                    j += 1
+                if j < n and text[j] in "}]":
+                    i += 1  # 丢弃这个尾逗号
+                    continue
+            out.append(c)
+            i += 1
+        return "".join(out)
+
     def _parse_json_response(self, text: str) -> Dict:
         """解析JSON响应"""
+        # 空正文时抛异常，让上层走 _fallback_analysis/_fallback_plan，
+        # 而不是返回空 dict 导致「分析成功但 0 漏洞」。
+        if not text or not text.strip():
+            raise ValueError("AI 返回内容为空（推理模型 thinking 可能耗尽 token）")
         try:
             # 尝试提取JSON块
             if "```json" in text:
@@ -619,10 +691,17 @@ CVE: {vuln.cve_id}
                 end = text.rfind("}") + 1
                 text = text[start:end]
 
-            return json.loads(text.strip())
+            text = text.strip()
+            try:
+                return json.loads(text)
+            except json.JSONDecodeError:
+                # 去尾逗号后重试一次，兼容 LLM 常见的尾逗号错误
+                return json.loads(self._strip_trailing_commas(text).strip())
         except json.JSONDecodeError as e:
+            # 解析彻底失败时抛异常，让上层走确定性 fallback（_fallback_analysis/
+            # _fallback_plan），而不是静默返回空 dict 导致「分析成功但 0 漏洞/0 步骤」。
             logger.warning(f"JSON解析失败: {e}")
-            return {}
+            raise ValueError(f"AI 返回非法 JSON: {e}")
 
     def _fallback_analysis(
         self,

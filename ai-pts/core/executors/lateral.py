@@ -6,6 +6,7 @@
 - MimikatzExecutor：Mimikatz 凭据抓取（高危、强杀，慎用）
 """
 import logging
+import shutil
 from typing import List, Optional
 
 from core.executors.base import ToolExecutor
@@ -14,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class NetExecExecutor(ToolExecutor):
-    """netexec 横向 / 密码喷洒"""
+    """netexec 横向 / 密码喷洒（本机无 nxc 时回退 WSL 里的 nxc）"""
 
     def __init__(
         self,
@@ -24,6 +25,7 @@ class NetExecExecutor(ToolExecutor):
         whitelist=None,
         allow_all: bool = False,
         confirm_callback=None,
+        wsl_bin: str = "nxc",
     ):
         super().__init__(
             tool_name="nxc",
@@ -34,6 +36,11 @@ class NetExecExecutor(ToolExecutor):
             confirm_callback=confirm_callback,
         )
         self.protocol = protocol
+        self.wsl_bin = wsl_bin
+
+    def _tool_available(self, tool: str = None) -> bool:
+        # 本机有 nxc 直接用；否则有 wsl 就用 WSL 里的 nxc
+        return shutil.which("nxc") is not None or shutil.which("wsl") is not None
 
     def build_command(self, step_input, step_config) -> Optional[List[str]]:
         host = self._extract_host(step_input.target)
@@ -46,14 +53,19 @@ class NetExecExecutor(ToolExecutor):
         protocol = step_config.get("protocol") or self.protocol
         module = step_config.get("module") or "shares"
 
-        cmd = ["nxc", protocol, host]
+        args = [protocol, host]
         if username:
-            cmd += ["-u", username]
+            args += ["-u", username]
         if password:
-            cmd += ["-p", password]
+            args += ["-p", password]
         if module:
-            cmd += ["-M", module]
-        return cmd
+            args += ["-M", module]
+
+        # 本机无 nxc 但有 wsl 时，经 wsl 调用（args 作为独立 argv 传入，无 shell 转义问题）
+        use_wsl = shutil.which("nxc") is None and shutil.which("wsl") is not None
+        if use_wsl:
+            return ["wsl", "--", self.wsl_bin] + args
+        return ["nxc"] + args
 
 
 class BloodHoundCollector(ToolExecutor):

@@ -10,6 +10,7 @@ from typing import Optional, List, Dict, Callable
 
 from core.scanner import create_engine, ScanResult
 from core.ai_analyzer import create_analyzer, ScannedService
+from core.capabilities import MANUAL_TYPES
 from core.workflow import create_workflow, WorkflowBuilder, ManualReviewExecutor, resolve_step_targets
 from core.executors.getshell import ImpacketExecExecutor, MSFGetShellExecutor
 from core.executors.privesc import SecretsDumpExecutor, LinPEASExecutor
@@ -75,6 +76,7 @@ class PenTestOrchestrator:
                 {
                     "step_id": s.step_id,
                     "exploit_type": s.exploit_type,
+                    "tool": s.tool,
                     "target": s.target,
                     "description": s.description,
                     "payload": s.payload,
@@ -102,7 +104,7 @@ class PenTestOrchestrator:
         wf.executors.register("bloodhound", BloodHoundCollector(**kw))
         wf.executors.register("credential_dump", MimikatzExecutor(**kw))
         # 暂无自动化专项工具的漏洞类型：标记需人工验证，避免占位符静默空跑或无执行器中断链
-        for t in ("sql_injection", "xss", "auth_bypass", "info_disclosure"):
+        for t in MANUAL_TYPES:
             wf.executors.register(t, ManualReviewExecutor())
         return wf
 

@@ -220,9 +220,14 @@ class VulnMatcher:
                         'description': (cve.get('description', '') or '')[:500],
                         'affected_versions': affected_raw[:300],
                         'references_url': (cve.get('references_url', '') or '')[:300],
-                        'kev': is_kev
+                        'kev': is_kev,
+                        'patch_link': cve.get('patch_link', '') or '',
+                        'cwe': cve.get('cwe', '') or '',
+                        'match_confidence': cve.get('_match_confidence', ''),
+                        'matched_by': cve.get('_matched_by', ''),
                     })
             else:
+                # 无 CVE 命中（版本未知/无法识别产品）：输出开放服务兜底发现，不再堆 CVE
                 vulnerabilities.append({
                     'host': host, 'port': port,
                     'protocol': port_info.get('protocol', 'tcp'),
@@ -233,186 +238,52 @@ class VulnMatcher:
                     'description': f'开放服务: {service} {version or product or ""} (端口{port})',
                     'affected_versions': '',
                     'references_url': '',
-                    'kev': False
+                    'kev': False,
+                    'finding_type': 'open_service',
                 })
         return vulnerabilities
 
     def _match_cve(self, service, version='', product='', port=None):
-        """智能CVE匹配 - 多维度搜索，优先精确匹配，过滤低相关度结果"""
+        """智能CVE匹配 - 精确匹配（产品名一致 + 版本判定）。
+
+        旧实现为关键词召回（对 affected_products/description 做 LIKE + 版本号全文搜索），
+        会把 Symantec/Palo Alto/RabbitMQ 等无关产品的 CVE 挂到 msrpc/redis 端口，产生误报。
+        现改为：1) version_match.detect_product_key 归一化产品；2) 按召回词 LIKE 召回候选；
+        3) version_match.cve_applies 严格校验产品名 + 版本，命中才返回。
+        无法识别产品时返回空（由 match_vulnerabilities 输出 open_service 兜底）。
+        """
         if not self.db:
             return []
+        from version_match import detect_product_key, recall_terms, cve_applies
 
-        all_cves = {}
-        search_terms = []       # 精确产品名称 → 搜索affected_products
-        generic_terms = []      # 通用服务名 → 仅在高CVSS时使用
+        key = detect_product_key(product, service)
+        if not key:
+            return []
 
-        # 1. 从版本字符串提取具体产品名
-        if version:
-            ver_lower = version.lower()
-            product_keywords = {
-                'apache': ['apache', 'httpd', 'apache2', 'libapache2'],
-                'nginx': ['nginx'],
-                'openssh': ['openssh', 'ssh'],
-                'mysql': ['mysql', 'mysqld'],
-                'mariadb': ['mariadb', 'mariadb-server'],
-                'redis': ['redis', 'redis-server'],
-                'mongodb': ['mongodb', 'mongod'],
-                'postgresql': ['postgresql', 'postgres'],
-                'tomcat': ['tomcat', 'catalina', 'apache-tomcat'],
-                'iis': ['microsoft iis', 'internet information'],
-                'node.js': ['node.js', 'nodejs'],
-                'python': ['python', 'cpython'],
-                'php': ['php'],
-                'samba': ['samba', 'smbd', 'nmbd'],
-                'vsftpd': ['vsftpd'],
-                'proftpd': ['proftpd'],
-                'sendmail': ['sendmail'],
-                'postfix': ['postfix'],
-                'dovecot': ['dovecot'],
-                'bind': ['bind', 'named'],
-                'exim': ['exim'],
-                'elasticsearch': ['elasticsearch'],
-                'kibana': ['kibana'],
-                'logstash': ['logstash'],
-                'docker': ['docker', 'docker-engine'],
-                'kubernetes': ['kubernetes', 'kube-apiserver', 'kubelet'],
-                'jenkins': ['jenkins'],
-                'gitlab': ['gitlab'],
-                'wordpress': ['wordpress'],
-                'drupal': ['drupal'],
-                'rabbitmq': ['rabbitmq'],
-                'memcached': ['memcached'],
-                'java': ['java', 'jre', 'jdk', 'openjdk'],
-                'django': ['django'],
-                'flask': ['flask'],
-                'spring': ['spring', 'spring-boot', 'spring-framework'],
-                'laravel': ['laravel'],
-                'oracle': ['oracle database', 'oracledb'],
-                'mssql': ['sql server', 'mssql'],
-                'vnc': ['vnc', 'realvnc', 'tightvnc'],
-                'rdp': ['remote desktop', 'rdp', 'rdesktop'],
-                'telnet': ['telnet'],
-            }
-            for kw, targets in product_keywords.items():
-                if kw in ver_lower:
-                    search_terms.extend(targets)
-                    break  # 每个版本只匹配一类产品
-
-        # 2. 按产品名搜索
-        if product and product != service:
-            search_terms.append(product)
-
-        # 3. Nmap服务名 → CVE关键词翻译
-        nmap_service_map = {
-            'msrpc': ['windows rpc', 'microsoft rpc', 'dcom'],
-            'epmap': ['windows rpc', 'microsoft rpc'],
-            'microsoft-ds': ['samba', 'smb', 'microsoft ds', 'cifs'],
-            'netbios-ssn': ['samba', 'netbios', 'smb'],
-            'ms-wbt-server': ['remote desktop', 'rdp', 'terminal services'],
-            'ms-sql-s': ['sql server', 'mssql', 'microsoft sql'],
-            'domain': ['dns', 'bind', 'named'],
-            'http': ['apache', 'nginx', 'iis', 'httpd'],
-            'https': ['openssl', 'apache', 'nginx', 'iis'],
-            'http-proxy': ['tomcat', 'jetty', 'nginx', 'squid'],
-            'https-alt': ['openssl', 'tomcat', 'glassfish'],
-            'dhcp': ['dhcp', 'dhcpd'],
-            'snmp': ['snmp', 'snmpd'],
-            'ldap': ['openldap', 'ldap'],
-            'kerberos-sec': ['kerberos', 'krb5'],
-            'pop3': ['pop3', 'dovecot'],
-            'imap': ['imap', 'dovecot', 'cyrus'],
-            'imaps': ['imap', 'dovecot'],
-            'pop3s': ['pop3', 'dovecot'],
-            'smtp': ['sendmail', 'postfix', 'exim'],
-            'smtps': ['sendmail', 'postfix', 'exim'],
-            'mongod': ['mongodb'],
-            'mysql': ['mysql', 'mariadb'],
-            'postgresql': ['postgresql', 'postgres'],
-            'oracle': ['oracle', 'oracledb'],
-            'vnc': ['vnc', 'realvnc', 'tightvnc'],
-            'telnet': ['telnetd', 'telnet'],
-            'ftp': ['vsftpd', 'proftpd', 'pure-ftpd'],
-            'ssh': ['openssh', 'ssh', 'dropbear'],
-            'nfs': ['nfs', 'nfsd'],
-            'rpcbind': ['rpcbind'],
-        }
-        if service and service in nmap_service_map:
-            search_terms.extend(nmap_service_map[service])
-        elif service and service != 'unknown':
-            # 未在表中的服务名直接使用
-            search_terms.append(service)
-
-        # 4. 知名端口 → 特定产品映射
-        port_specific_map = {
-            135: ['windows rpc', 'dcom', 'msrpc', 'rpcss'],
-            139: ['samba', 'smb', 'netbios'],
-            80: ['apache', 'nginx', 'iis', 'caddy', 'lighttpd', 'apache2'],
-            443: ['openssl', 'apache', 'nginx', 'iis', 'caddy'],
-            8080: ['tomcat', 'jetty', 'apache-tomcat', 'glassfish', 'wildfly'],
-            3306: ['mysql', 'mariadb', 'mariadb-server', 'percona-server'],
-            5432: ['postgresql', 'postgres'],
-            6379: ['redis'],
-            27017: ['mongodb', 'mongod'],
-            9200: ['elasticsearch'],
-            5601: ['kibana'],
-            3389: ['remote desktop', 'rdesktop'],
-            22: ['openssh', 'ssh', 'dropbear'],
-            445: ['samba', 'smb', 'cifs'],
-            25: ['sendmail', 'postfix', 'exim'],
-            1433: ['sql server', 'mssql'],
-            1521: ['oracle'],
-            21: ['vsftpd', 'proftpd', 'pure-ftpd', 'ftp'],
-        }
-        if port and port in port_specific_map:
-            for term in port_specific_map[port]:
-                if term not in search_terms:
-                    search_terms.append(term)
-
-        # 4. 第一阶段: 精确搜索 affected_products（高质量匹配）
-        for term in search_terms:
-            results = self.db.search_cve_by_product(term, limit=200)
-            for cve in results:
+        candidates = {}
+        for term in recall_terms(key):
+            try:
+                rows = self.db.search_cve_by_product(term, limit=300)
+            except Exception:
+                continue
+            for cve in rows:
                 cve_id = cve.get('cve_id', '')
-                if cve_id and cve_id not in all_cves:
-                    all_cves[cve_id] = cve
+                if cve_id and cve_id not in candidates:
+                    candidates[cve_id] = cve
 
-        # 5. 第二阶段: 用服务名搜索 affected_products（比全文搜索更精确）
-        if service and service != 'unknown':
-            results = self.db.search_cve_by_product(service, limit=100)
-            for cve in results:
-                cve_id = cve.get('cve_id', '')
-                if cve_id and cve_id not in all_cves:
-                    all_cves[cve_id] = cve
+        matched = []
+        detected_name = product or service
+        for cve in candidates.values():
+            verdict = cve_applies(cve, detected_name, version)
+            if not verdict:
+                continue
+            item = dict(cve)
+            item['_match_confidence'] = verdict['confidence']
+            item['_matched_by'] = verdict['matched_by']
+            matched.append(item)
 
-        # 6. 版本号精确匹配 - 搜索受影响产品和描述中包含版本号的CVE
-        if version:
-            import re
-            ver_match = re.search(r'(\d+\.\d+(?:\.\d+)?)', version)
-            if ver_match:
-                ver_num = ver_match.group(1)
-                # 使用更精确的搜索: 产品名+版本号组合
-                for term in search_terms[:5]:
-                    combined = f'{term} {ver_num}'
-                    results = self.db.search_cve_by_product(combined, limit=30)
-                    for cve in results:
-                        cve_id = cve.get('cve_id', '')
-                        if cve_id and cve_id not in all_cves:
-                            all_cves[cve_id] = cve
-
-                # 仅搜索版本号（作为补充）
-                results = self.db.search_cve(keyword=ver_num, min_cvss=0, limit=30)
-                for cve in results:
-                    cve_id = cve.get('cve_id', '')
-                    if cve_id and cve_id not in all_cves:
-                        all_cves[cve_id] = cve
-
-        # 按CVSS评分降序排列
-        sorted_cves = sorted(
-            all_cves.values(),
-            key=lambda x: (x.get('cvss_score') or 0),
-            reverse=True
-        )
-        return sorted_cves
+        matched.sort(key=lambda x: (x.get('cvss_score') or 0), reverse=True)
+        return matched
 
 
 def ai_analyze_threat_data(results: Dict, db=None) -> Dict:

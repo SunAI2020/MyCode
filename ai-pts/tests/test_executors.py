@@ -8,6 +8,7 @@
 - 人工确认闸门（require_confirmation + confirm_callback）
 """
 import asyncio
+import shutil
 import sys
 import unittest
 from pathlib import Path
@@ -72,8 +73,18 @@ class TestBuildCommands(unittest.TestCase):
     def test_impacket_command(self):
         ex = ImpacketExecExecutor(method="wmiexec.py")
         cmd = ex.build_command(_input(credentials={"username": "admin", "password": "P@ss"}), {})
-        self.assertEqual(cmd[0], "wmiexec.py")
+        # WinError 193 修复后：用解释器执行脚本全路径，而非直接跑 .py
+        self.assertEqual(cmd[0], sys.executable)
+        self.assertTrue(cmd[1].endswith("wmiexec.py"))
         self.assertIn("admin:P@ss@10.0.0.1", cmd)
+
+    def test_impacket_tool_override(self):
+        ex = ImpacketExecExecutor(method="wmiexec.py")
+        cmd = ex.build_command(
+            _input(credentials={"username": "admin", "password": "P@ss"}),
+            {"tool": "psexec.py"},
+        )
+        self.assertTrue(cmd[1].endswith("psexec.py"))
 
     def test_secretsdump_hashes(self):
         ex = SecretsDumpExecutor()
@@ -81,7 +92,8 @@ class TestBuildCommands(unittest.TestCase):
             _input(credentials={"username": "admin", "hashes": "aad3b435b51404ee:0x00"}),
             {},
         )
-        self.assertEqual(cmd[0], "secretsdump.py")
+        self.assertEqual(cmd[0], sys.executable)
+        self.assertTrue(cmd[1].endswith("secretsdump.py"))
         self.assertIn("-hashes", cmd)
 
     def test_linpeas_command(self):
@@ -107,12 +119,38 @@ class TestBuildCommands(unittest.TestCase):
             {"exploit": "exploit/multi/handler", "payload": "windows/meterpreter/reverse_tcp"},
         )
         self.assertIsNotNone(cmd)
-        self.assertEqual(cmd[0], "msfconsole")
+        self.assertIn(cmd[0], ("msfconsole", "docker"))
+        self.assertIn("use exploit/multi/handler", cmd[-1])
+        self.assertIn("set RHOSTS 10.0.0.1", cmd[-1])
+
+    def test_msf_docker_localhost_translated(self):
+        if shutil.which("msfconsole"):
+            self.skipTest("本机有原生 msfconsole，跳过 docker 映射测试")
+        ex = MSFGetShellExecutor()
+        cmd = ex.build_command(_input(target="127.0.0.1"), {"exploit": "exploit/multi/handler"})
+        self.assertIsNotNone(cmd)
+        self.assertIn("set RHOSTS host.docker.internal", cmd[-1])
+
+    def test_msf_tool_module(self):
+        ex = MSFGetShellExecutor()
+        cmd = ex.build_command(
+            _input(),
+            {"tool": "exploit/windows/smb/ms17_010_eternalblue"},
+        )
+        self.assertIsNotNone(cmd)
+        self.assertIn("use exploit/windows/smb/ms17_010_eternalblue", " ".join(cmd))
+
+    def test_msf_tool_rejects_injection(self):
+        # tool 字段走与 exploit 相同的 _MSF_NAME_RE 校验，拒绝命令注入字符
+        ex = MSFGetShellExecutor()
+        cmd = ex.build_command(_input(), {"tool": "exploit/multi/handler; rm -rf /"})
+        self.assertIsNone(cmd)
 
     def test_netexec_command(self):
         ex = NetExecExecutor()
         cmd = ex.build_command(_input(credentials={"username": "admin", "password": "P@ss"}), {})
-        self.assertEqual(cmd[0], "nxc")
+        # 本机无 nxc 但装 WSL 时，经 wsl 调用
+        self.assertIn(cmd[0], ("nxc", "wsl"))
         self.assertIn("-u", cmd)
         self.assertIn("admin", cmd)
 
