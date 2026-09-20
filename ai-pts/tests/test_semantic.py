@@ -61,10 +61,34 @@ def test_verify_no_llm_unverified():
     assert out[0]["verify_status"] == "unverified"
 
 
-def test_verify_string_false_is_unverified():
-    """字符串 "false" 不是合法布尔，回退 unverified（不误判）。"""
-    def llm(system, user):
+def test_verify_string_bool_not_trusted():
+    """字符串布尔 "true"/"false" 不作权威判定，回退 unverified（只信任原生 bool）。"""
+    def llm_false(system, user):
         return [{"index": 0, "is_real": "false", "confidence": "low", "reason": "x"}]
+
+    out = SemanticVerifier(llm_false).verify([{"id": 1}])
+    assert out[0]["verify_status"] == "unverified"
+
+    def llm_true(system, user):
+        return [{"index": 0, "is_real": "true", "confidence": "high", "reason": "x"}]
+
+    out2 = SemanticVerifier(llm_true).verify([{"id": 1}])
+    assert out2[0]["verify_status"] == "unverified"
+
+
+def test_verify_string_index_coerced():
+    """字符串下标 "0" 归一化为 int，正常回填（index 仅定位、非安全判定）。"""
+    def llm(system, user):
+        return [{"index": "0", "is_real": True, "confidence": "high", "reason": "r"}]
+
+    out = SemanticVerifier(llm).verify([{"id": 1}])
+    assert out[0]["verify_status"] == "confirmed"
+
+
+def test_verify_unparseable_bool_unverified():
+    """无法归一的布尔值（如 "maybe"）仍回退 unverified，不误判。"""
+    def llm(system, user):
+        return [{"index": 0, "is_real": "maybe", "confidence": "low", "reason": "x"}]
 
     out = SemanticVerifier(llm).verify([{"id": 1}])
     assert out[0]["verify_status"] == "unverified"

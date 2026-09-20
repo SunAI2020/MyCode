@@ -15,7 +15,9 @@ import json
 from typing import Callable, Dict, List, Optional
 
 # 预验证默认批大小：一次 LLM 调用最多判定的 finding 数，避免逐条串行调用导致慢/限流。
-DEFAULT_BATCH_SIZE = 200
+# 不宜过大：批越大 LLM 需输出的 verdict 数组越长，超过 max_tokens 会被截断导致整批解析失败
+# 回退为全 unverified。30 条一档在 4096 token 输出上限内足够安全。
+DEFAULT_BATCH_SIZE = 30
 
 # 提示注入迹象：finding 文本（可能来自攻击者可控的 banner/响应）中出现这些标记时，
 # 该条直接标 unverified，既不采信 LLM（防被注入诱导误判），也不误删真阳性。
@@ -99,7 +101,7 @@ class SemanticVerifier:
                     elif is_real is False:
                         f["verify_status"] = "rejected"
                     else:
-                        # 字符串 "false"/缺失/异常类型 → 无法确定，回退不误判
+                        # 字符串/数字/缺失/异常类型 → 无法确定，回退不误判（只信任原生布尔）
                         f["verify_status"] = "unverified"
                     f["verify_confidence"] = v.get("confidence", "")
                     f["verify_reason"] = v.get("reason", "")
@@ -125,8 +127,14 @@ class SemanticVerifier:
             return {}
         verdicts: Dict[int, Dict] = {}
         for item in result:
-            if isinstance(item, dict) and isinstance(item.get("index"), int):
-                verdicts[item["index"]] = item
+            if not isinstance(item, dict):
+                continue
+            idx = item.get("index")
+            # 宽容 index：LLM 常把下标写成字符串 "0"，这里归一化为 int 再回填
+            if isinstance(idx, str) and idx.strip().isdigit():
+                idx = int(idx.strip())
+            if isinstance(idx, int):
+                verdicts[idx] = item
         return verdicts
 
 

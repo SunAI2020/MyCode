@@ -427,11 +427,11 @@ class SemanticVerifyThread(QThread):
     result_ready = pyqtSignal(dict)  # {"vulns": [...], "counts": {...}}
     error = pyqtSignal(str)
 
-    def __init__(self, vulns: List, api_key: str, parent=None, batch_size: int = 200):
+    def __init__(self, vulns: List, api_key: str, parent=None, batch_size: Optional[int] = None):
         super().__init__(parent)
         self.vulns = vulns
         self.api_key = api_key
-        self.batch_size = batch_size
+        self.batch_size = batch_size  # None → 用 SemanticVerifier 的 DEFAULT_BATCH_SIZE
         self._stop_requested = False
 
     def stop(self):
@@ -441,12 +441,13 @@ class SemanticVerifyThread(QThread):
     def run(self):
         try:
             from core.ai_analyzer import create_analyzer
-            from core.semantic import SemanticVerifier
+            from core.semantic import SemanticVerifier, DEFAULT_BATCH_SIZE
 
             total = len([v for v in self.vulns if isinstance(v, dict)])
             self.progress.emit(f"正在做漏洞语义预验证（共 {total} 条，分批判定）...")
             ai = create_analyzer(api_key=self.api_key)
-            verifier = SemanticVerifier(ai.call_json, batch_size=self.batch_size)
+            verifier = SemanticVerifier(ai.call_json,
+                                        batch_size=self.batch_size or DEFAULT_BATCH_SIZE)
             verified = verifier.verify(self.vulns, stop_check=lambda: self._stop_requested)
             if self._stop_requested:
                 self.progress.emit("语义预验证已取消")
@@ -886,6 +887,20 @@ class MainWindow(QMainWindow):
         self.vuln_db_widget.progress_message.connect(self.progress_label.setText)
         self.vuln_db_widget.update_finished.connect(self._on_vuln_update_finished)
         self.tabs.addTab(self.vuln_db_widget, "漏洞库")
+
+        # 业务逻辑 / 人工复核 / 报告列表（追加索引 7/8/9，不破坏既有 setCurrentIndex）
+        from gui.detail_tabs import BusinessLogicTab, ManualReviewTab, ReportListTab
+        self.business_logic_tab = BusinessLogicTab(
+            api_key_provider=lambda: self._effective_api_key() or self.api_key,
+            on_findings=self._on_business_logic_findings,
+        )
+        self.tabs.addTab(self.business_logic_tab, "业务逻辑")
+
+        self.manual_review_tab = ManualReviewTab()
+        self.tabs.addTab(self.manual_review_tab, "人工复核")
+
+        self.report_list_tab = ReportListTab(report_dir_provider=self._report_dir)
+        self.tabs.addTab(self.report_list_tab, "报告列表")
 
         lay.addWidget(self.tabs, 1)
         return panel
@@ -1449,6 +1464,7 @@ class MainWindow(QMainWindow):
                 f"目标={s.get('target')} - {s.get('description', '')}")
 
         self._render_attack_detail(result)
+        self.manual_review_tab.refresh(result)
 
         self._set_running(False)
         self.animation.set_scene("done", "攻击链规划完成")
@@ -1543,13 +1559,22 @@ class MainWindow(QMainWindow):
         self.attack_results = result
         mode_label = {"agentic": "ReAct 闭环", "multi_agent": "多智能体"}.get(
             result.get("mode"), "单次执行")
-        self.append_log(f"[+] 攻击链执行完成（{mode_label}）: {result.get('status')}")
-        self.append_log(f"    成功 {result.get('success_steps')} 步 / 失败 {result.get('failed_steps')} 步")
-        for sr in result.get("step_results", []):
-            detail = f" - {sr['error']}" if sr.get("error") else ""
-            self.append_log(f"    [{sr['status']}] {sr['step_id']}{detail}")
+        status = result.get("status", "")
+        goal_note = "（已达目标，提前停止）" if status == "goal_reached" else ""
+        self.append_log(f"[+] 攻击链执行完成（{mode_label}）: {status}{goal_note}")
+
+        step_results = result.get("step_results", [])
+        n_success = sum(1 for r in step_results if r.get("status") == "success")
+        n_failed = sum(1 for r in step_results if r.get("status") == "failed")
+        n_skipped = sum(1 for r in step_results if r.get("status") == "skipped")
+        self.append_log(f"    执行 {len(step_results)} 步：成功 {n_success} / 失败 {n_failed} / 跳过 {n_skipped}")
+
+        for sr in step_results:
+            detail = f" - {sr.get('error')}" if sr.get("error") else ""
+            self.append_log(f"    [{sr.get('status')}] {sr.get('step_id')}{detail}")
 
         self._render_attack_detail(result)
+        self.manual_review_tab.refresh(result)
 
         self._set_running(False)
         self.animation.set_scene("done", "攻击链执行完成")
@@ -1694,6 +1719,7 @@ class MainWindow(QMainWindow):
             else:
                 with open(file_path, "w", encoding="utf-8") as f:
                     f.write(build_report_html(context))
+            self.report_list_tab.refresh()
             QMessageBox.information(self, "完成", f"报告已导出到 {file_path}")
         except Exception as e:
             QMessageBox.critical(self, "导出失败", str(e))
