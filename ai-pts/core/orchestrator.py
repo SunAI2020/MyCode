@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 _ALLOWED_PARAM_KEYS = {
     "username", "password", "hashes", "domain",
     "command", "protocol", "module", "exploit", "lhost", "lport", "shell", "peas_path",
-    "url", "path", "dbs", "level", "severity", "config",
+    "dbs", "level", "severity", "config",
 }
 
 # 允许 LLM 指定的远程侦察命令（impacket 执行，仅安全只读类；其余丢弃回退默认 whoami）
@@ -256,11 +256,9 @@ class PenTestOrchestrator:
                 continue
             if key in ("module", "protocol") and not _TOKEN_RE.fullmatch(val):
                 continue
-            if key == "url" and not val.lower().startswith(("http://", "https://")):
-                continue  # 非法 URL 丢弃
             if key in ("dbs", "level", "severity", "config") and not _SAFE_OPT_RE.fullmatch(val):
                 continue
-            # username/password/hashes/domain/lhost/lport/path：字符串即可，下游决定如何使用
+            # username/password/hashes/domain/lhost/lport：字符串即可，下游决定如何使用
             out[key] = val
         return out
 
