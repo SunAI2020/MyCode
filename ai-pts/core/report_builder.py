@@ -142,6 +142,31 @@ _VERIFY_METHODS = {
 }
 
 
+def loop_steps_to_attack_steps(steps: List[Dict]) -> List[Dict]:
+    """把 agentic/multi_agent loop 的 memory steps 映射为报告 attack_steps 结构。
+
+    输入为 memory.snapshot()["steps"]（每项含 action/status/evidence/error），
+    输出 `_render_attack_steps` 期望的字段。
+    """
+    out: List[Dict] = []
+    for s in steps or []:
+        if not isinstance(s, dict):
+            continue
+        action = s.get("action") or {}
+        out.append({
+            "exploit_type": action.get("exploit_type", ""),
+            "tool": action.get("tool", ""),
+            "target": action.get("target", ""),
+            "description": action.get("description", ""),
+            "payload": action.get("payload", ""),
+            "validation_cmd": action.get("validation_cmd", ""),
+            "status": s.get("status", ""),
+            "error": s.get("error", ""),
+            "evidence": s.get("evidence", []),
+        })
+    return out
+
+
 def _esc(s: Any) -> str:
     return html.escape(str(s if s is not None else ""))
 

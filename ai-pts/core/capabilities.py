@@ -66,9 +66,23 @@ CAPABILITIES: List[Dict[str, str]] = [
     {
         "exploit_type": "sql_injection",
         "label": "SQL 注入",
-        "tool": "人工验证",
-        "desc": "暂无自动化工具",
-        "manual": "true",
+        "tool": "sqlmap",
+        "desc": "用 sqlmap 自动检测与利用 SQL 注入（目标为 http/https URL）",
+        "param": "url",
+    },
+    {
+        "exploit_type": "nuclei",
+        "label": "Nuclei 模板化漏洞扫描",
+        "tool": "nuclei",
+        "desc": "基于 YAML 模板的 Web/网络漏洞扫描（目标为 http/https URL）",
+        "param": "url",
+    },
+    {
+        "exploit_type": "code_audit",
+        "label": "Semgrep 源码静态审计",
+        "tool": "semgrep",
+        "desc": "本地源码静态审计 OWASP Top 10（目标为本地路径）",
+        "param": "path",
     },
     {
         "exploit_type": "xss",

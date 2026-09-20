@@ -315,6 +315,17 @@ class ExploitWorkflow:
             }
         )
 
+    async def execute_step(self, step: Dict, context: Dict = None) -> StepResult:
+        """执行单个步骤（供 agentic loop 逐步调用），并追加到结果列表。
+
+        复用 _execute_step 的 executor 查找 + validate 护栏 + execute + 异常捕获，
+        不改变 execute() 的批量行为。
+        """
+        idx = len(self._results)
+        result = await self._execute_step(idx, step, context or {})
+        self._results.append(result)
+        return result
+
     async def _execute_step(
         self,
         index: int,

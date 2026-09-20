@@ -406,6 +406,10 @@ def main():
     parser.add_argument("--plan", action="store_true", help="规划攻击路径")
     parser.add_argument("--execute", action="store_true",
                         help="执行攻击链（需配合 --plan；依赖 tools 白名单，未配置将 fail-closed）")
+    parser.add_argument("--agentic", action="store_true",
+                        help="用 ReAct 闭环逐步决策执行（Phase 0，替代一次性执行）")
+    parser.add_argument("--multi-agent", action="store_true",
+                        help="多智能体角色化闭环执行（Phase 1，Planner/Recon/Exploit/Validator/Guardian + 攻击树）")
     parser.add_argument("--web-scan", action="store_true", help="执行 Web 应用主动漏洞扫描")
     parser.add_argument("--weak-pass", action="store_true", help="执行弱口令爆破")
     parser.add_argument("--report", action="store_true", help="生成 HTML 渗透测试报告")
@@ -454,14 +458,16 @@ def main():
             analysis = system.analyze(services, vulns)
             print(f"AI分析: 风险 {analysis.get('risk_summary', {}).get('overall_risk', 'unknown')}")
 
-        if args.plan or args.execute:
-            plan = system.plan_exploit(services, vulns)
-            print(f"攻击路径: {plan.get('plan_id')}, {len(plan.get('steps', []))} 步")
-            for step in plan.get("steps", []):
-                order = step.get("order", step.get("step_id", "?"))
-                print(f"  {order}. [{step.get('exploit_type')}] {step.get('description')}")
+        if args.plan or args.execute or args.agentic or args.multi_agent:
+            if args.plan or args.execute:
+                # 一次性规划仅 --plan / --execute 需要；agentic/multi-agent 自行规划
+                plan = system.plan_exploit(services, vulns)
+                print(f"攻击路径: {plan.get('plan_id')}, {len(plan.get('steps', []))} 步")
+                for step in plan.get("steps", []):
+                    order = step.get("order", step.get("step_id", "?"))
+                    print(f"  {order}. [{step.get('exploit_type')}] {step.get('description')}")
 
-            if args.execute:
+            if args.execute or args.agentic or args.multi_agent:
                 # 白名单/确认策略来自 config tools 段；未配置白名单且非 allow_all 时 fail-closed
                 tools_cfg = cfg.get("tools", {})
                 from core.orchestrator import create_orchestrator
@@ -472,9 +478,56 @@ def main():
                     whitelist=tools_cfg.get("whitelist", []),
                     allow_all=tools_cfg.get("allow_all", False),
                 )
+                hosts = sorted({s.host_ip for s in result.services if s.host_ip})
+
+                if args.agentic:
+                    # Phase 0：ReAct 闭环逐步决策（每步结果回喂 LLM）
+                    loop_result = orch.agentic_loop(
+                        target_goal="get_shell",
+                        context={},
+                        services=services,
+                        vulns=vulns,
+                        hosts=hosts,
+                    )
+                    print(f"[agentic] 状态: {loop_result.get('status')}")
+                    for st in loop_result.get("steps", []):
+                        action = st.get("action") or {}
+                        detail = f" - {st.get('error')}" if st.get("error") else ""
+                        print(f"  [{st.get('status')}] {action.get('exploit_type', '?')} "
+                              f"{action.get('tool', '')} @ {action.get('target', '')}{detail}")
+                    return
+
+                if args.multi_agent:
+                    # Phase 1：多智能体角色化 + 攻击树闭环
+                    loop_result = orch.multi_agent_loop(
+                        target_goal="get_shell",
+                        context={},
+                        services=services,
+                        vulns=vulns,
+                        hosts=hosts,
+                    )
+                    print(f"[multi-agent] 状态: {loop_result.get('status')}")
+                    print("[multi-agent] 攻击树:")
+
+                    def _print_tree(node, depth=0):
+                        mark = {"pending": "[ ]", "active": "[>]",
+                                "succeeded": "[✓]", "failed": "[✗]"}.get(node.get("state"), "[ ]")
+                        print(f"{'  ' * depth}{mark} {node.get('node_id')} "
+                              f"{node.get('goal')} ({node.get('exploit_type', '')})")
+                        for c in node.get("children", []):
+                            _print_tree(c, depth + 1)
+
+                    if loop_result.get("tree"):
+                        _print_tree(loop_result["tree"])
+                    for st in loop_result.get("steps", []):
+                        action = st.get("action") or {}
+                        detail = f" - {st.get('error')}" if st.get("error") else ""
+                        print(f"  [{st.get('status')}] {action.get('exploit_type', '?')} "
+                              f"{action.get('tool', '')} @ {action.get('target', '')}{detail}")
+                    return
+
                 steps = WorkflowBuilder.from_ai_plan(plan)
                 from core.workflow import resolve_step_targets
-                hosts = sorted({s.host_ip for s in result.services if s.host_ip})
                 steps = resolve_step_targets(steps, hosts)
                 wf = orch.build_workflow(plan)
                 wf.create_workflow(plan.get("plan_id", "plan"), steps)

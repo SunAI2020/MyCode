@@ -8,6 +8,9 @@ from .base import ToolExecutor
 from .getshell import ImpacketExecExecutor, MSFGetShellExecutor
 from .privesc import SecretsDumpExecutor, LinPEASExecutor
 from .lateral import NetExecExecutor, BloodHoundCollector, MimikatzExecutor
+from .sqli import SqlmapExecutor
+from .web_exploit import NucleiExecutor
+from .code_audit import SemgrepExecutor
 
 __all__ = [
     "ToolExecutor",
@@ -18,4 +21,7 @@ __all__ = [
     "NetExecExecutor",
     "BloodHoundCollector",
     "MimikatzExecutor",
+    "SqlmapExecutor",
+    "NucleiExecutor",
+    "SemgrepExecutor",
 ]

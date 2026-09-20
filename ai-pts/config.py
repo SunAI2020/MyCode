@@ -66,6 +66,12 @@ def get_default_config() -> dict:
                 "lport": 4444
             }
         },
+        "agentic": {
+            "max_steps": 20,
+            "summarize_max_steps": 8,
+            "summarize_max_chars": 6000,
+            "goal_types": ["rce", "msf"]
+        },
         "report": {
             "formats": ["html", "pdf", "json"],
             "output_dir": str(REPORTS_DIR),
