@@ -54,6 +54,18 @@ class TestRouteAI(unittest.TestCase):
         route_ai_steps(steps)
         self.assertEqual(steps[0]["exploit_type"], "rce")
 
+    def test_paramless_type_gets_tool_filled(self):
+        steps = [_step(exploit_type="privesc_enum", tool="", description="枚举提权线索")]
+        route_ai_steps(steps)
+        self.assertEqual(steps[0]["exploit_type"], "privesc_enum")
+        self.assertEqual(steps[0]["tool"], "ssh + linpeas/winpeas")
+
+    def test_param_type_tool_not_filled(self):
+        # rce 的 tool 是执行参数（方法名），不能用能力目录的通用名覆盖
+        steps = [_step(exploit_type="rce", tool="", description="远程执行")]
+        route_ai_steps(steps)
+        self.assertEqual(steps[0]["tool"], "")
+
 
 class TestCapabilities(unittest.TestCase):
     """能力目录完整性"""

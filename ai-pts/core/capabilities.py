@@ -110,6 +110,18 @@ VALID_TYPES = {c["exploit_type"] for c in CAPABILITIES}
 # 无自动化工具、需人工验证的类型（执行器注册用，替代 orchestrator 里的硬编码 tuple）
 MANUAL_TYPES = [c["exploit_type"] for c in CAPABILITIES if c.get("manual") == "true"]
 
+# 需 AI 用 tool 字段回填具体参数的执行类型（msf=模块名、rce=方法名）：
+# 这些类型的 tool 是「执行参数」，不能用能力目录里的通用工具名覆盖，故补全时排除。
+_PARAM_TYPES = {c["exploit_type"] for c in CAPABILITIES if c.get("param")}
+
+
+def tool_for_type(exploit_type: str) -> str:
+    """返回某 exploit_type 的默认工具名（展示/报告用）；未知类型返回空串。"""
+    for c in CAPABILITIES:
+        if c["exploit_type"] == exploit_type:
+            return c.get("tool", "")
+    return ""
+
 # ---------------------------------------------------------------------------
 # 关键词/CVE 兜底路由表：(关键词小写, exploit_type, tool)
 # 只收录有把握的知名模块路径，宁缺毋滥；命中首个即覆盖。
@@ -161,7 +173,8 @@ def route_ai_steps(steps: List[Dict]) -> List[Dict]:
     顺序：
     1. exploit_type 合法且 tool 非空 -> 视为完整结构化答案，信任不覆盖；
     2. 否则扫描 description + payload 命中的关键词，首个命中覆盖 exploit_type + tool；
-    3. 最终 exploit_type 仍不合法 -> 回退 rce。
+    3. 最终 exploit_type 仍不合法 -> 回退 rce；
+    4. 非参数类（msf/rce 除外）的空 tool 按能力目录补全（展示/报告用）。
 
     Args:
         steps: WorkflowBuilder.from_ai_plan 产出的步骤列表（含 tool 键）。
@@ -190,4 +203,11 @@ def route_ai_steps(steps: List[Dict]) -> List[Dict]:
 
         if (s.get("exploit_type") or "") not in VALID_TYPES:
             s["exploit_type"] = "rce"
+
+    # 补全展示用 tool：非参数类（msf/rce 除外）的 tool 是「给 AI 看的工具名」，
+    # 规划 prompt 约定留空；这里按能力目录回填，便于攻击详情/报告显示（不影响执行）。
+    for s in steps:
+        etype = s.get("exploit_type") or ""
+        if etype in VALID_TYPES and etype not in _PARAM_TYPES and not (s.get("tool") or ""):
+            s["tool"] = tool_for_type(etype)
     return steps

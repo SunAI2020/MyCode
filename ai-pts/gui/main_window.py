@@ -4,6 +4,7 @@ PyQt5实现的桌面客户端界面
 """
 import sys
 import os
+import html
 import json
 import logging
 from pathlib import Path
@@ -694,13 +695,9 @@ class MainWindow(QMainWindow):
             self.logo_label.setStyleSheet("font-size: 31px;")
         lay.addWidget(self.logo_label)
 
-        copy = QLabel("© 山西有信网安科技有限公司")
+        copy = QLabel("© 山西有信网安科技有限公司 版权所有！")
         copy.setStyleSheet("color: #cfe0ef; font-size: 15px;")
         lay.addWidget(copy)
-
-        self.api_status_label = QLabel("API: 未配置")
-        self.api_status_label.setStyleSheet("color: #cfe0ef; font-size: 15px;")
-        lay.addWidget(self.api_status_label)
         return bar
 
     # ---- 扫描配置栏 ----
@@ -771,19 +768,20 @@ class MainWindow(QMainWindow):
             QListWidget::item { padding: 18px 10px; border-bottom: 1px solid #555555; }
             QListWidget::item:selected { background: #1abc9c; color: white; }
         """)
-        self.nav_items = ["目标扫描", "扫描结果", "AI分析", "攻击链规划", "执行攻击", "生成报告", "AI修复建议"]
-        # 导航显示文本：五步流程；「扫描结果」「AI修复建议」为查看类，加小图标
-        nav_labels = {
+        self.nav_items = ["目标扫描", "语义验证", "扫描结果", "AI分析", "攻击链规划", "执行攻击", "生成报告", "AI修复建议"]
+        # 导航显示文本：六步流程；「扫描结果」「AI修复建议」为查看类，加小图标
+        self.nav_labels = {
             "目标扫描": "第一步：目标扫描",
-            "扫描结果": "  🔍 扫描结果",
-            "AI分析": "第二步：AI分析",
-            "攻击链规划": "第三步：攻击链规划",
-            "执行攻击": "第四步：执行攻击",
-            "生成报告": "第五步：生成报告",
+            "语义验证": "第二步：语义验证",
+            "扫描结果": "  📄 扫描结果",
+            "AI分析": "第三步：AI分析",
+            "攻击链规划": "第四步：攻击链规划",
+            "执行攻击": "第五步：执行攻击",
+            "生成报告": "第六步：生成报告",
             "AI修复建议": "🛡️ AI修复建议",
         }
         for name in self.nav_items:
-            self.nav_list.addItem(nav_labels.get(name, name))
+            self.nav_list.addItem(self.nav_labels.get(name, name))
         self.nav_list.currentRowChanged.connect(self._on_nav_changed)
         lay.addWidget(self.nav_list, 1)
 
@@ -827,6 +825,13 @@ class MainWindow(QMainWindow):
 
         # 信息面板（标签页）
         self.tabs = QTabWidget()
+        # 选中的标签：文字加粗并变红，便于识别当前页
+        self.tabs.setStyleSheet("""
+            QTabBar::tab:selected {
+                font-weight: bold;
+                color: #e74c3c;
+            }
+        """)
 
         results_tab = QWidget()
         results_layout = QVBoxLayout(results_tab)
@@ -936,6 +941,30 @@ class MainWindow(QMainWindow):
                 self.nav_list.blockSignals(False)
                 return
 
+    def _step_done(self, name: str, done: bool):
+        """给左侧导航某步骤文字后追加/清除红色对勾（文字内容与颜色保持不变）。"""
+        if name not in self.nav_items:
+            return
+        idx = self.nav_items.index(name)
+        item = self.nav_list.item(idx)
+        text = self.nav_labels.get(name, name)
+        if done:
+            w = QLabel()
+            w.setTextFormat(Qt.RichText)
+            w.setText(
+                f'<span style="color:#000000;">{text}</span>'
+                '<span style="color:#e74c3c;"> ✓</span>')
+            w.setStyleSheet("background: transparent; border: none; font-size: 19px;")
+            self.nav_list.setItemWidget(item, w)
+        else:
+            self.nav_list.removeItemWidget(item)
+            item.setText(text)
+
+    def _clear_all_steps(self):
+        """开始新扫描前：清除所有步骤后的红色对勾。"""
+        for name in ("目标扫描", "语义验证", "AI分析", "攻击链规划", "执行攻击", "生成报告"):
+            self._step_done(name, False)
+
     def _on_nav_changed(self, row: int):
         if row < 0:
             return
@@ -949,14 +978,32 @@ class MainWindow(QMainWindow):
             self._choose_exec_mode()
 
     def _choose_exec_mode(self):
-        """点击「执行攻击」时弹出下拉框选择执行模式。"""
+        """点击「执行攻击」时弹出选择执行模式对话框（立即执行/取消）。"""
         modes = [("单次执行", "single"), ("ReAct 闭环", "agentic"), ("多智能体", "multi_agent")]
-        labels = [m[0] for m in modes]
-        idx = next((i for i, (_, v) in enumerate(modes) if v == self.exec_mode), 0)
-        text, ok = QInputDialog.getItem(self, "选择执行模式", "请选择执行模式：", labels, idx, False)
-        if ok:
-            self.exec_mode = next((v for t, v in modes if t == text), "single")
-            self.append_log(f"[*] 执行模式：{text}")
+        dlg = QDialog(self)
+        dlg.setWindowTitle("选择执行模式")
+        lay = QVBoxLayout(dlg)
+        lay.addWidget(QLabel("请选择执行模式："))
+        combo = QComboBox()
+        for label, _ in modes:
+            combo.addItem(label)
+        combo.setCurrentIndex(next((i for i, (_, v) in enumerate(modes) if v == self.exec_mode), 0))
+        lay.addWidget(combo)
+
+        btns = QHBoxLayout()
+        exec_btn = QPushButton("立即执行")
+        cancel_btn = QPushButton("取消")
+        btns.addStretch(1)
+        btns.addWidget(exec_btn)
+        btns.addWidget(cancel_btn)
+        lay.addLayout(btns)
+        exec_btn.clicked.connect(dlg.accept)
+        cancel_btn.clicked.connect(dlg.reject)
+
+        if dlg.exec_() == QDialog.Accepted:
+            self.exec_mode = modes[combo.currentIndex()][1]
+            self.append_log(f"[*] 执行模式：{modes[combo.currentIndex()][0]}")
+            self.start_exploit_chain()
 
     def _is_busy(self) -> bool:
         """是否有扫描/AI分析/攻击链任一任务在运行。"""
@@ -1040,8 +1087,9 @@ class MainWindow(QMainWindow):
         return Path(__file__).parent.parent / "reports"
 
     def _show_report_center(self):
-        from gui.tool_dialogs import ReportCenterDialog
-        ReportCenterDialog(self._report_dir(), parent=self).exec_()
+        """点击右侧「报告中心」：直接跳转到中间详情页的「报告列表」标签。"""
+        self.report_list_tab.refresh()
+        self.tabs.setCurrentIndex(self.tabs.indexOf(self.report_list_tab))
 
     def _show_info(self, text: str):
         """在日志/详情标签页展示文本。"""
@@ -1145,7 +1193,8 @@ class MainWindow(QMainWindow):
         self.scan_thread.start()
 
         self.animation.set_scene("scan")
-        self.set_stage("扫描结果")
+        # 高亮保持在「第一步：目标扫描」；扫描完成后进入「语义验证」再「扫描结果」
+        self._clear_all_steps()
         self.tabs.setCurrentIndex(5)
         self.status_bar.showMessage(f"正在扫描 {target}...")
 
@@ -1214,7 +1263,7 @@ class MainWindow(QMainWindow):
 
         self.animation.set_scene("done", f"扫描完成：{len(services)} 服务 / {len(vulns)} 漏洞")
         self.tabs.setCurrentIndex(0)
-        self.set_stage("扫描结果")
+        self._step_done("目标扫描", True)
         self.status_bar.showMessage(
             f"扫描完成: {len(services)} 个服务, {len(vulns)} 个漏洞"
         )
@@ -1308,6 +1357,7 @@ class MainWindow(QMainWindow):
         self.animation.set_scene("done", "AI 分析完成")
         self.append_log("[+] AI 分析完成")
         self.set_stage("AI分析")
+        self._step_done("AI分析", True)
         self.tabs.setCurrentIndex(1)
         self.status_bar.showMessage("AI分析完成")
 
@@ -1321,6 +1371,7 @@ class MainWindow(QMainWindow):
         """扫描完成后自动对漏洞做 LLM 语义预验证（降误报）。"""
         vulns = self.scan_results.get("vulnerabilities", [])
         if not vulns:
+            self.set_stage("扫描结果")
             return
         if not (self.api_key or self._has_env_api_key()):
             # 无密钥：全部标未验证，直接占位显示
@@ -1328,8 +1379,10 @@ class MainWindow(QMainWindow):
                 v["verify_status"] = "unverified"
             self._render_semantic_verify(
                 vulns, {"confirmed": 0, "rejected": 0, "unverified": len(vulns)})
+            self.set_stage("扫描结果")
             return
 
+        self.set_stage("语义验证")  # 高亮移到「第二步：语义验证」
         self.semantic_thread = SemanticVerifyThread(vulns, self._effective_api_key())
         self.semantic_thread.progress.connect(lambda m: self.status_bar.showMessage(m))
         self.semantic_thread.result_ready.connect(self.on_semantic_verify_complete)
@@ -1363,6 +1416,8 @@ class MainWindow(QMainWindow):
     def on_semantic_verify_complete(self, result: dict):
         """语义预验证完成：更新漏洞表第 6 列 + 灰显疑似误报。"""
         self._render_semantic_verify(result.get("vulns", []), result.get("counts", {}))
+        self._step_done("语义验证", True)
+        self.set_stage("扫描结果")
         self.status_bar.showMessage("语义预验证完成")
 
     def on_semantic_verify_error(self, error: str):
@@ -1373,6 +1428,8 @@ class MainWindow(QMainWindow):
             v["verify_status"] = "unverified"
         self._render_semantic_verify(
             vulns, {"confirmed": 0, "rejected": 0, "unverified": len(vulns)})
+        self._step_done("语义验证", True)
+        self.set_stage("扫描结果")
         self.status_bar.showMessage("语义预验证失败")
 
     def _render_semantic_verify(self, vulns: list, counts: dict):
@@ -1469,6 +1526,7 @@ class MainWindow(QMainWindow):
         self._set_running(False)
         self.animation.set_scene("done", "攻击链规划完成")
         self.set_stage("攻击链规划")
+        self._step_done("攻击链规划", True)
         self.tabs.setCurrentIndex(2)
         self.status_bar.showMessage("攻击链规划完成")
 
@@ -1579,6 +1637,7 @@ class MainWindow(QMainWindow):
         self._set_running(False)
         self.animation.set_scene("done", "攻击链执行完成")
         self.set_stage("执行攻击")
+        self._step_done("执行攻击", True)
         self.tabs.setCurrentIndex(3)  # 攻击详情标签页
         self.status_bar.showMessage("攻击链执行完成")
 
@@ -1589,34 +1648,56 @@ class MainWindow(QMainWindow):
         self._set_running(False)
 
     def _render_attack_detail(self, result: dict):
-        """在「攻击详情」标签页渲染攻击链执行结果（步骤/状态/证据/错误）。"""
-        lines = ["【攻击详情】\n"]
+        """在「攻击详情」标签页渲染攻击链执行结果（步骤/状态/证据/错误）。
+
+        状态以粗体+彩色显示在步骤标题右侧：待执行=黄、成功=绿、失败=红。
+        """
+        status_color = {"成功": "#2ecc71", "失败": "#e74c3c", "跳过": "#f39c12", "待执行": "#f39c12"}
+
+        def _norm_status(status):
+            s = str(status or "").strip().lower()
+            if s in ("success", "completed", "成功"):
+                return "成功"
+            if s in ("failed", "失败"):
+                return "失败"
+            if s in ("skipped", "跳过"):
+                return "跳过"
+            return "待执行"
+
+        esc = html.escape
+        parts = ['<div>', '<p style="font-weight:bold;">【攻击详情】</p>']
         plan = result.get("plan", {})
         steps = result.get("steps") or plan.get("steps", [])
         sr_map = {sr.get("step_id"): sr for sr in result.get("step_results", [])}
         if not steps:
-            lines.append("暂无攻击步骤。请先执行「攻击链规划」。")
+            parts.append('<p>暂无攻击步骤。请先执行「攻击链规划」。</p>')
         for i, s in enumerate(steps, 1):
             sr = sr_map.get(s.get("step_id"), {})
-            status = sr.get("status", "未执行")
-            lines.append(
-                f"\n第{i}步 [{s.get('exploit_type')}] 工具={s.get('tool') or '-'} "
-                f"目标={s.get('target') or '-'}")
-            lines.append(f"  状态: {status}")
-            if s.get("description"):
-                lines.append(f"  策略: {s.get('description')}")
-            if s.get("payload"):
-                lines.append(f"  脚本: {s.get('payload')}")
-            if s.get("validation_cmd"):
-                lines.append(f"  验证: {s.get('validation_cmd')}")
+            title = (f"第{i}步 [{s.get('exploit_type') or '-'}] "
+                     f"工具={s.get('tool') or '-'} 目标={s.get('target') or '-'}")
+            st = _norm_status(sr.get("status", "待执行"))
+            color = status_color.get(st, "#f39c12")
+            parts.append(
+                '<table width="100%" cellspacing="0" cellpadding="0" style="margin-top:8px;">'
+                f'<tr><td>{esc(title)}</td>'
+                f'<td align="right"><b style="color:{color};">状态：{st}</b></td></tr>'
+                '</table>')
+            for label, val in (("策略", s.get("description")),
+                               ("脚本", s.get("payload")),
+                               ("验证", s.get("validation_cmd"))):
+                if val:
+                    parts.append(f'<p style="margin:2px 0;">{label}: {esc(str(val))}</p>')
             if sr.get("error"):
-                lines.append(f"  错误: {sr['error']}")
+                parts.append(
+                    f'<p style="margin:2px 0;"><span style="color:#e74c3c;">'
+                    f'错误: {esc(str(sr["error"]))}</span></p>')
             ev = sr.get("evidence") or []
             if isinstance(ev, str):
                 ev = [ev]
             for e in ev:
-                lines.append(f"  证据: {e}")
-        self.attack_detail_text.setPlainText("\n".join(lines))
+                parts.append(f'<p style="margin:2px 0;">证据: {esc(str(e))}</p>')
+        parts.append('</div>')
+        self.attack_detail_text.setHtml("".join(parts))
 
     def plan_exploit(self):
         """规划攻击路径（并可选执行）——复用攻击链流程"""
@@ -1720,6 +1801,7 @@ class MainWindow(QMainWindow):
                 with open(file_path, "w", encoding="utf-8") as f:
                     f.write(build_report_html(context))
             self.report_list_tab.refresh()
+            self._step_done("生成报告", True)
             QMessageBox.information(self, "完成", f"报告已导出到 {file_path}")
         except Exception as e:
             QMessageBox.critical(self, "导出失败", str(e))
@@ -1828,7 +1910,6 @@ class MainWindow(QMainWindow):
     def _apply_settings(self):
         """把设置同步到运行态：API 状态、扫描模式、扫描选项、攻击强度、定时扫描。"""
         self.api_key = (self.settings or {}).get("api_key", "") or self.api_key
-        self.api_status_label.setText("API: 已配置" if self.api_key else "API: 未配置")
 
         nvd_key = (self.settings or {}).get("nvd_api_key") or ""
         if nvd_key:
@@ -1980,10 +2061,30 @@ class MainWindow(QMainWindow):
         QMessageBox.information(
             self, "使用说明",
             "AI-PTS 使用说明:\n\n"
+            "【GUI 操作】\n"
             "1. 输入扫描目标 (IP/CIDR/域名)\n"
             "2. 点击开始扫描\n"
             "3. 查看扫描结果\n"
-            "4. 点击AI分析获取智能建议"
+            "4. 点击AI分析获取智能建议\n\n"
+            "【CLI 使用方法】\n"
+            "python aipts.py                   # 启动 GUI\n"
+            "python aipts.py -t 192.168.1.1    # CLI 快速扫描\n"
+            "python main.py -t <目标> [选项]    # 完整 CLI\n\n"
+            "常用选项:\n"
+            "  -t, --target      扫描目标 (IP/CIDR/域名)\n"
+            "  -p, --ports       端口范围 (如 1-1000)\n"
+            "  -k, --api-key     Anthropic API Key\n"
+            "  --analyze         执行 AI 分析\n"
+            "  --plan            规划攻击路径\n"
+            "  --execute         执行攻击链\n"
+            "  --agentic         ReAct 闭环自主渗透\n"
+            "  --multi-agent     多智能体协同\n"
+            "  --web-scan        Web 主动漏洞扫描\n"
+            "  --weak-pass       弱口令爆破\n"
+            "  --report          生成 HTML 报告\n"
+            "  -v, --verbose     详细输出\n\n"
+            "示例:\n"
+            "  python main.py -t 192.168.1.0/24 --analyze --plan --execute --report"
         )
 
     def show_about(self):
@@ -2015,8 +2116,6 @@ class MainWindow(QMainWindow):
             with open(config_path, "r", encoding="utf-8") as f:
                 self.settings = json.load(f)
             self.api_key = self.settings.get("api_key", "")
-            if self.api_key:
-                self.api_status_label.setText("API: 已配置")
         else:
             self.settings = {}
         self._apply_settings()

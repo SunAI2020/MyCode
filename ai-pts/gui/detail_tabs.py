@@ -279,7 +279,7 @@ class ManualReviewTab(QWidget):
     def _make_card(self, i, s, sr, verify_methods):
         card = QFrame()
         card.setStyleSheet(
-            "QFrame { background: #f7f9fa; border: 1px solid #d5dbdb; border-radius: 6px; }")
+            "QFrame { background: #2b2b2b; border: 1px solid #555555; border-radius: 6px; }")
         v = QVBoxLayout(card)
         v.setSpacing(6)
 
@@ -288,7 +288,7 @@ class ManualReviewTab(QWidget):
         target = s.get("target") or "-"
         title = QLabel(f"第{i}步 [{etype}] 工具={tool} 目标={target}")
         title.setWordWrap(True)
-        title.setStyleSheet("font-weight: bold; color: #1a2b3c;")
+        title.setStyleSheet("font-weight: bold; color: #ffffff;")
         v.addWidget(title)
 
         detail_lines = []
@@ -307,7 +307,7 @@ class ManualReviewTab(QWidget):
             detail = QLabel("\n".join(detail_lines))
             detail.setWordWrap(True)
             detail.setTextInteractionFlags(Qt.TextSelectableByMouse)
-            detail.setStyleSheet("color: #2c3e50;")
+            detail.setStyleSheet("color: #e0e0e0;")
             v.addWidget(detail)
 
         verify_row = QHBoxLayout()
@@ -315,14 +315,14 @@ class ManualReviewTab(QWidget):
         verify_label = QLabel(f"人工验证方法：{verify_text}")
         verify_label.setWordWrap(True)
         verify_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
-        verify_label.setStyleSheet("color: #7f8c8d;")
+        verify_label.setStyleSheet("color: #b0b0b0;")
         verify_row.addWidget(verify_label, 1)
 
         action = derive_verify_action(s, sr)
         btn = QPushButton("人工复核")
         btn.setStyleSheet(
             "QPushButton { background: #1abc9c; color: white; padding: 6px 14px; border-radius: 4px; }"
-            "QPushButton:disabled { background: #bdc3c7; }")
+            "QPushButton:disabled { background: #555555; color: #999999; }")
         if action is None:
             btn.setEnabled(False)
             btn.setToolTip("该步骤无可用链接或命令行")
