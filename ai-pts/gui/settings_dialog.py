@@ -6,7 +6,7 @@ from pathlib import Path
 from PyQt5.QtWidgets import (
     QDialog, QWidget, QVBoxLayout, QHBoxLayout, QFormLayout, QLineEdit, QComboBox,
     QCheckBox, QPushButton, QSpinBox, QLabel, QGroupBox, QFileDialog,
-    QDialogButtonBox, QMessageBox,
+    QDialogButtonBox, QMessageBox, QTableWidget, QTableWidgetItem,
 )
 from PyQt5.QtCore import Qt
 
@@ -84,18 +84,6 @@ class SettingsDialog(QDialog):
         pl.addRow("密码:", self.password_edit)
         lay.addWidget(pref_group)
 
-        sched_group = QGroupBox("定时扫描")
-        sl = QHBoxLayout(sched_group)
-        self.schedule_check = QCheckBox("启用定时扫描")
-        sl.addWidget(self.schedule_check)
-        sl.addWidget(QLabel("间隔(分钟):"))
-        self.schedule_spin = QSpinBox()
-        self.schedule_spin.setRange(1, 1440)
-        self.schedule_spin.setValue(60)
-        sl.addWidget(self.schedule_spin)
-        sl.addStretch(1)
-        lay.addWidget(sched_group)
-
         buttons = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
         buttons.accepted.connect(self._on_accept)
         buttons.rejected.connect(self.reject)
@@ -126,14 +114,6 @@ class SettingsDialog(QDialog):
             self.intensity_combo.setCurrentText(intensity)
         self.username_edit.setText(prefs.get("username", ""))
         self.password_edit.setText(prefs.get("password", ""))
-        sched = self.settings.get("scheduled_scan", {}) or {}
-        self.schedule_check.setChecked(bool(sched.get("enabled", False)))
-        try:
-            interval = int(sched.get("interval_minutes", 60))
-        except (TypeError, ValueError):
-            interval = 60
-        self.schedule_spin.setValue(interval)
-
     def _on_accept(self):
         self.settings["report_dir"] = self.report_dir_edit.text().strip()
         self.settings["api_key"] = self.api_key_edit.text().strip()
@@ -149,14 +129,127 @@ class SettingsDialog(QDialog):
             "web_scan": self.web_scan_check.isChecked(),
             "weak_pass": self.weak_pass_check.isChecked(),
         }
-        self.settings["scheduled_scan"] = {
-            "enabled": self.schedule_check.isChecked(),
-            "interval_minutes": self.schedule_spin.value(),
-        }
         self.accept()
 
     def get_settings(self) -> dict:
         return self.settings
+
+
+class ScheduledTaskDialog(QDialog):
+    """定时任务管理：增删多任务（名称/目标/周期/启用），持久化到 SQLite。"""
+
+    def __init__(self, store, on_changed=None, parent=None):
+        super().__init__(parent)
+        self.store = store
+        self.on_changed = on_changed
+        self.setWindowTitle("定时任务管理")
+        self.resize(660, 440)
+        self._init_ui()
+        self._reload()
+
+    def _init_ui(self):
+        lay = QVBoxLayout(self)
+
+        form = QHBoxLayout()
+        form.addWidget(QLabel("名称:"))
+        self.name_edit = QLineEdit()
+        self.name_edit.setPlaceholderText("如：每日巡检")
+        form.addWidget(self.name_edit)
+        form.addWidget(QLabel("目标:"))
+        self.target_edit = QLineEdit()
+        self.target_edit.setPlaceholderText("IP / CIDR / 域名")
+        form.addWidget(self.target_edit, 1)
+        form.addWidget(QLabel("间隔(分):"))
+        self.interval_spin = QSpinBox()
+        self.interval_spin.setRange(1, 10080)
+        self.interval_spin.setValue(60)
+        form.addWidget(self.interval_spin)
+        self.enabled_check = QCheckBox("启用")
+        self.enabled_check.setChecked(True)
+        form.addWidget(self.enabled_check)
+        add_btn = QPushButton("添加")
+        add_btn.clicked.connect(self._add)
+        form.addWidget(add_btn)
+        lay.addLayout(form)
+
+        self.table = QTableWidget(0, 5)
+        self.table.setHorizontalHeaderLabels(["ID", "名称", "目标", "间隔(分)", "启用"])
+        self.table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.table.setColumnWidth(2, 200)
+        lay.addWidget(self.table, 1)
+
+        btns = QHBoxLayout()
+        del_btn = QPushButton("删除选中")
+        del_btn.clicked.connect(self._delete)
+        btns.addWidget(del_btn)
+        toggle_btn = QPushButton("启用/停用")
+        toggle_btn.clicked.connect(self._toggle)
+        btns.addWidget(toggle_btn)
+        btns.addStretch(1)
+        close_btn = QPushButton("关闭")
+        close_btn.clicked.connect(self.accept)
+        btns.addWidget(close_btn)
+        lay.addLayout(btns)
+
+    def _reload(self):
+        self.table.setRowCount(0)
+        for t in self.store.list():
+            row = self.table.rowCount()
+            self.table.insertRow(row)
+            id_item = QTableWidgetItem(str(t["id"]))
+            id_item.setData(Qt.UserRole, t["id"])
+            self.table.setItem(row, 0, id_item)
+            self.table.setItem(row, 1, QTableWidgetItem(t["name"]))
+            self.table.setItem(row, 2, QTableWidgetItem(t["target"]))
+            self.table.setItem(row, 3, QTableWidgetItem(str(t["interval_minutes"])))
+            self.table.setItem(row, 4, QTableWidgetItem("是" if t["enabled"] else "否"))
+
+    def _add(self):
+        name = self.name_edit.text().strip()
+        target = self.target_edit.text().strip()
+        if not name or not target:
+            QMessageBox.warning(self, "提示", "请填写任务名称与目标")
+            return
+        self.store.add(name, target, self.interval_spin.value(),
+                       self.enabled_check.isChecked())
+        self.name_edit.clear()
+        self.target_edit.clear()
+        self._reload()
+        self._notify()
+
+    def _selected_id(self):
+        row = self.table.currentRow()
+        if row < 0:
+            return None
+        item = self.table.item(row, 0)
+        return item.data(Qt.UserRole) if item else None
+
+    def _delete(self):
+        tid = self._selected_id()
+        if tid is None:
+            QMessageBox.information(self, "提示", "请先选中一个任务")
+            return
+        self.store.delete(tid)
+        self._reload()
+        self._notify()
+
+    def _toggle(self):
+        tid = self._selected_id()
+        if tid is None:
+            QMessageBox.information(self, "提示", "请先选中一个任务")
+            return
+        task = next((t for t in self.store.list() if t["id"] == tid), None)
+        if not task:
+            return
+        self.store.update(tid, task["name"], task["target"],
+                          task["interval_minutes"], not task["enabled"])
+        self._reload()
+        self._notify()
+
+    def _notify(self):
+        if self.on_changed:
+            self.on_changed()
 
 
 class LoginDialog(QDialog):

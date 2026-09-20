@@ -159,6 +159,7 @@
     <li>实施路线图</li>
     <li>风险与依赖</li>
     <li>结论</li>
+    <li>第二阶段差距分析（Phase 0-4 落地后复盘）</li>
     <li>参考资料</li>
   </ol>
 </div>
@@ -471,6 +472,90 @@
 
 <h2>八、结论</h2>
 <p>AI-PTS 的扫描与工具执行底座已相当扎实，<strong>真正的差距不在"能打"，而在"会想"</strong>。本方案的核心主张是：用<strong>多智能体编排 + 记忆 + RAG + 攻击树</strong>把现有的单次流水线升级为自主迭代的渗透闭环，用<strong>神经-符号混合</strong>补齐业务逻辑与语义级检测这两块最有差异化、也最难的能力，并在<strong>安全护栏内建</strong>的前提下，逐步对齐发布 PDF 所宣称的"AI 替人做渗透"目标。建议按 Phase 0 → 4 顺序推进，优先打通"记忆 + ReAct 闭环"，因为它是一切高阶能力（多智能体、RAG、自纠正）的共同基座。</p>
+
+<hr>
+
+<h2>九、第二阶段差距分析（Phase 0-4 落地后复盘）</h2>
+<blockquote><p>编制日期：2026-09-20。本文第三章「现状盘点」成文于 Phase 0-4 落地前（2026-09-19）。Phase 0-4（记忆 + ReAct 闭环 / 多智能体 + 攻击树 / RAG + 知识图谱 / 业务逻辑 + 语义检测 / 工具补齐 + 调度）已于 2026-09-20 落地提交（<code>01cf865e</code>）。本章为<strong>落地后的第二轮差距分析</strong>：对照真实代码，找出「方案宣称已做、实际未接入产品主界面、做了但实战不可用」的剩余差距，并给出进一步改进方案。</p></blockquote>
+
+<h3>9.1 落地复盘：Phase 0-4 的真实状态</h3>
+<table>
+  <tr><th style="width:130px">方案承诺</th><th style="width:300px">代码真相</th><th>判定</th></tr>
+  <tr><td>多智能体 + 攻击树</td><td><code>core/agents/</code>（Planner/Recon/Exploit/Validator/Guardian + PTT）+ <code>orchestrator.multi_agent_loop()</code></td><td><span class="tag part">部分</span> 已实现，但仅 CLI <code>--multi-agent</code> 可达，GUI 未接</td></tr>
+  <tr><td>记忆 + ReAct 闭环</td><td><code>core/memory.py</code>（SessionMemory/Summarizer）+ <code>orchestrator.agentic_loop()</code></td><td><span class="tag part">部分</span> 已实现，但仅 CLI <code>--agentic</code> 可达，GUI 未接</td></tr>
+  <tr><td>RAG + 知识图谱</td><td><code>core/knowledge/</code>（BM25 检索 + 邻接表图 + 硬编码种子）</td><td><span class="tag part">部分</span> 降级为 BM25 + 6 条种子，未接 <code>cve_database.db</code> / 历史报告</td></tr>
+  <tr><td>业务逻辑检测</td><td><code>core/business_logic/</code>（神经-符号差分验证）</td><td><span class="tag part">部分</span> 模块就位，无 HTTP 执行器，实战不可用</td></tr>
+  <tr><td>语义级检测</td><td><code>core/semantic.py</code>（仅 SemanticVerifier 预验证）</td><td><span class="tag no">缺失</span> 只做 1/4，且未接入扫描流程</td></tr>
+  <tr><td>工具补齐</td><td><code>core/executors/{sqli,web_exploit,code_audit}.py</code></td><td><span class="tag part">部分</span> 裸 subprocess + 依赖外部工具，exe 里是空的</td></tr>
+  <tr><td>7×24 调度</td><td><code>core/scheduler.py</code>（TaskScheduler）</td><td><span class="tag no">缺失</span> 未接线，独立死代码</td></tr>
+</table>
+<blockquote><p>核心洞察：Phase 0-4 的<strong>骨架全部落地</strong>，但大量能力处于「模块存在、却未接入产品主界面/主流程」或「纸面补齐、实战不可用」的状态——这是第三章「第一阶段差距分析」没有覆盖的<strong>第二层差距</strong>。</p></blockquote>
+
+<h3>9.2 剩余差距（分级）</h3>
+
+<h4>🔴 P0 — 能力存在但用户根本用不到</h4>
+<ol>
+  <li><strong>GUI（默认入口）完全没接 Phase 0-4</strong>：<code>gui/main_window.py</code> 的 <code>AttackWorker.run()</code> 仍走 <code>plan_exploit_path → build_workflow → wf.execute()</code> 单次流水线；<code>agentic_loop</code>/<code>multi_agent_loop</code> 仅在 <code>main.py --agentic/--multi-agent</code> CLI 可达，而 <code>main.py</code> 无 <code>--target</code> 时默认启动 GUI。<strong>产品主界面看不到任何「智能中枢」能力。</strong></li>
+  <li><strong><code>business_logic_scan</code> / <code>semantic_verify</code> 是孤立方法</strong>：<code>orchestrator.py</code> 有这两个方法，但 <code>main.py</code> 与 <code>gui/</code> 零调用，也不在扫描流程触发。业务逻辑检测、语义预验证对用户不可见。</li>
+  <li><strong><code>TaskScheduler</code> 未接线</strong>：<code>main.py</code>/<code>gui/</code> 不实例化它，「7×24 多任务并行」实际不存在。</li>
+</ol>
+
+<h4>🟠 P1 — 纸面补齐 / 实战不可用</h4>
+<ol start="4">
+  <li><strong>RAG 降级为 BM25 + 硬编码种子</strong>：文档承诺 sqlite-vec 向量检索、灌入「漏洞样本/CWE/历史报告」，实际是 <code>knowledge/retriever.py</code> 的 BM25 词法检索 + <code>seed.py</code> 的 6 条攻击案例 + 6 个漏洞节点；<code>vendor/cve_database.db</code>（23MB 真实 CVE 库）与 <code>reports/*.html</code> 历史报告未进知识库，<code>KnowledgeStore</code> 纯内存、关进程即失。</li>
+  <li><strong>语义级检测只做 1/4 且未生效</strong>：文档承诺「提取/预验证/防御绕过/参数生成」四智能体，实际只有 <code>semantic.py</code> 的预验证器，且它只打 <code>verify_status</code> 标签，没有任何地方用它过滤/降级扫描结果。</li>
+  <li><strong>业务逻辑检测缺 HTTP 执行器</strong>：<code>business_logic/detector.py</code> 的 <code>run()</code> 需注入 <code>executor(method, url, role)</code> 做 owner/attacker 双会话重放，全项目无此实现（无带登录态的双角色 HTTP 客户端），也没接端点发现。只有 mock 单测，实战跑不起来。</li>
+  <li><strong>工具补齐是纸面补齐</strong>：<code>sqli.py</code>/<code>web_exploit.py</code>/<code>code_audit.py</code> 只 <code>build_command</code> + 跑命令返回裸 stdout，不做结果解析；且 sqlmap/nuclei/semgrep 是外部二进制（<code>requirements.txt</code> 注明「需另行安装」），自包含 exe 里不存在 → <code>_tool_available()</code> 直接 skip。</li>
+  <li><strong>证据化攻击路径 / CTEM 修复验证缺失</strong>：<code>report_builder.py</code> 能渲染单步 evidence，但「弱口令→拿 shell→secretsdump→域控」的链式因果串联、以及「整改后重测（hack→fix→verify）」闭环均未实现。</li>
+</ol>
+
+<h4>🟡 P2 — 工程质量 / 一致性</h4>
+<ol start="9">
+  <li><code>agentic_loop</code> 与 <code>multi_agent_loop</code> 约 90% 重复（记忆/Summarizer/护栏/执行循环两套拷贝），应合并。</li>
+  <li><code>workflow.py</code> 的 <code>RCEExecutor</code>/<code>SQLInjectionExecutor</code>/<code>PrivilegeEscalationExecutor</code>（返回 PENDING 占位）仍注册为默认又被 orchestrator 覆盖，两套并存易误导。</li>
+  <li><code>resolve_step_targets</code> 对 http/https URL 直接放行，但 sqlmap/nuclei 的 <code>validate</code> 走 <code>_extract_host</code> + <code>_in_whitelist</code>，白名单存 IP 而 URL 为域名时会误判；LLM 给出合法 token 但不在 hosts 的 IP 不会被纠正，仅靠 fail-closed 兜底。</li>
+  <li>无评测基准落地：文档提了 DVWA/Juice Shop/Vulhub 回归，tests 全是 mock LLM 单测，多步攻击成功率等指标无法度量。</li>
+</ol>
+
+<h3>9.3 进一步改进方案（A/B/C 三阶段）</h3>
+<blockquote><p>原则沿用「智能中枢优先 + 自包含 + 神经-符号 + 复用挂载点」，但第一优先级是<strong>把已写好的能力真正接到用户能用的入口</strong>，而非再写新模块。</p></blockquote>
+
+<h4>阶段 A：把已有能力接入产品（先止血，工作量小、见效快）</h4>
+<table>
+  <tr><th style="width:40px">#</th><th>动作</th><th style="width:190px">挂载点</th></tr>
+  <tr><td>A1</td><td>GUI 攻击详情页加「执行模式」切换（单次 / ReAct 闭环 / 多智能体），复用 AttackWorker 已建好的 plan_dict，改调 <code>agentic_loop()</code> / <code>multi_agent_loop()</code></td><td><code>gui/main_window.py</code></td></tr>
+  <tr><td>A2</td><td>扫描完成回调触发 <code>semantic_verify(findings)</code>，把 <code>verify_status=rejected</code> 的降级/折叠显示</td><td><code>main.py</code> + GUI 结果展示</td></tr>
+  <tr><td>A3</td><td>GUI 增「业务逻辑检测」入口：输入目标 URL + 双角色凭证 → 注入真实 HTTP 执行器（见 B2）→ 调 <code>business_logic_scan</code></td><td><code>gui/</code> 新面板 + <code>core/business_logic</code></td></tr>
+  <tr><td>A4</td><td>GUI 增「定时任务」设置，实例化并 <code>start()</code> TaskScheduler，任务持久化到 SQLite</td><td><code>gui/settings_dialog.py</code> + <code>config.py</code></td></tr>
+</table>
+
+<h4>阶段 B：补齐「纸面补齐」的实战缺口（核心价值）</h4>
+<table>
+  <tr><th style="width:40px">#</th><th>动作</th><th style="width:190px">挂载点</th></tr>
+  <tr><td>B1</td><td>RAG 接真实数据：启动/首次扫描时从 <code>vendor/cve_database.db</code> 灌 CVE 描述 → <code>KnowledgeStore.add(kind="cve")</code>；历史 <code>reports/*.html</code> 抽取 → <code>kind="attack_case"</code>；<code>KnowledgeStore</code> 加 SQLite 持久化</td><td><code>core/knowledge/seed.py</code> + <code>store.py</code></td></tr>
+  <tr><td>B2</td><td>实现双角色 HTTP 执行器（owner/attacker 两套 session，<code>(method,url,role)-&gt;HttpResponse</code>，带白名单/SSRF guard）——业务逻辑检测从「单测可跑」变「实战可跑」的关键</td><td>新增 <code>core/business_logic/http_executor.py</code></td></tr>
+  <tr><td>B3</td><td>语义检测补齐四智能体（提取/防御绕过/参数生成），复用 <code>ai_analyzer.call_json</code>；预验证器真正接入扫描结果降级</td><td>扩展 <code>core/semantic.py</code></td></tr>
+  <tr><td>B4</td><td>工具执行器加结果解析：sqlmap 判注入成败、Nuclei 解析 JSON 提模板/命中、Semgrep 解析 <code>--json</code> 提规则/行号，写成结构化 result</td><td><code>executors/{sqli,web_exploit,code_audit}.py</code></td></tr>
+  <tr><td>B5</td><td>证据化攻击路径：<code>report_builder</code> 把成功步骤按 (host→privilege→credential) 串联成因果路径，标注每步证据</td><td><code>core/report_builder.py</code></td></tr>
+  <tr><td>B6</td><td>CTEM 修复验证：任务/报告加「复测」按钮，记录整改后重扫对比，输出「路径已闭合/仍可利用」</td><td><code>report_builder.py</code> + GUI</td></tr>
+</table>
+
+<h4>阶段 C：工程质量收敛（降低后续维护成本）</h4>
+<table>
+  <tr><th style="width:40px">#</th><th>动作</th></tr>
+  <tr><td>C1</td><td>合并 <code>agentic_loop</code>/<code>multi_agent_loop</code> 为统一 <code>run_loop(strategy=...)</code></td></tr>
+  <tr><td>C2</td><td>删除 <code>workflow.py</code> 三个 PENDING 占位执行器，默认注册表留空由 orchestrator 注入</td></tr>
+  <tr><td>C3</td><td><code>resolve_step_targets</code> 增「URL host 必须 ∈ 白名单/扫描发现 hosts」显式校验</td></tr>
+  <tr><td>C4</td><td>引入本地靶场（DVWA/Juice Shop）集成测试，落地多步攻击成功率等回归指标</td></tr>
+</table>
+
+<h3>9.4 建议实施顺序</h3>
+<ol>
+  <li><strong>先做 A1 + A2 + A4</strong>（约 1-2 天）：把 agentic/multi-agent、语义预验证、调度接入 GUI——不写新算法，只是「接线」，立刻让产品主界面出现智能中枢，解决 P0。</li>
+  <li><strong>再做 B2 + B1</strong>（各 1-2 天）：HTTP 执行器让业务逻辑检测真正能跑；RAG 接真实数据让规划不再空转——两块最有差异化的能力从「纸面」变「可用」。</li>
+  <li><strong>然后 B4 + B5 + B3</strong>：工具结果解析、证据化报告、语义四智能体。</li>
+  <li><strong>最后 C 系列</strong>：工程质量收敛，为后续迭代扫清障碍。</li>
+</ol>
 
 <hr>
 

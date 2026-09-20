@@ -22,6 +22,11 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, QThread, QTimer, pyqtSignal, pyqtSlot, QProcess, QPropertyAnimation, QEasingCurve
 from PyQt5.QtGui import QIcon, QFont, QColor, QPalette, QTextCursor, QPixmap
 
+# 项目根加入 sys.path，供运行时 import core.*（与 settings_dialog 的 vendor 处理一致）
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+
 logger = logging.getLogger(__name__)
 
 
@@ -213,7 +218,7 @@ class ExploitChainThread(QThread):
     def __init__(self, services: List, vulns: List, api_key: str,
                  whitelist: List[str], credentials: dict = None,
                  credential_callback=None, plan_only: bool = False,
-                 plan_dict: dict = None, parent=None):
+                 plan_dict: dict = None, exec_mode: str = "single", parent=None):
         super().__init__(parent)
         self.services = services
         self.vulns = vulns
@@ -223,70 +228,20 @@ class ExploitChainThread(QThread):
         self.credential_callback = credential_callback
         self.plan_only = plan_only
         self.plan_dict = plan_dict
+        self.exec_mode = exec_mode
 
     def run(self):
         try:
             from core.orchestrator import create_orchestrator
-            from core.workflow import WorkflowBuilder
+            from core.workflow import WorkflowBuilder, resolve_step_targets
             import asyncio
-
-            plan_dict = self.plan_dict
-            if not plan_dict:
-                # 未提供已规划方案时，调用 AI 现场规划
-                self.progress.emit("AI 规划攻击路径...")
-                from core.ai_analyzer import create_analyzer, ScannedService, Vulnerability
-                ai = create_analyzer(api_key=self.api_key)
-
-                services = [
-                    ScannedService(
-                        host_ip=s["host_ip"],
-                        port=s["port"],
-                        service_name=s.get("service_name", ""),
-                        product=s.get("product", ""),
-                        version=s.get("version", ""),
-                        banner=s.get("banner", ""),
-                    )
-                    for s in self.services
-                ]
-                vulns = [
-                    Vulnerability(
-                        cve_id=v["cve_id"],
-                        description=v.get("description", ""),
-                        severity=v.get("severity", "medium"),
-                        cvss_score=v.get("cvss_score", 0),
-                        product=v.get("product", ""),
-                        version=v.get("version", ""),
-                    )
-                    for v in self.vulns
-                ]
-
-                plan = ai.plan_exploit_path(services, vulns, target_goal="get_shell")
-                plan_dict = {
-                    "plan_id": plan.plan_id,
-                    "target": plan.target,
-                    "steps": [
-                        {
-                            "step_id": s.step_id,
-                            "order": s.order,
-                            "exploit_type": s.exploit_type,
-                            "tool": s.tool,
-                            "target": s.target,
-                            "description": s.description,
-                            "payload": s.payload,
-                            "validation_cmd": s.validation_cmd,
-                            "risk_level": s.risk_level,
-                        }
-                        for s in plan.steps
-                    ],
-                }
-
-            if not plan_dict["steps"]:
-                self.error.emit("AI 未规划出可执行步骤")
-                return
 
             # 仅规划模式：不执行，只把归一化后的攻击方案回传展示
             if self.plan_only:
-                from core.workflow import resolve_step_targets
+                plan_dict = self._ensure_plan()
+                if not plan_dict or not plan_dict.get("steps"):
+                    self.error.emit("AI 未规划出可执行步骤")
+                    return
                 steps = WorkflowBuilder.from_ai_plan(plan_dict)
                 steps = resolve_step_targets(steps, self.whitelist)
                 self.result_ready.emit({
@@ -295,7 +250,6 @@ class ExploitChainThread(QThread):
                 })
                 return
 
-            self.progress.emit(f"执行 {len(plan_dict['steps'])} 步攻击链...")
             # 已在执行前整体确认，故 require_confirmation=False；白名单 fail-closed 仍生效
             orch = create_orchestrator(
                 api_key=self.api_key,
@@ -303,7 +257,39 @@ class ExploitChainThread(QThread):
                 whitelist=self.whitelist,
                 credential_callback=self.credential_callback,
             )
-            from core.workflow import resolve_step_targets
+
+            # ReAct 闭环 / 多智能体：由编排器内部逐步规划 + 执行 + 回喂决策
+            if self.exec_mode in ("agentic", "multi_agent"):
+                self.progress.emit("AI 闭环自主渗透中...")
+                if self.exec_mode == "agentic":
+                    loop_result = orch.agentic_loop(
+                        target_goal="get_shell",
+                        context={"credentials": self.credentials},
+                        services=self.services,
+                        vulns=self.vulns,
+                        hosts=self.whitelist,
+                    )
+                    self.result_ready.emit(
+                        self._normalize_loop_result("agentic", loop_result))
+                else:
+                    loop_result = orch.multi_agent_loop(
+                        target_goal="get_shell",
+                        context={"credentials": self.credentials},
+                        services=self.services,
+                        vulns=self.vulns,
+                        hosts=self.whitelist,
+                    )
+                    self.result_ready.emit(self._normalize_loop_result(
+                        "multi_agent", loop_result, tree=loop_result.get("tree")))
+                return
+
+            # 单次执行（默认）：AI 规划 + 顺序执行
+            plan_dict = self._ensure_plan()
+            if not plan_dict or not plan_dict.get("steps"):
+                self.error.emit("AI 未规划出可执行步骤")
+                return
+
+            self.progress.emit(f"执行 {len(plan_dict['steps'])} 步攻击链...")
             steps = WorkflowBuilder.from_ai_plan(plan_dict)
             # 与 CLI 路径保持一致：把 AI 的描述性 target 归一化为真实主机 IP
             steps = resolve_step_targets(steps, self.whitelist)
@@ -329,6 +315,148 @@ class ExploitChainThread(QThread):
                 ],
             })
 
+        except Exception as e:
+            self.error.emit(str(e))
+
+    def _ensure_plan(self) -> dict:
+        """返回已规划的攻击方案；未提供时调用 AI 现场规划。"""
+        if self.plan_dict:
+            return self.plan_dict
+
+        self.progress.emit("AI 规划攻击路径...")
+        from core.ai_analyzer import create_analyzer, ScannedService, Vulnerability
+        ai = create_analyzer(api_key=self.api_key)
+
+        services = [
+            ScannedService(
+                host_ip=s["host_ip"],
+                port=s["port"],
+                service_name=s.get("service_name", ""),
+                product=s.get("product", ""),
+                version=s.get("version", ""),
+                banner=s.get("banner", ""),
+            )
+            for s in self.services
+        ]
+        vulns = [
+            Vulnerability(
+                cve_id=v["cve_id"],
+                description=v.get("description", ""),
+                severity=v.get("severity", "medium"),
+                cvss_score=v.get("cvss_score", 0),
+                product=v.get("product", ""),
+                version=v.get("version", ""),
+            )
+            for v in self.vulns
+        ]
+
+        plan = ai.plan_exploit_path(services, vulns, target_goal="get_shell")
+        return {
+            "plan_id": plan.plan_id,
+            "target": plan.target,
+            "steps": [
+                {
+                    "step_id": s.step_id,
+                    "order": s.order,
+                    "exploit_type": s.exploit_type,
+                    "tool": s.tool,
+                    "target": s.target,
+                    "description": s.description,
+                    "payload": s.payload,
+                    "validation_cmd": s.validation_cmd,
+                    "risk_level": s.risk_level,
+                }
+                for s in plan.steps
+            ],
+        }
+
+    @staticmethod
+    def _normalize_loop_result(mode: str, loop_result: dict, tree=None) -> dict:
+        """把 agentic/multi_agent 闭环结果归一化为攻击详情/报告可消费的结构。"""
+        steps = []
+        step_results = []
+        for rec in loop_result.get("steps", []):
+            action = rec.get("action") or {}
+            idx = rec.get("index", len(steps) + 1)
+            step_id = f"step_{idx}"
+            steps.append({
+                "step_id": step_id,
+                "order": idx,
+                "exploit_type": action.get("exploit_type", ""),
+                "tool": action.get("tool", ""),
+                "target": action.get("target", ""),
+                "description": action.get("description") or action.get("reason") or rec.get("reason") or "",
+                "payload": "",
+                "validation_cmd": "",
+                "risk_level": "medium",
+            })
+            step_results.append({
+                "step_id": step_id,
+                "status": rec.get("status", ""),
+                "error": rec.get("error", ""),
+                "evidence": rec.get("evidence", []),
+            })
+        n_success = sum(1 for r in step_results if r["status"] == "success")
+        n_failed = sum(1 for r in step_results if r["status"] == "failed")
+        # 带出闭环取得的凭据/权限（host → 摘要），供报告「证据化攻击路径」串联
+        mem = loop_result.get("memory") or {}
+        result = {
+            "mode": mode,
+            "status": loop_result.get("status", ""),
+            "plan": {"plan_id": f"loop_{mode}", "target": "get_shell", "steps": steps},
+            "steps": steps,
+            "success_steps": n_success,
+            "failed_steps": n_failed,
+            "total_time": 0.0,
+            "step_results": step_results,
+            "credentials": mem.get("credentials", {}),
+            "privileges": mem.get("privileges", {}),
+        }
+        if tree is not None:
+            result["tree"] = tree
+        return result
+
+
+# ================== 语义预验证线程 ==================
+class SemanticVerifyThread(QThread):
+    """后台语义预验证：对规则引擎命中项做 LLM 真/误报判定（分批次，每批 ≤200 条）。"""
+    progress = pyqtSignal(str)
+    result_ready = pyqtSignal(dict)  # {"vulns": [...], "counts": {...}}
+    error = pyqtSignal(str)
+
+    def __init__(self, vulns: List, api_key: str, parent=None, batch_size: int = 200):
+        super().__init__(parent)
+        self.vulns = vulns
+        self.api_key = api_key
+        self.batch_size = batch_size
+        self._stop_requested = False
+
+    def stop(self):
+        """协作式停止：请求中断，run() 在下一批边界检查后安全退出（不 terminate）。"""
+        self._stop_requested = True
+
+    def run(self):
+        try:
+            from core.ai_analyzer import create_analyzer
+            from core.semantic import SemanticVerifier
+
+            total = len([v for v in self.vulns if isinstance(v, dict)])
+            self.progress.emit(f"正在做漏洞语义预验证（共 {total} 条，分批判定）...")
+            ai = create_analyzer(api_key=self.api_key)
+            verifier = SemanticVerifier(ai.call_json, batch_size=self.batch_size)
+            verified = verifier.verify(self.vulns, stop_check=lambda: self._stop_requested)
+            if self._stop_requested:
+                self.progress.emit("语义预验证已取消")
+                return
+            statuses = [v.get("verify_status", "unverified") for v in verified]
+            counts = {
+                "confirmed": statuses.count("confirmed"),
+                "rejected": statuses.count("rejected"),
+                "unverified": len(statuses) - statuses.count("confirmed") - statuses.count("rejected"),
+            }
+            self.progress.emit(
+                f"语义预验证完成：{counts['confirmed']} 确认 / {counts['rejected']} 疑似误报 / {counts['unverified']} 未验证")
+            self.result_ready.emit({"vulns": verified, "counts": counts})
         except Exception as e:
             self.error.emit(str(e))
 
@@ -404,18 +532,29 @@ class StatusAnimation(QFrame):
 class MainWindow(QMainWindow):
     """主窗口"""
 
+    # 定时任务触发信号（TaskScheduler 后台线程 → 主线程，跨线程安全）
+    scheduled_fired = pyqtSignal(dict)
+
     def __init__(self):
         super().__init__()
         self.scan_thread: Optional[ScanThread] = None
         self.ai_thread: Optional[AIAnalysisThread] = None
         self.exploit_thread: Optional[ExploitChainThread] = None
+        self.semantic_thread: Optional[SemanticVerifyThread] = None
         self.scan_results: dict = {}
         self.ai_analysis: dict = {}
         self.attack_results: dict = {}
         self.api_key: str = ""
         self.current_user: Optional[dict] = None
-        self.schedule_timer: Optional[QTimer] = None
         self.attack_intensity: str = "中"
+        # 执行模式（点击「执行攻击」时弹出下拉框选择）：single / agentic / multi_agent
+        self.exec_mode = "single"
+        # 定时任务调度器（TaskScheduler）+ SQLite 任务存储（懒加载）
+        self.scheduler = None
+        self._task_store = None
+        self.scheduled_fired.connect(self._run_scheduled_task)
+        # CTEM 修复验证：基线存储（懒加载）
+        self._ctem_store = None
 
         self.init_ui()
         self.load_settings()
@@ -556,8 +695,18 @@ class MainWindow(QMainWindow):
             QListWidget::item:selected { background: #1abc9c; color: white; }
         """)
         self.nav_items = ["目标扫描", "扫描结果", "AI分析", "攻击链规划", "执行攻击", "生成报告", "AI修复建议"]
+        # 导航显示文本：五步流程；「扫描结果」「AI修复建议」为查看类，加小图标
+        nav_labels = {
+            "目标扫描": "第一步：目标扫描",
+            "扫描结果": "  🔍 扫描结果",
+            "AI分析": "第二步：AI分析",
+            "攻击链规划": "第三步：攻击链规划",
+            "执行攻击": "第四步：执行攻击",
+            "生成报告": "第五步：生成报告",
+            "AI修复建议": "🛡️ AI修复建议",
+        }
         for name in self.nav_items:
-            self.nav_list.addItem(name)
+            self.nav_list.addItem(nav_labels.get(name, name))
         self.nav_list.currentRowChanged.connect(self._on_nav_changed)
         lay.addWidget(self.nav_list, 1)
 
@@ -611,8 +760,8 @@ class MainWindow(QMainWindow):
         results_layout.addWidget(self.service_count_label)
         results_layout.addWidget(self.service_table, 2)
         self.vuln_table = QTableWidget()
-        self.vuln_table.setColumnCount(5)
-        self.vuln_table.setHorizontalHeaderLabels(["CVE", "严重性", "CVSS", "产品", "描述"])
+        self.vuln_table.setColumnCount(6)
+        self.vuln_table.setHorizontalHeaderLabels(["CVE", "严重性", "CVSS", "产品", "描述", "语义验证"])
         self.vuln_count_label = QLabel("发现的漏洞：0")
         results_layout.addWidget(self.vuln_count_label)
         results_layout.addWidget(self.vuln_table, 2)
@@ -680,7 +829,7 @@ class MainWindow(QMainWindow):
             QListWidget::item { padding: 18px 8px; border-bottom: 1px solid #555555; }
             QListWidget::item:selected { background: #3498db; color: white; }
         """)
-        for name in ["漏洞库管理", "渗透测试工具库", "渗透结果人工复核", "渗透测试工具使用方法", "报告中心", "Help"]:
+        for name in ["漏洞库管理", "渗透测试工具库", "业务逻辑检测", "渗透结果人工复核", "渗透测试工具使用方法", "报告中心", "Help"]:
             self.tool_list.addItem(name)
         self.tool_list.currentRowChanged.connect(self._on_tool_changed)
         lay.addWidget(self.tool_list)
@@ -705,12 +854,25 @@ class MainWindow(QMainWindow):
             self.tabs.setCurrentIndex(0)
         elif name == "AI修复建议":
             self.tabs.setCurrentIndex(4)
+        elif name == "执行攻击":
+            self._choose_exec_mode()
+
+    def _choose_exec_mode(self):
+        """点击「执行攻击」时弹出下拉框选择执行模式。"""
+        modes = [("单次执行", "single"), ("ReAct 闭环", "agentic"), ("多智能体", "multi_agent")]
+        labels = [m[0] for m in modes]
+        idx = next((i for i, (_, v) in enumerate(modes) if v == self.exec_mode), 0)
+        text, ok = QInputDialog.getItem(self, "选择执行模式", "请选择执行模式：", labels, idx, False)
+        if ok:
+            self.exec_mode = next((v for t, v in modes if t == text), "single")
+            self.append_log(f"[*] 执行模式：{text}")
 
     def _is_busy(self) -> bool:
         """是否有扫描/AI分析/攻击链任一任务在运行。"""
         return any(
             th and th.isRunning()
-            for th in (self.scan_thread, self.ai_thread, self.exploit_thread)
+            for th in (self.scan_thread, self.ai_thread, self.exploit_thread,
+                       self.semantic_thread)
         )
 
     def _set_running(self, running: bool):
@@ -745,6 +907,7 @@ class MainWindow(QMainWindow):
         handlers = {
             "漏洞库管理": self.update_vuln_db,
             "渗透测试工具库": self._show_tool_library,
+            "业务逻辑检测": self._show_business_logic,
             "渗透结果人工复核": self._show_manual_review,
             "渗透测试工具使用方法": self._show_tool_usage,
             "报告中心": self._show_report_center,
@@ -755,6 +918,11 @@ class MainWindow(QMainWindow):
     def _show_tool_library(self):
         from gui.tool_dialogs import ToolLibraryDialog
         ToolLibraryDialog(tab=0, parent=self).exec_()
+
+    def _show_business_logic(self):
+        from gui.tool_dialogs import BusinessLogicDialog
+        BusinessLogicDialog(api_key=self._effective_api_key() or self.api_key,
+                            parent=self).exec_()
 
     def _show_manual_review(self):
         from gui.tool_dialogs import ManualReviewDialog
@@ -800,6 +968,9 @@ class MainWindow(QMainWindow):
         scan_menu.addSeparator()
         scan_menu.addAction("AI分析", self.start_ai_analysis, "Ctrl+A")
         scan_menu.addAction("规划攻击路径", self.plan_exploit)
+        scan_menu.addSeparator()
+        scan_menu.addAction("CTEM 保存基线", self.ctem_save_baseline)
+        scan_menu.addAction("CTEM 复测对比", self.ctem_retest)
 
         # 工具菜单
         tool_menu = menubar.addMenu("工具(&T)")
@@ -811,7 +982,7 @@ class MainWindow(QMainWindow):
         # 设置菜单
         settings_menu = menubar.addMenu("设置(&O)")
         settings_menu.addAction("首选项...", self.show_settings)
-        settings_menu.addAction("定时扫描...", self.show_settings)
+        settings_menu.addAction("定时任务管理...", self._open_scheduled_tasks)
         settings_menu.addAction("登录...", self.show_login)
         settings_menu.addSeparator()
         settings_menu.addAction("设置API密钥...", self.set_api_key)
@@ -882,7 +1053,8 @@ class MainWindow(QMainWindow):
         扫描线程支持优雅 stop()；AI/攻击链线程无协作式取消，退化为
         requestInterruption + terminate()（已执行前整体确认 + 白名单 fail-closed 兜底）。
         """
-        for th in (self.scan_thread, self.ai_thread, self.exploit_thread):
+        for th in (self.scan_thread, self.ai_thread, self.exploit_thread,
+                   self.semantic_thread):
             if th and th.isRunning():
                 if hasattr(th, "stop"):
                     th.stop()
@@ -893,6 +1065,7 @@ class MainWindow(QMainWindow):
         self.scan_thread = None
         self.ai_thread = None
         self.exploit_thread = None
+        self.semantic_thread = None
 
         self._set_running(False)
         self.status_bar.showMessage("已停止")
@@ -921,6 +1094,7 @@ class MainWindow(QMainWindow):
             self.vuln_table.setItem(i, 2, QTableWidgetItem(str(v.get("cvss_score", ""))))
             self.vuln_table.setItem(i, 3, QTableWidgetItem(v.get("product", "")))
             self.vuln_table.setItem(i, 4, QTableWidgetItem(v.get("description", "")))
+            self.vuln_table.setItem(i, 5, QTableWidgetItem("验证中…"))
 
         # 计数标签
         self.service_count_label.setText(f"发现的服务：{len(services)}")
@@ -946,6 +1120,9 @@ class MainWindow(QMainWindow):
         if (self.settings or {}).get("preferences", {}).get("ai_analysis_enabled") \
                 and services and (self.api_key or self._has_env_api_key()):
             self.start_ai_analysis()
+
+        # 自动触发语义预验证（后台线程，对规则命中项做 LLM 真/误报判定降误报）
+        self.start_semantic_verify()
 
     def on_scan_error(self, error: str):
         """扫描错误"""
@@ -1035,6 +1212,72 @@ class MainWindow(QMainWindow):
         """AI分析错误"""
         QMessageBox.critical(self, "错误", f"AI分析失败: {error}")
         self._set_running(False)
+
+    # ================== 语义预验证 ==================
+    def start_semantic_verify(self):
+        """扫描完成后自动对漏洞做 LLM 语义预验证（降误报）。"""
+        vulns = self.scan_results.get("vulnerabilities", [])
+        if not vulns:
+            return
+        if not (self.api_key or self._has_env_api_key()):
+            # 无密钥：全部标未验证，直接占位显示
+            for v in vulns:
+                v["verify_status"] = "unverified"
+            self._render_semantic_verify(
+                vulns, {"confirmed": 0, "rejected": 0, "unverified": len(vulns)})
+            return
+
+        self.semantic_thread = SemanticVerifyThread(vulns, self._effective_api_key())
+        self.semantic_thread.progress.connect(lambda m: self.status_bar.showMessage(m))
+        self.semantic_thread.result_ready.connect(self.on_semantic_verify_complete)
+        self.semantic_thread.error.connect(self.on_semantic_verify_error)
+        self.semantic_thread.start()
+        self.append_log("[*] 已启动漏洞语义预验证（LLM 判定真/误报）...")
+
+    def on_semantic_verify_complete(self, result: dict):
+        """语义预验证完成：更新漏洞表第 6 列 + 灰显疑似误报。"""
+        self._render_semantic_verify(result.get("vulns", []), result.get("counts", {}))
+        self.status_bar.showMessage("语义预验证完成")
+
+    def on_semantic_verify_error(self, error: str):
+        """语义预验证失败：全部标未验证，保持原样展示。"""
+        self.append_log(f"[-] 语义预验证失败：{error}")
+        vulns = self.scan_results.get("vulnerabilities", [])
+        for v in vulns:
+            v["verify_status"] = "unverified"
+        self._render_semantic_verify(
+            vulns, {"confirmed": 0, "rejected": 0, "unverified": len(vulns)})
+        self.status_bar.showMessage("语义预验证失败")
+
+    def _render_semantic_verify(self, vulns: list, counts: dict):
+        """按语义验证结果更新漏洞表：第 6 列标记 + 疑似误报灰显 + 计数标签。"""
+        total = len(vulns)
+        conf = counts.get("confirmed", 0)
+        rej = counts.get("rejected", 0)
+        unv = counts.get("unverified", total - conf - rej)
+        mark_map = {"confirmed": "✓ 已确认", "rejected": "✗ 疑似误报", "unverified": "未验证"}
+        gray = QColor(150, 150, 150)
+        for i, v in enumerate(vulns):
+            status = v.get("verify_status", "unverified")
+            mark = mark_map.get(status, "未验证")
+            if status == "rejected":
+                # 疑似误报：整行灰显降级，标记列标红
+                for col in range(5):
+                    cell = self.vuln_table.item(i, col)
+                    if cell:
+                        cell.setForeground(gray)
+                item = QTableWidgetItem(mark)
+                item.setForeground(QColor(200, 60, 60))
+            elif status == "confirmed":
+                item = QTableWidgetItem(mark)
+                item.setForeground(QColor(26, 127, 55))
+            else:
+                item = QTableWidgetItem(mark)
+            self.vuln_table.setItem(i, 5, item)
+        self.vuln_count_label.setText(
+            f"发现的漏洞：{total}（已确认 {conf} / 疑似误报 {rej} / 未验证 {unv}）")
+        self.append_log(
+            f"[+] 语义预验证完成：确认 {conf}，疑似误报 {rej}，未验证 {unv}")
 
     def start_attack_plan(self):
         """攻击链规划：仅调用 AI 规划攻击路径，不执行任何攻击。"""
@@ -1163,15 +1406,22 @@ class MainWindow(QMainWindow):
             self.append_log("[!] 用户取消了攻击链执行")
             return
 
+        # 执行模式已由点击「执行攻击」时弹出的下拉框选择
+        exec_mode = self.exec_mode
+
         self._set_running(True)
         self.status_bar.showMessage("执行攻击链中...")
         self.animation.set_scene("execute")
         self.set_stage("执行攻击")
         self.tabs.setCurrentIndex(5)
+        mode_label = {"single": "单次执行", "agentic": "ReAct 闭环", "multi_agent": "多智能体"}.get(
+            self.exec_mode, "单次执行")
+        self.append_log(f"[*] 执行模式：{mode_label}")
 
         self.exploit_thread = ExploitChainThread(services, vulns, self._effective_api_key(), hosts, creds,
                                                 credential_callback=self._credential_callback,
-                                                plan_dict=self.attack_results.get("plan"))
+                                                plan_dict=self.attack_results.get("plan"),
+                                                exec_mode=exec_mode)
         self.exploit_thread.progress.connect(lambda m: self.status_bar.showMessage(m))
         self.exploit_thread.result_ready.connect(self.on_exploit_complete)
         self.exploit_thread.error.connect(self.on_exploit_error)
@@ -1180,7 +1430,9 @@ class MainWindow(QMainWindow):
     def on_exploit_complete(self, result: dict):
         """攻击链执行完成"""
         self.attack_results = result
-        self.append_log(f"[+] 攻击链执行完成: {result.get('status')}")
+        mode_label = {"agentic": "ReAct 闭环", "multi_agent": "多智能体"}.get(
+            result.get("mode"), "单次执行")
+        self.append_log(f"[+] 攻击链执行完成（{mode_label}）: {result.get('status')}")
         self.append_log(f"    成功 {result.get('success_steps')} 步 / 失败 {result.get('failed_steps')} 步")
         for sr in result.get("step_results", []):
             detail = f" - {sr['error']}" if sr.get("error") else ""
@@ -1297,10 +1549,24 @@ class MainWindow(QMainWindow):
                     "evidence": sr.get("evidence", []),
                 })
 
+            # CTEM 复测对比：有基线则对比，无基线不强制建基线（避免导出误存快照）
+            ctem = {}
+            target = self._current_target()
+            if target:
+                try:
+                    from core.ctem import run_ctem_compare
+                    ctem = run_ctem_compare(self._get_ctem_store(), target,
+                                            self._current_vulns(), save_as_new=False)
+                except Exception as e:  # noqa: BLE001
+                    self.append_log(f"[-] CTEM 对比失败：{e}")
+
             context = build_report_context(
                 scan_result=self.scan_results,
                 ai_analysis=self.ai_analysis,
                 attack_steps=attack_steps,
+                credentials=self.attack_results.get("credentials", {}),
+                privileges=self.attack_results.get("privileges", {}),
+                ctem=ctem,
             )
 
             if file_path.lower().endswith(".json"):
@@ -1437,30 +1703,132 @@ class MainWindow(QMainWindow):
             if key in prefs:
                 widget.setChecked(bool(prefs[key]))
         self.attack_intensity = prefs.get("attack_intensity", "中") or "中"
-        self._setup_schedule()
+        self._reload_scheduled_tasks()
 
-    def _setup_schedule(self):
-        """按设置启停定时扫描定时器。"""
-        if self.schedule_timer is None:
-            self.schedule_timer = QTimer(self)
-            self.schedule_timer.timeout.connect(self._on_schedule_timeout)
-        sched = (self.settings or {}).get("scheduled_scan", {}) or {}
-        if sched.get("enabled"):
-            try:
-                minutes = int(sched.get("interval_minutes", 60))
-            except (TypeError, ValueError):
-                minutes = 60
-            self.schedule_timer.start(max(1, minutes) * 60 * 1000)
-        else:
-            self.schedule_timer.stop()
+    def _get_task_store(self):
+        """懒加载 SQLite 定时任务存储。"""
+        if self._task_store is None:
+            from core.task_store import TaskStore
+            self._task_store = TaskStore()
+        return self._task_store
 
-    def _on_schedule_timeout(self):
-        """定时扫描触发：有目标且空闲时自动开始扫描。"""
-        target = self.target_input.text().strip()
-        if not target or self._is_busy():
+    def _reload_scheduled_tasks(self):
+        """从 SQLite 加载启用任务，重建 TaskScheduler 并启动。"""
+        from core.scheduler import TaskScheduler
+        if self.scheduler is not None:
+            self.scheduler.stop()
+        self.scheduler = TaskScheduler()
+        try:
+            tasks = self._get_task_store().list_enabled()
+        except Exception as e:  # noqa: BLE001
+            logger.warning("加载定时任务失败: %s", e)
+            tasks = []
+        for t in tasks:
+            # 默认参数捕获 task，避免闭包晚绑定；经 signal 回主线程执行
+            self.scheduler.add_job(
+                f"task_{t['id']}", int(t["interval_minutes"]) * 60,
+                lambda t=t: self.scheduled_fired.emit(t))
+        if tasks:
+            self.scheduler.start()
+            self.append_log(f"[定时] 已加载 {len(tasks)} 个定时任务")
+
+    def _run_scheduled_task(self, task: dict):
+        """（主线程）执行一个定时任务：有目标且空闲时自动开始扫描。"""
+        target = (task or {}).get("target", "").strip()
+        if not target:
             return
-        self.append_log("[定时] 触发定时扫描")
+        if self._is_busy():
+            self.append_log(f"[定时] 任务「{task.get('name', '')}」跳过（有任务运行中）")
+            return
+        self.append_log(f"[定时] 触发任务「{task.get('name', '')}」→ {target}")
+        self.target_input.setText(target)
         self.start_scan()
+
+    def _open_scheduled_tasks(self):
+        """打开定时任务管理对话框。"""
+        from gui.settings_dialog import ScheduledTaskDialog
+        dlg = ScheduledTaskDialog(self._get_task_store(),
+                                  on_changed=self._reload_scheduled_tasks,
+                                  parent=self)
+        dlg.exec_()
+
+    def _get_ctem_store(self):
+        """懒加载 CTEM 基线存储。"""
+        if self._ctem_store is None:
+            from core.ctem import CtemStore
+            self._ctem_store = CtemStore()
+        return self._ctem_store
+
+    def _current_target(self) -> str:
+        """当前扫描目标（优先输入框，回退扫描配置）。"""
+        t = (self.target_input.text() or "").strip()
+        if not t:
+            t = (self.scan_results.get("scan_config") or {}).get("target", "") or ""
+        return t
+
+    def _current_vulns(self) -> list:
+        """当前扫描漏洞列表（归一化为可指纹的 dict 列表）。"""
+        from core.report_builder import _vuln_to_dict
+        return [_vuln_to_dict(v) for v in self.scan_results.get("vulnerabilities", [])]
+
+    def ctem_save_baseline(self):
+        """把当前扫描结果存为 CTEM 基线（整改前快照）。"""
+        target = self._current_target()
+        if not target:
+            QMessageBox.warning(self, "提示", "请先扫描目标")
+            return
+        vulns = self._current_vulns()
+        try:
+            store = self._get_ctem_store()
+            store.save_baseline(target, vulns)
+            self.append_log(f"[CTEM] 已保存基线：{target}（{len(vulns)} 个漏洞）")
+            QMessageBox.information(self, "CTEM", f"已保存基线：{target}（{len(vulns)} 个漏洞）")
+        except Exception as e:  # noqa: BLE001
+            QMessageBox.critical(self, "CTEM 失败", str(e))
+
+    def ctem_retest(self):
+        """复测对比：当前扫描结果 vs 最近基线，输出已闭合/仍可利用/新增。"""
+        target = self._current_target()
+        if not target:
+            QMessageBox.warning(self, "提示", "请先扫描目标")
+            return
+        from core.ctem import run_ctem_compare
+        try:
+            store = self._get_ctem_store()
+            vulns = self._current_vulns()
+            # save_as_new=True：首次复测即建基线；有基线时对比后更新为新基线
+            result = run_ctem_compare(store, target, vulns, save_as_new=True)
+            if not result.get("has_baseline"):
+                self.append_log(f"[CTEM] {target} 首次：已存为基线（{len(vulns)} 个漏洞）")
+                QMessageBox.information(
+                    self, "CTEM",
+                    f"{target} 尚无基线，本次扫描结果已存为基线（{len(vulns)} 个漏洞）。\n"
+                    "整改后重新扫描，再次点击「复测对比」即可看到差异。")
+                return
+            diff = result["diff"]
+            self.append_log(
+                f"[CTEM] 复测对比 {target}：已闭合 {len(diff['closed'])}，"
+                f"仍可利用 {len(diff['still_open'])}，新增 {len(diff['new'])}")
+            self._show_ctem_result(target, result)
+        except Exception as e:  # noqa: BLE001
+            QMessageBox.critical(self, "CTEM 失败", str(e))
+
+    def _show_ctem_result(self, target: str, result: dict):
+        """弹窗展示复测对比结果。"""
+        from core.report_builder import _sev_label
+        diff = result["diff"]
+        lines = [f"<b>目标：</b>{target}",
+                 f"<b>基线时间：</b>{result['baseline_time']}",
+                 "<br><b>✅ 路径已闭合（{0}）：</b>".format(len(diff['closed']))]
+        for v in diff["closed"]:
+            lines.append(f"　· {v.get('cve_id') or '服务检测'}（{v.get('host') or ''}:{v.get('port') or ''}，{_sev_label(v.get('severity'))}）")
+        lines.append("<br><b>🔴 仍可利用（{0}）：</b>".format(len(diff['still_open'])))
+        for v in diff["still_open"]:
+            lines.append(f"　· {v.get('cve_id') or '服务检测'}（{v.get('host') or ''}:{v.get('port') or ''}，{_sev_label(v.get('severity'))}）")
+        lines.append("<br><b>🆕 新增（{0}）：</b>".format(len(diff['new'])))
+        for v in diff["new"]:
+            lines.append(f"　· {v.get('cve_id') or '服务检测'}（{v.get('host') or ''}:{v.get('port') or ''}，{_sev_label(v.get('severity'))}）")
+        QMessageBox.information(self, "CTEM 复测对比", "<br>".join(lines))
 
     def show_help(self):
         """显示帮助"""
@@ -1516,9 +1884,16 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         """关闭事件"""
-        if self.scan_thread and self.scan_thread.isRunning():
-            self.scan_thread.stop()
-            self.scan_thread.wait()
+        for th in (self.scan_thread, self.semantic_thread):
+            if th and th.isRunning():
+                # 协作式停止（不 terminate，避免 Qt 强杀线程导致的未定义行为）
+                if hasattr(th, "stop"):
+                    th.stop()
+                else:
+                    th.requestInterruption()
+                th.wait()
+        if self.scheduler is not None:
+            self.scheduler.stop()
         event.accept()
 
 

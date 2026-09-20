@@ -3,11 +3,14 @@
 """
 from __future__ import annotations
 
+import logging
 from typing import Callable, Dict, List, Optional
 from urllib.parse import urlparse
 
 from core.business_logic.differential import HttpResponse, analyze_authorization
 from core.business_logic.scenarios import ScenarioClassifier, _looks_sensitive
+
+logger = logging.getLogger(__name__)
 
 
 def _url_host(url: str) -> str:
@@ -100,6 +103,18 @@ class BusinessLogicDetector:
             if h:
                 allowed_hosts.add(h)
         allowed_hosts.discard("")
+        # 同步 executor 的 SSRF 白名单，避免「detector 放行但 executor 拒绝」造成假阴性
+        if hasattr(executor, "allowed_hosts"):
+            try:
+                if executor.allowed_hosts is None:
+                    executor.allowed_hosts = set()
+                if isinstance(executor.allowed_hosts, (set, list, tuple)):
+                    executor.allowed_hosts = set(executor.allowed_hosts) | allowed_hosts
+                else:
+                    logger.warning("executor.allowed_hosts 类型异常（%s），白名单同步跳过",
+                                   type(executor.allowed_hosts).__name__)
+            except Exception as e:  # noqa: BLE001
+                logger.warning("同步 executor 白名单失败: %s", e)
         for tc in testcases:
             if not isinstance(tc, dict) or not tc.get("url"):
                 continue

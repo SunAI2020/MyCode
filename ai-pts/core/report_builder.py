@@ -74,10 +74,15 @@ def build_report_context(
     scan_result: Any = None,
     ai_analysis: Optional[Dict] = None,
     attack_steps: Optional[List[Dict]] = None,
+    credentials: Optional[Dict] = None,
+    privileges: Optional[Dict] = None,
+    ctem: Optional[Dict] = None,
 ) -> Dict:
     """聚合 ScanResult（对象或 dict）、AI 分析、攻击步骤为统一 context。
 
     scan_result 支持 core.scanner.ScanResult 对象或等价 dict。
+    credentials/privileges：闭环执行取得的凭据/权限映射（host → 摘要），用于证据化攻击路径。
+    ctem：复测对比结果 {"has_baseline", "baseline_time", "diff": {closed, still_open, new}}。
     """
     if scan_result is None:
         scan_result = {}
@@ -99,6 +104,9 @@ def build_report_context(
         "scan": scan,
         "ai_analysis": ai_analysis or {},
         "attack_steps": attack_steps or [],
+        "credentials": credentials or {},
+        "privileges": privileges or {},
+        "ctem": ctem or {},
     }
 
 
@@ -140,6 +148,68 @@ _VERIFY_METHODS = {
     "weak_password": "用命中凭据登录对应服务（SSH/数据库/后台），确认可成功认证",
     "open_service": "核对开放端口的服务名与版本，判断暴露面与后续利用方向",
 }
+
+
+def _normalize_host(target: Any) -> str:
+    """从 target 提取纯主机（去端口/URL scheme），用于与 credentials/privileges 的 key 对齐。"""
+    t = str(target or "").strip()
+    for prefix in ("http://", "https://"):
+        if t.lower().startswith(prefix):
+            t = t[len(prefix):]
+    return t.split("/")[0].split(":")[0]
+
+
+def build_evidence_attack_paths(
+    steps: List[Dict],
+    credentials: Optional[Dict] = None,
+    privileges: Optional[Dict] = None,
+) -> List[Dict]:
+    """把成功步骤按 (host→privilege→credential) 串联成因果攻击路径，每步标注证据。
+
+    只保留成功步骤（status in success/completed/成功），按 order 排序，
+    每个节点标注：目标主机、该主机已取得的权限等级与凭据摘要、步骤证据（命令输出）。
+
+    Returns:
+        list[dict]，每项一个因果节点：
+        {order, host, exploit_type, tool, description, privilege, credential, evidence}
+    """
+    credentials = credentials or {}
+    privileges = privileges or {}
+
+    nodes: List[Dict] = []
+    for s in (steps or []):
+        if not isinstance(s, dict):
+            continue
+        status = str(s.get("status") or "").lower()
+        if status not in {"success", "completed", "成功"}:
+            continue
+        host = _normalize_host(s.get("target"))
+        cred = credentials.get(host) if host else None
+        if isinstance(cred, dict):
+            parts = []
+            if cred.get("username"):
+                parts.append(str(cred["username"]))
+            if cred.get("hashes"):
+                parts.append("NTLM/Kerberos 哈希")
+            if cred.get("password") and not cred.get("hashes"):
+                parts.append("口令")
+            cred_summary = "、".join(parts) if parts else ""
+        else:
+            cred_summary = ""
+        nodes.append({
+            "order": s.get("order", len(nodes) + 1),
+            "host": host or str(s.get("target") or ""),
+            "exploit_type": s.get("exploit_type") or s.get("step_id") or "",
+            "tool": s.get("tool") or "",
+            "description": s.get("description") or "",
+            "privilege": privileges.get(host, "") if host else "",
+            "credential": cred_summary,
+            "evidence": s.get("evidence") or [],
+        })
+    # 稳定排序：order 为 int 时按值排；非 int（None/字符串）映射到末尾，list.sort 的
+    # 稳定性保证它们保持原相对顺序，避免统一落到 (0,0) 破坏因果链先后次序。
+    nodes.sort(key=lambda n: (0, n.get("order")) if isinstance(n.get("order"), int) else (1, 0))
+    return nodes
 
 
 def loop_steps_to_attack_steps(steps: List[Dict]) -> List[Dict]:
@@ -329,6 +399,48 @@ def _render_ai_attack_paths(ai: Dict) -> str:
     return "".join(blocks)
 
 
+def _render_evidence_paths(context: Dict) -> str:
+    """渲染证据化攻击路径：把成功步骤串联成因果链，标注每步主机/权限/凭据/证据。"""
+    steps = context.get("attack_steps") or []
+    creds = context.get("credentials") or {}
+    privs = context.get("privileges") or {}
+    nodes = build_evidence_attack_paths(steps, creds, privs)
+    if not nodes:
+        return '<p class="muted">本次未产生成功攻击步骤（无证据化因果路径）。</p>'
+
+    items = []
+    for i, n in enumerate(nodes, 1):
+        ev = n.get("evidence") or []
+        if isinstance(ev, str):
+            ev = [ev]
+        ev_html = ""
+        if ev:
+            ev_html = '<pre class="evidence">' + _esc("\n".join(str(e) for e in ev)) + "</pre>"
+        priv = n.get("privilege") or ""
+        cred = n.get("credential") or ""
+        meta_parts = [f"主机：{_esc(n.get('host') or '-')}"]
+        if priv:
+            meta_parts.append(f"权限：<b>{_esc(priv)}</b>")
+        if cred:
+            meta_parts.append(f"凭据：<b>{_esc(cred)}</b>")
+        desc = n.get("description") or ""
+        desc_html = f'<p><b>策略：</b>{_esc(desc)}</p>' if desc else ""
+        arrow = "" if i == len(nodes) else '<div style="text-align:center;color:#1a73e8;font-size:18px;margin:4px 0;">↓</div>'
+        items.append(f"""
+        <div class="risk-card" style="border-left:5px solid #2e7d32;">
+          <div class="risk-card-header">
+            <span class="risk-card-title">#{i} {_esc(n.get('exploit_type') or '')} — {_esc(n.get('tool') or '')}</span>
+            <span style="color:#2e7d32;font-weight:bold;">成功</span>
+          </div>
+          <div class="risk-card-body">
+            <p>{'　|　'.join(meta_parts)}</p>
+            {desc_html}
+            {ev_html}
+          </div>
+        </div>{arrow}""")
+    return "".join(items)
+
+
 def _render_attack_steps(steps: List[Dict], evidence_dir: str) -> str:
     if not steps:
         return '<p class="muted">本次未执行攻击链（可在界面点击「执行攻击链」后重新导出）。</p>'
@@ -475,6 +587,36 @@ def _render_web_findings(web_findings: List[Dict]) -> str:
     </table>"""
 
 
+def _render_ctem(ctem: Dict) -> str:
+    """渲染 CTEM 修复验证对比（路径已闭合 / 仍可利用 / 新增）。"""
+    if not ctem or not ctem.get("has_baseline"):
+        return '<p class="muted">暂无复测对比（首次扫描已存为基线，整改后重扫即可对比）。</p>'
+
+    diff = ctem.get("diff") or {}
+    base_time = ctem.get("baseline_time", "")
+
+    def _cards(items, title, color):
+        if not items:
+            return f'<p class="muted">{title}：0 项</p>'
+        rows = []
+        for v in items:
+            cid = v.get("cve_id") or "服务检测"
+            host = v.get("host") or ""
+            port = v.get("port") or ""
+            sev = _sev_label(v.get("severity") or "unknown")
+            rows.append(f"<li>{_esc(cid)}（{_esc(host)}:{_esc(port)}，{_esc(sev)}）</li>")
+        return (f'<div class="risk-card" style="border-left:5px solid {color};">'
+                f'<div class="risk-card-header"><span class="risk-card-title">{title}（{len(items)}）</span></div>'
+                f'<div class="risk-card-body"><ul>{"".join(rows)}</ul></div></div>')
+
+    closed = _cards(diff.get("closed", []), "✅ 路径已闭合（修复生效）", "#2e7d32")
+    still = _cards(diff.get("still_open", []), "🔴 仍可利用（修复未生效）", "#c62828")
+    new = _cards(diff.get("new", []), "🆕 新增发现", "#f9a825")
+    summary = (f"基线时间：{_esc(base_time)}　|　已闭合 {len(diff.get('closed', []))}　"
+               f"仍可利用 {len(diff.get('still_open', []))}　新增 {len(diff.get('new', []))}")
+    return f'<p><b>{summary}</b></p>{closed}{still}{new}'
+
+
 def _render_remediation_summary(vulns: List[Dict], ai: Dict) -> str:
     # 修复优先级（按紧急度，来自各漏洞 remediation.urgency）
     priorities = []
@@ -551,15 +693,19 @@ def build_report_html(context: Dict, evidence_dir: str = "reports") -> str:
         _render_methodology(scan),
         _section_header("三、AI 攻击路径分析", "ai-path"),
         _render_ai_attack_paths(ai),
-        _section_header("四、分步攻击详情", "attack"),
+        _section_header("四、证据化攻击路径（成功步骤因果链）", "evidence-path"),
+        _render_evidence_paths(context),
+        _section_header("五、分步攻击详情", "attack"),
         _render_attack_steps(steps, evidence_dir),
-        _section_header("五、漏洞汇总表", "summary"),
+        _section_header("六、漏洞汇总表", "summary"),
         _render_vuln_summary(vulns),
         _render_web_findings(scan.get("web_findings") or []),
-        _section_header("六、漏洞详细分析 & 补丁链接", "detail"),
+        _section_header("七、漏洞详细分析 & 补丁链接", "detail"),
         _render_vuln_detail(vulns),
-        _section_header("七、修复建议汇总", "remediation"),
+        _section_header("八、修复建议汇总", "remediation"),
         _render_remediation_summary(vulns, ai),
+        _section_header("九、CTEM 修复验证（复测对比）", "ctem"),
+        _render_ctem(context.get("ctem") or {}),
         '<div class="footer">本报告由 AI-PTS 自动生成，仅供参考。部署修复方案前请结合人工核验与实际环境验证。</div>',
     ])
 

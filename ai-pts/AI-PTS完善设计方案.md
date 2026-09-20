@@ -341,6 +341,89 @@ AI-PTS 的扫描与工具执行底座已相当扎实，**真正的差距不在"�
 
 ---
 
+## 九、第二阶段差距分析（Phase 0-4 落地后复盘）
+
+> 编制日期：2026-09-20。本文第三章「现状盘点」成文于 Phase 0-4 落地前（2026-09-19）。Phase 0-4（记忆 + ReAct 闭环 / 多智能体 + 攻击树 / RAG + 知识图谱 / 业务逻辑 + 语义检测 / 工具补齐 + 调度）已于 2026-09-20 落地提交（`01cf865e`）。本章为**落地后的第二轮差距分析**：对照真实代码，找出「方案宣称已做、实际未接入产品主界面、做了但实战不可用」的剩余差距，并给出进一步改进方案。
+
+### 9.1 落地复盘：Phase 0-4 的真实状态
+
+| 方案承诺 | 代码真相 | 判定 |
+|---|---|---|
+| 多智能体 + 攻击树 | `core/agents/`（Planner/Recon/Exploit/Validator/Guardian + PTT）+ `orchestrator.multi_agent_loop()` | ⚠️ 已实现，但仅 CLI `--multi-agent` 可达，GUI 未接 |
+| 记忆 + ReAct 闭环 | `core/memory.py`（SessionMemory/Summarizer）+ `orchestrator.agentic_loop()` | ⚠️ 已实现，但仅 CLI `--agentic` 可达，GUI 未接 |
+| RAG + 知识图谱 | `core/knowledge/`（BM25 检索 + 邻接表图 + 硬编码种子） | ⚠️ 降级为 BM25 + 6 条种子，未接 `cve_database.db` / 历史报告 |
+| 业务逻辑检测 | `core/business_logic/`（神经-符号差分验证） | ⚠️ 模块就位，无 HTTP 执行器，实战不可用 |
+| 语义级检测 | `core/semantic.py`（仅 SemanticVerifier 预验证） | ❌ 只做 1/4，且未接入扫描流程 |
+| 工具补齐 | `core/executors/{sqli,web_exploit,code_audit}.py` | ⚠️ 裸 subprocess + 依赖外部工具，exe 里是空的 |
+| 7×24 调度 | `core/scheduler.py`（TaskScheduler） | ❌ 未接线，独立死代码 |
+
+> 核心洞察：Phase 0-4 的**骨架全部落地**，但大量能力处于「模块存在、却未接入产品主界面/主流程」或「纸面补齐、实战不可用」的状态——这是第三章「第一阶段差距分析」没有覆盖的**第二层差距**。
+
+### 9.2 剩余差距（分级）
+
+**🔴 P0 — 能力存在但用户根本用不到**
+
+1. **GUI（默认入口）完全没接 Phase 0-4**：`gui/main_window.py` 的 `AttackWorker.run()` 仍走 `plan_exploit_path → build_workflow → wf.execute()` 单次流水线；`agentic_loop`/`multi_agent_loop` 仅在 `main.py --agentic/--multi-agent` CLI 可达，而 `main.py` 无 `--target` 时默认启动 GUI。**产品主界面看不到任何「智能中枢」能力。**
+2. **`business_logic_scan` / `semantic_verify` 是孤立方法**：`orchestrator.py` 有这两个方法，但 `main.py` 与 `gui/` 零调用，也不在扫描流程触发。业务逻辑检测、语义预验证对用户不可见。
+3. **`TaskScheduler` 未接线**：`main.py`/`gui/` 不实例化它，「7×24 多任务并行」实际不存在。
+
+**🟠 P1 — 纸面补齐 / 实战不可用**
+
+4. **RAG 降级为 BM25 + 硬编码种子**：文档承诺 sqlite-vec 向量检索、灌入「漏洞样本/CWE/历史报告」，实际是 `knowledge/retriever.py` 的 BM25 词法检索 + `seed.py` 的 6 条攻击案例 + 6 个漏洞节点；`vendor/cve_database.db`（23MB 真实 CVE 库）与 `reports/*.html` 历史报告未进知识库，`KnowledgeStore` 纯内存、关进程即失。
+5. **语义级检测只做 1/4 且未生效**：文档承诺「提取/预验证/防御绕过/参数生成」四智能体，实际只有 `semantic.py` 的预验证器，且它只打 `verify_status` 标签，没有任何地方用它过滤/降级扫描结果。
+6. **业务逻辑检测缺 HTTP 执行器**：`business_logic/detector.py` 的 `run()` 需注入 `executor(method, url, role)` 做 owner/attacker 双会话重放，全项目无此实现（无带登录态的双角色 HTTP 客户端），也没接端点发现。只有 mock 单测，实战跑不起来。
+7. **工具补齐是纸面补齐**：`sqli.py`/`web_exploit.py`/`code_audit.py` 只 `build_command` + 跑命令返回裸 stdout，不做结果解析；且 sqlmap/nuclei/semgrep 是外部二进制（`requirements.txt` 注明「需另行安装」），自包含 exe 里不存在 → `_tool_available()` 直接 skip。
+8. **证据化攻击路径 / CTEM 修复验证缺失**：`report_builder.py` 能渲染单步 evidence，但「弱口令→拿 shell→secretsdump→域控」的链式因果串联、以及「整改后重测（hack→fix→verify）」闭环均未实现。
+
+**🟡 P2 — 工程质量 / 一致性**
+
+9. `agentic_loop` 与 `multi_agent_loop` 约 90% 重复（记忆/Summarizer/护栏/执行循环两套拷贝），应合并。
+10. `workflow.py` 的 `RCEExecutor`/`SQLInjectionExecutor`/`PrivilegeEscalationExecutor`（返回 PENDING 占位）仍注册为默认又被 orchestrator 覆盖，两套并存易误导。
+11. `resolve_step_targets` 对 http/https URL 直接放行，但 sqlmap/nuclei 的 `validate` 走 `_extract_host` + `_in_whitelist`，白名单存 IP 而 URL 为域名时会误判；LLM 给出合法 token 但不在 hosts 的 IP 不会被纠正，仅靠 fail-closed 兜底。
+12. 无评测基准落地：文档提了 DVWA/Juice Shop/Vulhub 回归，tests 全是 mock LLM 单测，多步攻击成功率等指标无法度量。
+
+### 9.3 进一步改进方案（A/B/C 三阶段）
+
+> 原则沿用「智能中枢优先 + 自包含 + 神经-符号 + 复用挂载点」，但第一优先级是**把已写好的能力真正接到用户能用的入口**，而非再写新模块。
+
+**阶段 A：把已有能力接入产品（先止血，工作量小、见效快）**
+
+| # | 动作 | 挂载点 |
+|---|---|---|
+| A1 | GUI 攻击详情页加「执行模式」切换（单次 / ReAct 闭环 / 多智能体），复用 AttackWorker 已建好的 plan_dict，改调 `agentic_loop()` / `multi_agent_loop()` | `gui/main_window.py` |
+| A2 | 扫描完成回调触发 `semantic_verify(findings)`，把 `verify_status=rejected` 的降级/折叠显示 | `main.py` + GUI 结果展示 |
+| A3 | GUI 增「业务逻辑检测」入口：输入目标 URL + 双角色凭证 → 注入真实 HTTP 执行器（见 B2）→ 调 `business_logic_scan` | `gui/` 新面板 + `core/business_logic` |
+| A4 | GUI 增「定时任务」设置，实例化并 `start()` TaskScheduler，任务持久化到 SQLite | `gui/settings_dialog.py` + `config.py` |
+
+**阶段 B：补齐「纸面补齐」的实战缺口（核心价值）**
+
+| # | 动作 | 挂载点 |
+|---|---|---|
+| B1 | RAG 接真实数据：启动/首次扫描时从 `vendor/cve_database.db` 灌 CVE 描述 → `KnowledgeStore.add(kind="cve")`；历史 `reports/*.html` 抽取 → `kind="attack_case"`；`KnowledgeStore` 加 SQLite 持久化 | `core/knowledge/seed.py` + `store.py` |
+| B2 | 实现双角色 HTTP 执行器（owner/attacker 两套 session，`(method,url,role)->HttpResponse`，带白名单/SSRF guard）——业务逻辑检测从「单测可跑」变「实战可跑」的关键 | 新增 `core/business_logic/http_executor.py` |
+| B3 | 语义检测补齐四智能体（提取/防御绕过/参数生成），复用 `ai_analyzer.call_json`；预验证器真正接入扫描结果降级 | 扩展 `core/semantic.py` |
+| B4 | 工具执行器加结果解析：sqlmap 判注入成败、Nuclei 解析 JSON 提模板/命中、Semgrep 解析 `--json` 提规则/行号，写成结构化 result | `executors/{sqli,web_exploit,code_audit}.py` |
+| B5 | 证据化攻击路径：`report_builder` 把成功步骤按 (host→privilege→credential) 串联成因果路径，标注每步证据 | `core/report_builder.py` |
+| B6 | CTEM 修复验证：任务/报告加「复测」按钮，记录整改后重扫对比，输出「路径已闭合/仍可利用」 | `report_builder.py` + GUI |
+
+**阶段 C：工程质量收敛（降低后续维护成本）**
+
+| # | 动作 |
+|---|---|
+| C1 | 合并 `agentic_loop`/`multi_agent_loop` 为统一 `run_loop(strategy=...)` |
+| C2 | 删除 `workflow.py` 三个 PENDING 占位执行器，默认注册表留空由 orchestrator 注入 |
+| C3 | `resolve_step_targets` 增「URL host 必须 ∈ 白名单/扫描发现 hosts」显式校验 |
+| C4 | 引入本地靶场（DVWA/Juice Shop）集成测试，落地多步攻击成功率等回归指标 |
+
+### 9.4 建议实施顺序
+
+1. **先做 A1 + A2 + A4**（约 1-2 天）：把 agentic/multi-agent、语义预验证、调度接入 GUI——不写新算法，只是「接线」，立刻让产品主界面出现智能中枢，解决 P0。
+2. **再做 B2 + B1**（各 1-2 天）：HTTP 执行器让业务逻辑检测真正能跑；RAG 接真实数据让规划不再空转——两块最有差异化的能力从「纸面」变「可用」。
+3. **然后 B4 + B5 + B3**：工具结果解析、证据化报告、语义四智能体。
+4. **最后 C 系列**：工程质量收敛，为后续迭代扫清障碍。
+
+---
+
 ## 参考资料
 
 **学术/开源前沿**

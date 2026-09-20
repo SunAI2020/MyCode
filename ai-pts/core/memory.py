@@ -112,7 +112,7 @@ class SessionMemory:
             result=dict(getattr(output, "result", None) or {}),
             evidence=list(getattr(output, "evidence", None) or []),
             error=str(getattr(output, "error", "") or ""),
-            reason=str((action or {}).get("reason", "") or ""),
+            reason=str((action or {}).get("description", "") or (action or {}).get("reason", "") or ""),
             execution_time=float(getattr(output, "execution_time", 0.0) or 0.0),
         )
         self.steps.append(rec)

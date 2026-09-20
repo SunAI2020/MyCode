@@ -9,6 +9,7 @@ import json
 import logging
 import re
 from typing import Optional, List, Dict, Callable
+from urllib.parse import urlparse
 
 from core.scanner import create_engine, ScanResult
 from core.ai_analyzer import create_analyzer, ScannedService
@@ -17,7 +18,9 @@ from core.workflow import create_workflow, WorkflowBuilder, ManualReviewExecutor
 from core.memory import SessionMemory, Summarizer
 from core.agents import PlannerAgent, ReconAgent, ExploitAgent, ValidatorAgent, GuardianAgent, AttackTree
 from core.knowledge import KnowledgeBase
-from core.semantic import SemanticVerifier
+from core.semantic import (
+    SemanticVerifier, SemanticExtractor, DefenseDetector, PayloadGenerator,
+)
 from core.business_logic import BusinessLogicDetector
 from core.executors.getshell import ImpacketExecExecutor, MSFGetShellExecutor
 from core.executors.privesc import SecretsDumpExecutor, LinPEASExecutor
@@ -43,6 +46,17 @@ _SAFE_COMMANDS = {
 
 # 允许的 shell（LinPEAS 执行环境）
 _SAFE_SHELLS = {"bash", "sh", "cmd", "powershell"}
+
+
+def _host_of(target: str) -> str:
+    """从 "ip:port" / "http://host/path" 提取主机名（小写），失败返回空串。"""
+    t = (target or "").strip()
+    if "://" in t:
+        try:
+            return (urlparse(t).hostname or "").lower()
+        except ValueError:
+            return ""
+    return t.split("/")[0].split(":")[0].lower()
 
 # 安全 token / 路径字符集
 _TOKEN_RE = re.compile(r"^[A-Za-z0-9_.\-]+$")
@@ -74,6 +88,7 @@ class PenTestOrchestrator:
 
         self.scan_engine = create_engine()
         self.knowledge = KnowledgeBase()
+        self._reports_loaded = False  # 历史报告仅灌一次，避免每次闭环重复 glob/stat
         try:
             self.analyzer = create_analyzer(api_key)
         except ValueError:
@@ -262,6 +277,65 @@ class PenTestOrchestrator:
             out[key] = val
         return out
 
+    def _init_loop_memory(self, target_goal: str, hosts: list,
+                          services: list, vulns: list):
+        """闭环公共准备：SessionMemory + 灌真实知识 + Summarizer。
+
+        消除 agentic/multi_agent 两套闭环的重复初始化；统一返回
+        (memory, summarizer, agentic_cfg)。
+        """
+        agentic_cfg = (self.config or {}).get("agentic", {})
+        memory = SessionMemory(
+            target_goal=target_goal,
+            hosts=list(hosts or []),
+            services=[self._service_to_dict(s) for s in (services or [])],
+            vulns=[self._vuln_to_dict(v) for v in (vulns or [])],
+        )
+        # 灌入真实知识：当前扫描命中的 CVE 描述 + 历史报告（按需，非全量 33 万条）
+        from core.knowledge.loader import load_cves, load_reports
+        try:
+            load_cves(self.knowledge, [v.get("cve_id") for v in memory.vulns])
+            if not self._reports_loaded:
+                load_reports(self.knowledge)
+                self._reports_loaded = True
+        except Exception as e:  # noqa: BLE001
+            logger.warning("加载真实知识失败: %s", e)
+        summarizer = Summarizer(
+            summarize_fn=getattr(self.analyzer, "summarize_history", None),
+            max_steps=agentic_cfg.get("summarize_max_steps", 8),
+            max_chars=agentic_cfg.get("summarize_max_chars", 6000),
+        )
+        return memory, summarizer, agentic_cfg
+
+    def run_loop(
+        self,
+        strategy: str = "agentic",
+        target_goal: str = "get_shell",
+        context: dict = None,
+        services: list = None,
+        vulns: list = None,
+        hosts: list = None,
+        max_steps: int = None,
+    ) -> dict:
+        """统一闭环入口：按 strategy 分派到单智能体 / 多智能体闭环。
+
+        Args:
+            strategy: "agentic"（单智能体 ReAct）或 "multi_agent"（多智能体 + 攻击树）。
+            其余参数透传给对应闭环实现。
+
+        Returns:
+            dict: 对应闭环的返回结构。
+        """
+        if strategy == "multi_agent":
+            return self.multi_agent_loop(
+                target_goal=target_goal, context=context, services=services,
+                vulns=vulns, hosts=hosts, max_steps=max_steps)
+        if strategy not in ("agentic", "single"):
+            raise ValueError(f"未知闭环策略: {strategy!r}（可选 agentic / multi_agent）")
+        return self.agentic_loop(
+            target_goal=target_goal, context=context, services=services,
+            vulns=vulns, hosts=hosts, max_steps=max_steps)
+
     def agentic_loop(
         self,
         target_goal: str = "get_shell",
@@ -286,21 +360,10 @@ class PenTestOrchestrator:
             logger.warning("未配置 API key，无法运行 agentic loop")
             return {"status": "no_analyzer", "steps": [], "memory": None}
 
-        agentic_cfg = (self.config or {}).get("agentic", {})
+        memory, summarizer, agentic_cfg = self._init_loop_memory(
+            target_goal, hosts, services, vulns)
         max_steps = max_steps or agentic_cfg.get("max_steps", 20)
         goal_types = set(agentic_cfg.get("goal_types", ["rce", "msf"]))
-
-        memory = SessionMemory(
-            target_goal=target_goal,
-            hosts=list(hosts or []),
-            services=[self._service_to_dict(s) for s in (services or [])],
-            vulns=[self._vuln_to_dict(v) for v in (vulns or [])],
-        )
-        summarizer = Summarizer(
-            summarize_fn=self.analyzer.summarize_history,
-            max_steps=agentic_cfg.get("summarize_max_steps", 8),
-            max_chars=agentic_cfg.get("summarize_max_chars", 6000),
-        )
         wf = self.build_workflow(plan=None)
 
         async def _loop():
@@ -428,24 +491,13 @@ class PenTestOrchestrator:
             logger.warning("未配置 API key，无法运行多智能体闭环")
             return {"status": "no_analyzer", "tree": None, "steps": [], "memory": None}
 
-        agentic_cfg = (self.config or {}).get("agentic", {})
+        memory, summarizer, agentic_cfg = self._init_loop_memory(
+            target_goal, hosts, services, vulns)
         max_steps = max_steps or agentic_cfg.get("max_steps", 20)
         goal_types = set(agentic_cfg.get("goal_types", ["rce", "msf"]))
-
-        memory = SessionMemory(
-            target_goal=target_goal,
-            hosts=list(hosts or []),
-            services=[self._service_to_dict(s) for s in (services or [])],
-            vulns=[self._vuln_to_dict(v) for v in (vulns or [])],
-        )
         tree = AttackTree(root_goal=target_goal)
         agents = self._build_agents()
         wf = self.build_workflow(plan=None)
-        summarizer = Summarizer(
-            summarize_fn=getattr(self.analyzer, "summarize_history", None),
-            max_steps=agentic_cfg.get("summarize_max_steps", 8),
-            max_chars=agentic_cfg.get("summarize_max_chars", 6000),
-        )
 
         async def _loop():
             goal_hit = False
@@ -490,6 +542,13 @@ class PenTestOrchestrator:
                 if node.exploit_type == "recon" and action.get("decision") == "recon":
                     recon_target = action.get("target") or (memory.hosts[0] if memory.hosts else "")
                     if recon_target:
+                        # 确定性护栏：仅允许扫描已授权主机（防 LLM/提示注入越权扫描内网）
+                        host = _host_of(recon_target)
+                        allowed = {_host_of(h) for h in memory.hosts}
+                        if not allowed or not host or host not in allowed:
+                            memory.add_observation(f"Guardian 拒绝 recon 越权目标：{recon_target}")
+                            node.state = "failed"
+                            continue
                         try:
                             scan_result = self.scan_engine.scan_sync(target=recon_target)
                             for s in scan_result.services:
@@ -564,9 +623,24 @@ class PenTestOrchestrator:
     # ---- Phase 3：业务逻辑 + 语义检测 ----
 
     def semantic_verify(self, findings: list) -> list:
-        """对规则引擎命中项做 LLM 语义预验证（降误报）。"""
+        """对规则引擎命中项做 LLM 语义预验证（分批次，每批 ≤200 条，降误报）。"""
         verifier = SemanticVerifier(self.analyzer.call_json if self.analyzer else None)
         return verifier.verify(findings)
+
+    def semantic_extract(self, target: str, endpoints: list) -> list:
+        """从端点/参数提取语义级漏洞候选（SQLi/XSS/SSRF/XXE/路径遍历）。"""
+        extractor = SemanticExtractor(self.analyzer.call_json if self.analyzer else None)
+        return extractor.extract(target, endpoints)
+
+    def detect_defenses(self, target: str, endpoints: list, response_snippet: str = "") -> list:
+        """检测目标防御机制（WAF/过滤/CSRF 等）并评估绕过可行性。"""
+        detector = DefenseDetector(self.analyzer.call_json if self.analyzer else None)
+        return detector.detect(target, endpoints, response_snippet)
+
+    def generate_payloads(self, vuln_type: str, param: str = "", count: int = 10) -> list:
+        """针对漏洞类型批量生成测试 payload（授权测试验证向量）。"""
+        gen = PayloadGenerator(self.analyzer.call_json if self.analyzer else None)
+        return gen.generate(vuln_type, param, count)
 
     def business_logic_scan(self, target: str, endpoints: list, roles: list, executor=None) -> list:
         """业务逻辑漏洞检测（神经-符号）。

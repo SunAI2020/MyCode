@@ -94,55 +94,6 @@ class BaseExecutor(ABC):
         pass
 
 
-class RCEExecutor(BaseExecutor):
-    """远程代码执行执行器"""
-
-    async def execute(self, step_input: StepInput, step_config: Dict) -> StepOutput:
-        """执行RCE"""
-        logger.info(f"执行RCE: {step_input.target}:{step_input.port}")
-        # 实际执行需要集成实际的利用工具
-        return StepOutput(
-            status=StepStatus.PENDING,
-            error="需要配置实际的利用工具"
-        )
-
-    async def validate(self, step_input: StepInput) -> bool:
-        """验证目标可达"""
-        return True
-
-    async def rollback(self, step_output: StepOutput) -> bool:
-        """回滚"""
-        return True
-
-
-class SQLInjectionExecutor(BaseExecutor):
-    """SQL注入执行器"""
-
-    async def execute(self, step_input: StepInput, step_config: Dict) -> StepOutput:
-        logger.info(f"SQL注入: {step_input.target}:{step_input.port}")
-        return StepOutput(status=StepStatus.PENDING)
-
-    async def validate(self, step_input: StepInput) -> bool:
-        return True
-
-    async def rollback(self, step_output: StepOutput) -> bool:
-        return True
-
-
-class PrivilegeEscalationExecutor(BaseExecutor):
-    """权限提升执行器"""
-
-    async def execute(self, step_input: StepInput, step_config: Dict) -> StepOutput:
-        logger.info(f"提权: {step_input.target}")
-        return StepOutput(status=StepStatus.PENDING)
-
-    async def validate(self, step_input: StepInput) -> bool:
-        return True
-
-    async def rollback(self, step_output: StepOutput) -> bool:
-        return True
-
-
 class ManualReviewExecutor(BaseExecutor):
     """暂无自动化专项工具的漏洞类型：标记为 SKIPPED 并提示人工验证"""
 
@@ -161,17 +112,14 @@ class ManualReviewExecutor(BaseExecutor):
 
 
 class ExecutorRegistry:
-    """执行器注册表"""
+    """执行器注册表。
+
+    默认注册表留空：真实执行器由 orchestrator.build_workflow() 注入，
+    避免「占位执行器又被覆盖」的两套并存误导。未注册类型由 _execute_step 显式报 FAILED。
+    """
 
     def __init__(self):
         self._executors: Dict[str, BaseExecutor] = {}
-        self._register_default()
-
-    def _register_default(self):
-        """注册默认执行器"""
-        self.register("rce", RCEExecutor())
-        self.register("sql_injection", SQLInjectionExecutor())
-        self.register("privesc", PrivilegeEscalationExecutor())
 
     def register(self, exploit_type: str, executor: BaseExecutor):
         """注册执行器"""
@@ -529,10 +477,23 @@ def resolve_step_targets(steps: List[Dict], hosts: List[str]) -> List[Dict]:
         就地修改后的 steps（同时返回，便于链式调用）
     """
     primary = (hosts[0] if hosts else "") or ""
+    # 授权主机集合（剥离端口，与 orchestrator._host_of 口径一致）
+    host_set = {h.split(":")[0].lower() for h in hosts if h}
     for s in steps:
         t = (s.get("target") or "").strip()
         # URL 目标（http/https）与本地路径保持不变，供 web（sqlmap/nuclei）与静态审计（semgrep）使用
         if t.lower().startswith(("http://", "https://")):
+            # 显式白名单校验：URL host 必须在扫描发现/授权 hosts 内（防 LLM 注入任意 URL 造成 SSRF）。
+            # 越权时清空 target（而非改写为裸 primary），使执行器 validate 因空 host 明确拒绝为
+            # SKIPPED —— fail-closed 且不产生「改写后 URL 非法 → FAILED」的假阴性。
+            if host_set:
+                try:
+                    from urllib.parse import urlparse
+                    uh = (urlparse(t).hostname or "").lower()
+                except ValueError:
+                    uh = ""
+                if uh and uh not in host_set:
+                    s["target"] = ""
             continue
         if t.startswith(("/", "./", "../", "~")) or (len(t) >= 2 and t[1] == ":"):
             continue

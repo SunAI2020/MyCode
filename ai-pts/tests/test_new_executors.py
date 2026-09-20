@@ -31,7 +31,8 @@ def test_sqlmap_rejects_non_url():
 def test_nuclei_build_command():
     ex = NucleiExecutor(require_confirmation=False)
     cmd = ex.build_command(_in("http://t.local"), {"severity": "high"})
-    assert cmd == ["nuclei", "-u", "http://t.local", "-silent", "-severity", "high"]
+    # B4：nuclei 加 -jsonl 以便结构化解析
+    assert cmd == ["nuclei", "-u", "http://t.local", "-jsonl", "-silent", "-severity", "high"]
 
 
 def test_nuclei_rejects_non_url():
@@ -42,7 +43,8 @@ def test_nuclei_rejects_non_url():
 def test_semgrep_build_command():
     ex = SemgrepExecutor(require_confirmation=False)
     cmd = ex.build_command(_in("/src/repo"), {})
-    assert cmd == ["semgrep", "--config", "p/owasp-top-ten", "/src/repo"]
+    # B4：semgrep 加 --json --no-error 以便结构化解析且不把「发现漏洞」误判为失败
+    assert cmd == ["semgrep", "--json", "--no-error", "--config", "p/owasp-top-ten", "/src/repo"]
 
 
 def test_semgrep_validate_local_path():

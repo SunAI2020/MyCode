@@ -13,9 +13,9 @@ if str(ROOT) not in sys.path:
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QTabWidget, QTableWidget, QTableWidgetItem,
     QHeaderView, QPushButton, QLabel, QTextEdit, QListWidget, QListWidgetItem,
-    QFileDialog, QWidget, QMessageBox,
+    QFileDialog, QWidget, QMessageBox, QFormLayout, QLineEdit, QCheckBox,
 )
-from PyQt5.QtCore import Qt, QUrl
+from PyQt5.QtCore import Qt, QUrl, QThread, pyqtSignal
 from PyQt5.QtGui import QDesktopServices
 
 from core.tool_library import TOOLS, render_usage
@@ -220,3 +220,157 @@ class ReportCenterDialog(QDialog):
             QMessageBox.information(self, "完成", f"已导出到 {target}")
         except Exception as e:  # noqa: BLE001
             QMessageBox.critical(self, "导出失败", str(e))
+
+
+class BusinessLogicThread(QThread):
+    """后台跑业务逻辑检测：LLM 分类/用例生成 + 双角色差分重放。"""
+    progress = pyqtSignal(str)
+    result_ready = pyqtSignal(list)
+    error = pyqtSignal(str)
+
+    def __init__(self, target: str, endpoints: list, sessions: dict,
+                 api_key: str, verify: bool = True, parent=None):
+        super().__init__(parent)
+        self.target = target
+        self.endpoints = endpoints
+        self.sessions = sessions
+        self.api_key = api_key
+        self.verify = verify
+
+    def run(self):
+        try:
+            from core.orchestrator import create_orchestrator
+            from core.business_logic.http_executor import DualRoleHttpExecutor
+            self.progress.emit("正在做业务逻辑检测（LLM 分类 + 多角色差分验证）...")
+            orch = create_orchestrator(api_key=self.api_key)
+            executor = DualRoleHttpExecutor(self.target, self.sessions, verify=self.verify)
+            findings = orch.business_logic_scan(
+                self.target, self.endpoints, ["owner", "attacker"], executor=executor)
+            self.result_ready.emit(findings)
+        except Exception as e:  # noqa: BLE001
+            self.error.emit(str(e))
+
+
+class BusinessLogicDialog(QDialog):
+    """业务逻辑漏洞检测：输入目标 + 端点 + 双角色 Cookie，跑神经-符号差分验证。"""
+
+    def __init__(self, api_key: str = "", parent=None):
+        super().__init__(parent)
+        self.api_key = api_key
+        self.thread = None
+        self.setWindowTitle("业务逻辑漏洞检测")
+        self.resize(760, 640)
+        self._init_ui()
+
+    def _init_ui(self):
+        lay = QVBoxLayout(self)
+
+        form = QFormLayout()
+        self.target_edit = QLineEdit()
+        self.target_edit.setPlaceholderText("如 http://target.example.com")
+        form.addRow("目标 URL:", self.target_edit)
+
+        self.endpoints_edit = QTextEdit()
+        self.endpoints_edit.setPlaceholderText(
+            "每行一个端点，可选方法前缀，如：\n/orders/100\n/api/users/1\nPOST /api/login")
+        self.endpoints_edit.setFixedHeight(110)
+        form.addRow("敏感端点:", self.endpoints_edit)
+
+        self.owner_cookie_edit = QLineEdit()
+        self.owner_cookie_edit.setPlaceholderText("owner 角色 Cookie（session=...）")
+        form.addRow("Owner Cookie:", self.owner_cookie_edit)
+        self.attacker_cookie_edit = QLineEdit()
+        self.attacker_cookie_edit.setPlaceholderText("attacker 角色 Cookie（留空=未登录）")
+        form.addRow("Attacker Cookie:", self.attacker_cookie_edit)
+        lay.addLayout(form)
+
+        self.trust_self_signed_check = QCheckBox("信任自签证书（仅授权自测环境勾选）")
+        self.trust_self_signed_check.setChecked(False)
+        lay.addWidget(self.trust_self_signed_check)
+
+        btn_row = QHBoxLayout()
+        self.run_btn = QPushButton("开始检测")
+        self.run_btn.clicked.connect(self._run)
+        btn_row.addWidget(self.run_btn)
+        btn_row.addStretch(1)
+        lay.addLayout(btn_row)
+
+        lay.addWidget(QLabel("检测结果:"))
+        self.result_text = QTextEdit()
+        self.result_text.setReadOnly(True)
+        lay.addWidget(self.result_text, 1)
+
+        close_btn = QPushButton("关闭")
+        close_btn.clicked.connect(self.accept)
+        lay.addWidget(close_btn)
+
+    def _parse_endpoints(self):
+        endpoints = []
+        for raw in self.endpoints_edit.toPlainText().splitlines():
+            line = raw.strip()
+            if not line:
+                continue
+            parts = line.split(None, 1)
+            if len(parts) == 2 and parts[0].upper() in ("GET", "POST", "PUT", "DELETE", "PATCH"):
+                method, url = parts[0].upper(), parts[1]
+            else:
+                method, url = "GET", line
+            endpoints.append({"method": method, "url": url})
+        return endpoints
+
+    def _run(self):
+        target = self.target_edit.text().strip()
+        if not target.startswith(("http://", "https://")):
+            QMessageBox.warning(self, "提示", "请输入以 http:// 或 https:// 开头的目标 URL")
+            return
+        endpoints = self._parse_endpoints()
+        if not endpoints:
+            QMessageBox.warning(self, "提示", "请输入至少一个待检测端点")
+            return
+        owner_cookie = self.owner_cookie_edit.text().strip()
+        attacker_cookie = self.attacker_cookie_edit.text().strip()
+        sessions = {
+            "owner": {"headers": {"Cookie": owner_cookie}} if owner_cookie else {},
+            "attacker": {"headers": {"Cookie": attacker_cookie}} if attacker_cookie else {},
+        }
+
+        self.run_btn.setEnabled(False)
+        self.result_text.setPlainText("检测中，请稍候...")
+        verify = not self.trust_self_signed_check.isChecked()
+        self.thread = BusinessLogicThread(target, endpoints, sessions, self.api_key,
+                                          verify=verify)
+        self.thread.progress.connect(self.result_text.append)
+        self.thread.result_ready.connect(self._on_done)
+        self.thread.error.connect(self._on_error)
+        self.thread.start()
+
+    def _on_done(self, findings):
+        self.run_btn.setEnabled(True)
+        if not findings:
+            self.result_text.setPlainText("未发现业务逻辑漏洞（IDOR/BOLA/越权）。")
+            return
+        real = [f for f in findings if f.get("finding_type") in ("idor", "access_control_bypass")]
+        blocked = [f for f in findings if f.get("finding_type") == "blocked"]
+        errors = [f for f in findings if f.get("finding_type") == "error"]
+        lines = [f"发现 {len(real)} 处业务逻辑漏洞：\n"]
+        for f in real:
+            lines.append(
+                f"- [{f.get('finding_type')}] {f.get('method')} {f.get('url')}"
+                f"（置信度 {f.get('confidence', '-')}）")
+            if f.get("scenario"):
+                lines.append(f"    场景: {f['scenario']}")
+            if f.get("reason"):
+                lines.append(f"    原因: {f['reason']}")
+        if blocked:
+            lines.append(f"\n已拦截（SSRF 防护）{len(blocked)} 个越界请求:")
+            for f in blocked:
+                lines.append(f"  - {f.get('url')}: {f.get('reason', '')}")
+        if errors:
+            lines.append(f"\n检测异常 {len(errors)} 处:")
+            for f in errors:
+                lines.append(f"  - {f.get('url')}: {f.get('reason', '')}")
+        self.result_text.setPlainText("\n".join(lines))
+
+    def _on_error(self, err):
+        self.run_btn.setEnabled(True)
+        self.result_text.setPlainText(f"检测失败：{err}")

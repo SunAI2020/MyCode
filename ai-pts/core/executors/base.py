@@ -175,6 +175,13 @@ class ToolExecutor(BaseExecutor):
         dt = round(time.time() - t0, 3)
         evidence = ["$ " + " ".join(self._redact_cmd(cmd)), (out or "").strip(), (err or "").strip()]
         result = {"returncode": rc, "stdout": out, "stderr": err}
+        # 子类可覆盖 _parse 做结构化解析（sqlmap/nuclei/semgrep 等）
+        try:
+            parsed = self._parse(result)
+            if parsed:
+                result["parsed"] = parsed
+        except Exception as e:  # noqa: BLE001
+            logger.warning("解析工具输出失败: %s", e)
         if rc == 0:
             return StepOutput(status=StepStatus.SUCCESS, result=result,
                               evidence=evidence, execution_time=dt)
@@ -194,3 +201,7 @@ class ToolExecutor(BaseExecutor):
             errors="replace",
         )
         return p.returncode, p.stdout or "", p.stderr or ""
+
+    def _parse(self, result: Dict) -> Optional[Dict]:
+        """结构化解析工具输出（子类覆盖）。默认无解析，返回 None。"""
+        return None

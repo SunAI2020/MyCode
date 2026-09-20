@@ -33,3 +33,16 @@ class SqlmapExecutor(ToolExecutor):
         if step_config.get("level"):
             cmd += ["--level", str(step_config["level"])]
         return cmd
+
+    def _parse(self, result):
+        """从 sqlmap 文本输出判注入是否成功，并提取后端 DBMS 线索。"""
+        out = result.get("stdout") or ""
+        injectable = any(k in out for k in (
+            "is vulnerable", "identified the following injection point",
+            "injection point", "sqlmap identified"))
+        parsed = {"injectable": injectable}
+        for line in out.splitlines():
+            if "back-end DBMS:" in line:
+                parsed["dbms"] = line.split("back-end DBMS:", 1)[1].strip()[:50]
+                break
+        return parsed
