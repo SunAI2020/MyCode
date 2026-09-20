@@ -300,6 +300,7 @@ class ExploitChainThread(QThread):
             self.result_ready.emit({
                 "plan": plan_dict,
                 "steps": steps,  # 归一化后的步骤（resolve_step_targets + route_ai_steps 后）
+                "mode": "single",
                 "status": wf_result.status.value,
                 "success_steps": wf_result.success_steps,
                 "failed_steps": wf_result.failed_steps,
@@ -310,6 +311,7 @@ class ExploitChainThread(QThread):
                         "status": r.status.value,
                         "error": r.output.error,
                         "evidence": r.output.evidence,
+                        "result": getattr(r.output, "result", None) or {},
                     }
                     for r in wf_result.step_results
                 ],
@@ -395,6 +397,7 @@ class ExploitChainThread(QThread):
                 "status": rec.get("status", ""),
                 "error": rec.get("error", ""),
                 "evidence": rec.get("evidence", []),
+                "result": rec.get("result", {}),
             })
         n_success = sum(1 for r in step_results if r["status"] == "success")
         n_failed = sum(1 for r in step_results if r["status"] == "failed")
@@ -457,6 +460,76 @@ class SemanticVerifyThread(QThread):
             self.progress.emit(
                 f"语义预验证完成：{counts['confirmed']} 确认 / {counts['rejected']} 疑似误报 / {counts['unverified']} 未验证")
             self.result_ready.emit({"vulns": verified, "counts": counts})
+        except Exception as e:
+            self.error.emit(str(e))
+
+
+# ================== 语义四智能体增强线程 ==================
+class SemanticEnhanceThread(QThread):
+    """后台运行语义四智能体（提取/防御绕过/参数生成），结果进报告「语义智能体增强」章节。"""
+    progress = pyqtSignal(str)
+    result_ready = pyqtSignal(dict)  # {"extract": [...], "defenses": [...], "payloads": {...}}
+    error = pyqtSignal(str)
+
+    def __init__(self, scan_results: dict, api_key: str, parent=None):
+        super().__init__(parent)
+        self.scan_results = scan_results or {}
+        self.api_key = api_key
+        self._stop_requested = False
+
+    def stop(self):
+        """协作式停止：请求中断，run() 在各 LLM 调用之间检查后安全退出（不 terminate）。"""
+        self._stop_requested = True
+
+    @staticmethod
+    def _collect_endpoints(scan_results: dict) -> list:
+        """从扫描结果提取端点列表：优先 web_findings 的 url，否则由 vulns 的 host:port 构造。"""
+        endpoints = []
+        for wf in (scan_results.get("web_findings") or []):
+            url = wf.get("url") if isinstance(wf, dict) else None
+            if url:
+                endpoints.append({"method": "GET", "url": url})
+        if not endpoints:
+            for v in (scan_results.get("vulnerabilities") or []):
+                host = v.get("host") or ""
+                port = v.get("port") or ""
+                if host:
+                    endpoints.append({"method": "GET", "url": f"http://{host}:{port}"})
+        return endpoints
+
+    def run(self):
+        try:
+            from core.orchestrator import create_orchestrator
+
+            target = (self.scan_results.get("scan_config") or {}).get("target", "") or ""
+            endpoints = self._collect_endpoints(self.scan_results)
+            if not endpoints:
+                self.result_ready.emit({"extract": [], "defenses": [], "payloads": {}})
+                return
+
+            self.progress.emit("正在运行语义四智能体增强（提取/防御绕过/参数生成）...")
+            orch = create_orchestrator(api_key=self.api_key)
+            extract = orch.semantic_extract(target, endpoints) or []
+            if self._stop_requested:
+                self.progress.emit("语义智能体增强已取消")
+                return
+            defenses = orch.detect_defenses(target, endpoints) or []
+            if self._stop_requested:
+                self.progress.emit("语义智能体增强已取消")
+                return
+
+            payloads = {}
+            seen = set()
+            for e in extract:
+                if self._stop_requested:
+                    self.progress.emit("语义智能体增强已取消")
+                    return
+                vt = (e or {}).get("vuln_type", "")
+                if vt and vt not in seen:
+                    seen.add(vt)
+                    gen = orch.generate_payloads(vt, (e or {}).get("param", ""), count=5)
+                    payloads[vt] = gen or []
+            self.result_ready.emit({"extract": extract, "defenses": defenses, "payloads": payloads})
         except Exception as e:
             self.error.emit(str(e))
 
@@ -541,9 +614,12 @@ class MainWindow(QMainWindow):
         self.ai_thread: Optional[AIAnalysisThread] = None
         self.exploit_thread: Optional[ExploitChainThread] = None
         self.semantic_thread: Optional[SemanticVerifyThread] = None
+        self.semantic_enhance_thread: Optional[SemanticEnhanceThread] = None
         self.scan_results: dict = {}
         self.ai_analysis: dict = {}
         self.attack_results: dict = {}
+        self.business_logic_findings: list = []
+        self.semantic_enhance: dict = {}
         self.api_key: str = ""
         self.current_user: Optional[dict] = None
         self.attack_intensity: str = "中"
@@ -922,7 +998,16 @@ class MainWindow(QMainWindow):
     def _show_business_logic(self):
         from gui.tool_dialogs import BusinessLogicDialog
         BusinessLogicDialog(api_key=self._effective_api_key() or self.api_key,
+                            on_findings=self._on_business_logic_findings,
                             parent=self).exec_()
+
+    def _on_business_logic_findings(self, findings: list):
+        """业务逻辑检测结果回传，供报告「业务逻辑检测结果」章节使用。"""
+        self.business_logic_findings = findings or []
+        n = len([f for f in self.business_logic_findings
+                 if f.get("finding_type") in ("idor", "access_control_bypass")])
+        if n:
+            self.append_log(f"[+] 业务逻辑检测完成：发现 {n} 处漏洞")
 
     def _show_manual_review(self):
         from gui.tool_dialogs import ManualReviewDialog
@@ -1027,6 +1112,8 @@ class MainWindow(QMainWindow):
         self.scan_results = {}
         self.ai_analysis = {}
         self.attack_results = {}
+        self.business_logic_findings = []
+        self.semantic_enhance = {}
 
         # 启动扫描线程
         self.scan_thread = ScanThread(
@@ -1054,7 +1141,7 @@ class MainWindow(QMainWindow):
         requestInterruption + terminate()（已执行前整体确认 + 白名单 fail-closed 兜底）。
         """
         for th in (self.scan_thread, self.ai_thread, self.exploit_thread,
-                   self.semantic_thread):
+                   self.semantic_thread, self.semantic_enhance_thread):
             if th and th.isRunning():
                 if hasattr(th, "stop"):
                     th.stop()
@@ -1066,6 +1153,7 @@ class MainWindow(QMainWindow):
         self.ai_thread = None
         self.exploit_thread = None
         self.semantic_thread = None
+        self.semantic_enhance_thread = None
 
         self._set_running(False)
         self.status_bar.showMessage("已停止")
@@ -1233,6 +1321,29 @@ class MainWindow(QMainWindow):
         self.semantic_thread.error.connect(self.on_semantic_verify_error)
         self.semantic_thread.start()
         self.append_log("[*] 已启动漏洞语义预验证（LLM 判定真/误报）...")
+        self.start_semantic_enhance()
+
+    def start_semantic_enhance(self):
+        """扫描完成后运行语义四智能体增强（提取/防御绕过/参数生成），结果进报告。"""
+        if not (self.api_key or self._has_env_api_key()):
+            return
+        self.semantic_enhance_thread = SemanticEnhanceThread(
+            self.scan_results, self._effective_api_key())
+        self.semantic_enhance_thread.progress.connect(lambda m: self.status_bar.showMessage(m))
+        self.semantic_enhance_thread.result_ready.connect(self.on_semantic_enhance_complete)
+        self.semantic_enhance_thread.error.connect(self.on_semantic_enhance_error)
+        self.semantic_enhance_thread.start()
+
+    def on_semantic_enhance_complete(self, result: dict):
+        self.semantic_enhance = result or {}
+        n = len(result.get("extract") or []) + len(result.get("defenses") or [])
+        if n:
+            self.append_log(f"[+] 语义智能体增强完成：提取 {len(result.get('extract') or [])} 候选、"
+                            f"防御检测 {len(result.get('defenses') or [])} 项、"
+                            f"payload {len(result.get('payloads') or {})} 类")
+
+    def on_semantic_enhance_error(self, error: str):
+        self.append_log(f"[-] 语义智能体增强失败：{error}")
 
     def on_semantic_verify_complete(self, result: dict):
         """语义预验证完成：更新漏洞表第 6 列 + 灰显疑似误报。"""
@@ -1495,6 +1606,8 @@ class MainWindow(QMainWindow):
         self.scan_results = {}
         self.ai_analysis = {}
         self.attack_results = {}
+        self.business_logic_findings = []
+        self.semantic_enhance = {}
 
     def open_targets(self):
         """打开目标列表"""
@@ -1547,6 +1660,7 @@ class MainWindow(QMainWindow):
                     "status": sr.get("status", ""),
                     "error": sr.get("error", ""),
                     "evidence": sr.get("evidence", []),
+                    "parsed": (sr.get("result") or {}).get("parsed"),
                 })
 
             # CTEM 复测对比：有基线则对比，无基线不强制建基线（避免导出误存快照）
@@ -1567,6 +1681,11 @@ class MainWindow(QMainWindow):
                 credentials=self.attack_results.get("credentials", {}),
                 privileges=self.attack_results.get("privileges", {}),
                 ctem=ctem,
+                exec_mode=self.attack_results.get("mode", ""),
+                loop_status=self.attack_results.get("status", ""),
+                attack_tree=self.attack_results.get("tree"),
+                business_logic_findings=getattr(self, "business_logic_findings", []),
+                semantic_enhance=getattr(self, "semantic_enhance", {}),
             )
 
             if file_path.lower().endswith(".json"):
@@ -1884,7 +2003,7 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         """关闭事件"""
-        for th in (self.scan_thread, self.semantic_thread):
+        for th in (self.scan_thread, self.semantic_thread, self.semantic_enhance_thread):
             if th and th.isRunning():
                 # 协作式停止（不 terminate，避免 Qt 强杀线程导致的未定义行为）
                 if hasattr(th, "stop"):

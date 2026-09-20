@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import html
+import json
 import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -46,28 +47,34 @@ def _vuln_to_dict(v: Any) -> Dict:
             ft = base.get("finding_type")
             if ft:
                 base["cve_id"] = f"FINDING:{ft}"
-        return base
-    return {
-        "cve_id": _get(v, "cve_id", ""),
-        "description": _get(v, "description", ""),
-        "severity": _get(v, "severity", ""),
-        "cvss_score": _get(v, "cvss_score", 0.0),
-        "product": _get(v, "product", ""),
-        "version": _get(v, "version", ""),
-        "host": _get(v, "host", ""),
-        "port": _get(v, "port", 0),
-        "service": _get(v, "service", ""),
-        "protocol": _get(v, "protocol", "tcp"),
-        "finding_type": _get(v, "finding_type", ""),
-        "affected_versions": _get(v, "affected_versions", ""),
-        "references_url": _get(v, "references_url", ""),
-        "patch_link": _get(v, "patch_link", ""),
-        "match_confidence": _get(v, "match_confidence", ""),
-        "matched_by": _get(v, "matched_by", ""),
-        "cwe": _get(v, "cwe_id", "") or _get(v, "cwe", ""),
-        "evidence": _get(v, "evidence", {}) or {},
-        "remediation": _get(v, "remediation", {}) or {},
-    }
+    else:
+        base = {
+            "cve_id": _get(v, "cve_id", ""),
+            "description": _get(v, "description", ""),
+            "severity": _get(v, "severity", ""),
+            "cvss_score": _get(v, "cvss_score", 0.0),
+            "product": _get(v, "product", ""),
+            "version": _get(v, "version", ""),
+            "host": _get(v, "host", ""),
+            "port": _get(v, "port", 0),
+            "service": _get(v, "service", ""),
+            "protocol": _get(v, "protocol", "tcp"),
+            "finding_type": _get(v, "finding_type", ""),
+            "affected_versions": _get(v, "affected_versions", ""),
+            "references_url": _get(v, "references_url", ""),
+            "patch_link": _get(v, "patch_link", ""),
+            "match_confidence": _get(v, "match_confidence", ""),
+            "matched_by": _get(v, "matched_by", ""),
+            "cwe": _get(v, "cwe_id", "") or _get(v, "cwe", ""),
+            "evidence": _get(v, "evidence", {}) or {},
+            "remediation": _get(v, "remediation", {}) or {},
+        }
+    # 语义预验证结果透传（SemanticVerifier.verify 原地标注在 finding 顶层）
+    for k in ("verify_status", "verify_confidence", "verify_reason"):
+        val = _get(v, k)
+        if val:
+            base[k] = val
+    return base
 
 
 def build_report_context(
@@ -77,12 +84,21 @@ def build_report_context(
     credentials: Optional[Dict] = None,
     privileges: Optional[Dict] = None,
     ctem: Optional[Dict] = None,
+    exec_mode: str = "",
+    loop_status: str = "",
+    attack_tree: Optional[Dict] = None,
+    business_logic_findings: Optional[List[Dict]] = None,
+    semantic_enhance: Optional[Dict] = None,
 ) -> Dict:
     """聚合 ScanResult（对象或 dict）、AI 分析、攻击步骤为统一 context。
 
     scan_result 支持 core.scanner.ScanResult 对象或等价 dict。
     credentials/privileges：闭环执行取得的凭据/权限映射（host → 摘要），用于证据化攻击路径。
     ctem：复测对比结果 {"has_baseline", "baseline_time", "diff": {closed, still_open, new}}。
+    exec_mode/loop_status：执行模式（single/agentic/multi_agent）与闭环状态。
+    attack_tree：多智能体攻击树 snapshot（node_id/goal/exploit_type/state/children 递归）。
+    business_logic_findings：业务逻辑检测 findings（idor/access_control_bypass/blocked/error）。
+    semantic_enhance：语义四智能体结果 {"extract": [...], "defenses": [...], "payloads": {...}}。
     """
     if scan_result is None:
         scan_result = {}
@@ -107,6 +123,11 @@ def build_report_context(
         "credentials": credentials or {},
         "privileges": privileges or {},
         "ctem": ctem or {},
+        "exec_mode": exec_mode,
+        "loop_status": loop_status,
+        "attack_tree": attack_tree,
+        "business_logic_findings": business_logic_findings or [],
+        "semantic_enhance": semantic_enhance or {},
     }
 
 
@@ -247,6 +268,12 @@ def _sev_color(sev: str) -> str:
 
 def _sev_label(sev: str) -> str:
     return _SEV_LABEL.get((sev or "").lower(), str(sev or "未知"))
+
+
+def _verify_label(vuln: Dict) -> str:
+    """语义预验证状态 → 中文标签（无验证结果时返回空串）。"""
+    st = vuln.get("verify_status") or ""
+    return {"confirmed": "已确认", "rejected": "疑似误报", "unverified": "未验证"}.get(st, "")
 
 
 def _ref_links(vuln: Dict) -> List[str]:
@@ -457,6 +484,15 @@ def _render_attack_steps(steps: List[Dict], evidence_dir: str) -> str:
         ev_html = ""
         if evidence:
             ev_html = '<pre class="evidence">' + _esc("\n".join(str(e) for e in evidence)) + "</pre>"
+        # 工具结构化解析结果（sqlmap 判注入/nuclei 模板/semgrep 规则等）
+        parsed = s.get("parsed")
+        parsed_html = ""
+        if isinstance(parsed, dict) and parsed:
+            try:
+                parsed_html = ('<p><b>工具解析结果：</b></p>'
+                               '<pre class="evidence">' + _esc(json.dumps(parsed, ensure_ascii=False, indent=2)) + "</pre>")
+            except (TypeError, ValueError):
+                parsed_html = ""
         shot = s.get("screenshot") or ""
         shot_html = ""
         if shot:
@@ -487,6 +523,7 @@ def _render_attack_steps(steps: List[Dict], evidence_dir: str) -> str:
             {payload_html}
             {val_html}
             {ev_html}
+            {parsed_html}
             {shot_html}
             <p><b>人工核验方法：</b>{_esc(verify)}（核验后截图保存，供报告佐证）</p>
           </div>
@@ -506,6 +543,9 @@ def _render_vuln_summary(vulns: List[Dict]) -> str:
             patch_html = _esc(patch) if patch else "-"
         conf = v.get("match_confidence") or ""
         conf_label = {"high": "高", "medium": "中", "low": "低"}.get(conf, "")
+        vlabel = _verify_label(v)
+        vcolor = {"已确认": "#2e7d32", "疑似误报": "#c62828"}.get(vlabel, "#888")
+        vcell = f'<span style="color:{vcolor};font-weight:bold;">{_esc(vlabel or "-")}</span>'
         rows.append(f"""
         <tr>
           <td>{_esc(v.get('host') or '')}</td>
@@ -518,11 +558,12 @@ def _render_vuln_summary(vulns: List[Dict]) -> str:
           <td>{_esc(v.get('cvss_score') or '-')}</td>
           <td>{patch_html}</td>
           <td>{_esc(conf_label)}</td>
+          <td>{vcell}</td>
         </tr>""")
     body = "".join(rows)
     return f"""
     <table>
-      <thead><tr><th>主机</th><th>端口</th><th>协议</th><th>服务</th><th>版本</th><th>CVE</th><th>严重度</th><th>CVSS</th><th>补丁</th><th>置信度</th></tr></thead>
+      <thead><tr><th>主机</th><th>端口</th><th>协议</th><th>服务</th><th>版本</th><th>CVE</th><th>严重度</th><th>CVSS</th><th>补丁</th><th>置信度</th><th>语义验证</th></tr></thead>
       <tbody>{body}</tbody>
     </table>"""
 
@@ -547,6 +588,14 @@ def _render_vuln_detail(vulns: List[Dict]) -> str:
         conf_label = {"high": "高", "medium": "中", "low": "低"}.get(conf, "")
         ft = v.get("finding_type") or ""
         ft_badge = f'<span class="badge">{_esc(ft)}</span>' if ft else ""
+        vlabel = _verify_label(v)
+        vcolor = {"已确认": "#2e7d32", "疑似误报": "#c62828"}.get(vlabel, "#888")
+        vrow = ""
+        if vlabel:
+            vrow = (f'<tr><td><b>语义验证</b></td>'
+                    f'<td><span style="color:{vcolor};font-weight:bold;">{_esc(vlabel)}</span>'
+                    f'（置信度 {_esc(v.get("verify_confidence") or "N/A")}）'
+                    f'{("：" + _esc(v.get("verify_reason"))) if v.get("verify_reason") else ""}</td></tr>')
         cards.append(f"""
         <div class="risk-card" style="border-left:5px solid {_sev_color(sev)};">
           <div class="risk-card-header">
@@ -558,6 +607,7 @@ def _render_vuln_detail(vulns: List[Dict]) -> str:
             <table class="mini">{ev_rows}
               <tr><td><b>CWE</b></td><td>{_esc(cwe or 'N/A')}</td></tr>
               <tr><td><b>匹配置信度</b></td><td>{_esc(conf_label or 'N/A')}（{_esc(v.get('matched_by') or '')}）</td></tr>
+              {vrow}
             </table>
             <p><b>修复方案：</b></p><ul>{rem_html}</ul>
             <p><b>参考链接 &amp; 补丁地址：</b>{refs}</p>
@@ -615,6 +665,113 @@ def _render_ctem(ctem: Dict) -> str:
     summary = (f"基线时间：{_esc(base_time)}　|　已闭合 {len(diff.get('closed', []))}　"
                f"仍可利用 {len(diff.get('still_open', []))}　新增 {len(diff.get('new', []))}")
     return f'<p><b>{summary}</b></p>{closed}{still}{new}'
+
+
+def _render_exec_summary(exec_mode: str, loop_status: str) -> str:
+    """报告头下的执行模式 / 闭环状态标注（空则返回空串）。
+
+    单次执行无「闭环」概念，status 是 workflow 完成状态（completed/failed/cancelled），
+    用「执行结果」标注；闭环模式（agentic/multi_agent）的 status 才用「闭环状态」标注。
+    """
+    mode_label = {"single": "单次执行", "agentic": "ReAct 闭环", "multi_agent": "多智能体"}.get(
+        exec_mode, exec_mode or "")
+    if exec_mode == "single":
+        status_label = {"completed": "执行完成", "failed": "执行失败", "cancelled": "已取消"}.get(
+            loop_status, "")
+        status_prefix = "执行结果"
+    else:
+        status_label = {"goal_reached": "目标达成", "done": "闭环完成", "stopped": "已达步数上限",
+                        "no_analyzer": "未配置 AI 分析器"}.get(loop_status, "")
+        status_prefix = "闭环状态"
+    if not mode_label and not status_label:
+        return ""
+    parts = []
+    if mode_label:
+        parts.append(f"执行模式：<b>{_esc(mode_label)}</b>")
+    if status_label:
+        parts.append(f"{status_prefix}：<b>{_esc(status_label)}</b>")
+    return f'<p class="sub" style="margin-top:10px;color:#cfe3ff;">{"　|　".join(parts)}</p>'
+
+
+def _render_attack_tree(tree: Dict) -> str:
+    """渲染多智能体攻击树（PTT）：节点目标 + 状态标记。"""
+    if not tree or not isinstance(tree, dict):
+        return '<p class="muted">本次未使用多智能体攻击树（可在「执行攻击」选择「多智能体」模式）。</p>'
+    mark_map = {"pending": "[ ]", "active": "[>]", "succeeded": "[✓]", "failed": "[✗]"}
+    state_color = {"succeeded": "#2e7d32", "failed": "#c62828", "active": "#f9a825"}
+
+    lines: List[str] = []
+
+    def _walk(n: Dict, depth: int) -> None:
+        st = n.get("state", "pending")
+        mark = mark_map.get(st, "[ ]")
+        color = state_color.get(st, "#546e7a")
+        etype = f'（{_esc(n.get("exploit_type") or "")}）' if n.get("exploit_type") else ""
+        lines.append(
+            f'<div style="padding-left:{depth * 24}px;line-height:1.9;">'
+            f'<span style="color:{color};font-weight:bold;">{_esc(mark)}</span> '
+            f'<span style="color:#888;">{_esc(n.get("node_id", ""))}</span> '
+            f'{_esc(n.get("goal", ""))} {etype}</div>')
+        for c in (n.get("children") or []):
+            if isinstance(c, dict):
+                _walk(c, depth + 1)
+
+    _walk(tree, 0)
+    return f'<div class="risk-card"><div class="risk-card-body" style="font-family:monospace;">{"".join(lines)}</div></div>'
+
+
+def _render_business_logic(findings: List[Dict]) -> str:
+    """渲染业务逻辑检测结果（IDOR/BOLA/越权）。"""
+    if not findings:
+        return '<p class="muted">本次未执行业务逻辑检测（可在「工具 → 业务逻辑检测」发起）。</p>'
+    real = [f for f in findings if f.get("finding_type") in ("idor", "access_control_bypass")]
+    blocked = [f for f in findings if f.get("finding_type") == "blocked"]
+    errors = [f for f in findings if f.get("finding_type") == "error"]
+    parts = [f'<p><b>共发现 {len(real)} 处业务逻辑漏洞</b>（拦截 {len(blocked)} 个越界请求，异常 {len(errors)} 处）</p>']
+    for f in real:
+        scenario = f'　|　场景：{_esc(f.get("scenario"))}' if f.get("scenario") else ""
+        reason = f'　|　原因：{_esc(f.get("reason"))}' if f.get("reason") else ""
+        parts.append(
+            f'<div class="risk-card" style="border-left:5px solid #c62828;">'
+            f'<div class="risk-card-header"><span class="risk-card-title">'
+            f'[{_esc(f.get("finding_type"))}] {_esc(f.get("method", ""))} {_esc(f.get("url", ""))}'
+            f'　<span style="color:#888;">置信度 {_esc(f.get("confidence", "-"))}</span></span></div>'
+            f'<div class="risk-card-body"><p>{scenario}{reason}</p></div></div>')
+    for f in blocked:
+        parts.append(f'<p class="muted">已拦截（SSRF 防护）：{_esc(f.get("url", ""))}　{_esc(f.get("reason", ""))}</p>')
+    return "".join(parts)
+
+
+def _render_semantic_agents(enhance: Dict) -> str:
+    """渲染语义四智能体结果：提取候选 / 防御机制 / 生成 payload。"""
+    if not enhance:
+        return '<p class="muted">本次未运行语义四智能体增强（提取/防御绕过/参数生成）。</p>'
+
+    extract = enhance.get("extract") or []
+    defenses = enhance.get("defenses") or []
+    payloads = enhance.get("payloads") or {}
+
+    parts = []
+    if extract:
+        rows = "".join(
+            f"<li>[{_esc(e.get('vuln_type'))}] {_esc(e.get('url') or e.get('param') or '-')}"
+            f"　置信度 {_esc(e.get('confidence', '-'))}　{_esc(e.get('reason', ''))}</li>"
+            for e in extract if isinstance(e, dict))
+        parts.append(f'<h4>语义级漏洞候选（{len(extract)}）</h4><ul>{rows}</ul>')
+    if defenses:
+        rows = "".join(
+            f"<li>[{_esc(d.get('defense_type'))}] 检出={str(d.get('detected', False)).lower()}"
+            f"　置信度 {_esc(d.get('confidence', '-'))}"
+            f"{('　绕过建议：' + _esc(d.get('bypass'))) if d.get('bypass') else ''}</li>"
+            for d in defenses if isinstance(d, dict))
+        parts.append(f'<h4>防御机制检测（{len(defenses)}）</h4><ul>{rows}</ul>')
+    if payloads:
+        pv = [f"{vt}：{_esc('、'.join(str(p.get('payload', '')) for p in pl))}"
+              for vt, pl in payloads.items() if pl]
+        if pv:
+            parts.append('<h4>生成的测试 Payload</h4><ul>' +
+                         "".join(f"<li>{p}</li>" for p in pv) + "</ul>")
+    return "".join(parts) if parts else '<p class="muted">语义四智能体未产出结果。</p>'
 
 
 def _render_remediation_summary(vulns: List[Dict], ai: Dict) -> str:
@@ -686,6 +843,7 @@ def build_report_html(context: Dict, evidence_dir: str = "reports") -> str:
         f'<div class="hero"><h1>AI-PTS 渗透测试报告</h1>'
         f'<div class="sub">目标：{_esc(target)}　|　生成时间：{ts}　|　'
         f'扫描时长：{_esc(cfg.get("duration") or "N/A")} 秒</div></div>',
+        _render_exec_summary(context.get("exec_mode") or "", context.get("loop_status") or ""),
         _render_summary_stats(scan),
         _section_header("一、被测主机情况", "host"),
         _render_host_info(scan),
@@ -693,18 +851,24 @@ def build_report_html(context: Dict, evidence_dir: str = "reports") -> str:
         _render_methodology(scan),
         _section_header("三、AI 攻击路径分析", "ai-path"),
         _render_ai_attack_paths(ai),
-        _section_header("四、证据化攻击路径（成功步骤因果链）", "evidence-path"),
+        _section_header("四、多智能体攻击树（PTT）", "attack-tree"),
+        _render_attack_tree(context.get("attack_tree") or {}),
+        _section_header("五、证据化攻击路径（成功步骤因果链）", "evidence-path"),
         _render_evidence_paths(context),
-        _section_header("五、分步攻击详情", "attack"),
+        _section_header("六、分步攻击详情", "attack"),
         _render_attack_steps(steps, evidence_dir),
-        _section_header("六、漏洞汇总表", "summary"),
+        _section_header("七、业务逻辑检测结果", "business-logic"),
+        _render_business_logic(context.get("business_logic_findings") or []),
+        _section_header("八、语义智能体增强（提取/防御/参数生成）", "semantic-agents"),
+        _render_semantic_agents(context.get("semantic_enhance") or {}),
+        _section_header("九、漏洞汇总表", "summary"),
         _render_vuln_summary(vulns),
         _render_web_findings(scan.get("web_findings") or []),
-        _section_header("七、漏洞详细分析 & 补丁链接", "detail"),
+        _section_header("十、漏洞详细分析 & 补丁链接", "detail"),
         _render_vuln_detail(vulns),
-        _section_header("八、修复建议汇总", "remediation"),
+        _section_header("十一、修复建议汇总", "remediation"),
         _render_remediation_summary(vulns, ai),
-        _section_header("九、CTEM 修复验证（复测对比）", "ctem"),
+        _section_header("十二、CTEM 修复验证（复测对比）", "ctem"),
         _render_ctem(context.get("ctem") or {}),
         '<div class="footer">本报告由 AI-PTS 自动生成，仅供参考。部署修复方案前请结合人工核验与实际环境验证。</div>',
     ])

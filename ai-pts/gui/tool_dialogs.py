@@ -254,9 +254,10 @@ class BusinessLogicThread(QThread):
 class BusinessLogicDialog(QDialog):
     """业务逻辑漏洞检测：输入目标 + 端点 + 双角色 Cookie，跑神经-符号差分验证。"""
 
-    def __init__(self, api_key: str = "", parent=None):
+    def __init__(self, api_key: str = "", on_findings=None, parent=None):
         super().__init__(parent)
         self.api_key = api_key
+        self.on_findings = on_findings
         self.thread = None
         self.setWindowTitle("业务逻辑漏洞检测")
         self.resize(760, 640)
@@ -346,6 +347,12 @@ class BusinessLogicDialog(QDialog):
 
     def _on_done(self, findings):
         self.run_btn.setEnabled(True)
+        # 回传结果（含空结果），确保主窗口状态与本次检测一致（不残留上一轮 findings）
+        if callable(self.on_findings):
+            try:
+                self.on_findings(findings)
+            except Exception:  # noqa: BLE001
+                pass
         if not findings:
             self.result_text.setPlainText("未发现业务逻辑漏洞（IDOR/BOLA/越权）。")
             return
