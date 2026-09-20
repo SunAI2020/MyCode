@@ -491,8 +491,12 @@ def _render_attack_steps(steps: List[Dict], evidence_dir: str) -> str:
         etype = s.get("exploit_type") or s.get("step_id") or ""
         tool = s.get("tool") or "-"
         status = (s.get("status") or "").upper()
-        status_color = "#2e7d32" if status in ("SUCCESS", "COMPLETED", "成功") else (
-            "#c62828" if status in ("FAILED", "ERROR") else "#f9a825")
+        dep_missing = bool(s.get("dependency_missing"))
+        if dep_missing:
+            status_color = "#e67e22"
+        else:
+            status_color = "#2e7d32" if status in ("SUCCESS", "COMPLETED", "成功") else (
+                "#c62828" if status in ("FAILED", "ERROR") else "#f9a825")
         evidence = s.get("evidence") or []
         if isinstance(evidence, str):
             evidence = [evidence]
@@ -524,8 +528,9 @@ def _render_attack_steps(steps: List[Dict], evidence_dir: str) -> str:
         payload_html = f'<p><b>攻击脚本：</b><code>{_esc(payload)}</code></p>' if payload else ""
         val_html = f'<p><b>验证命令：</b><code>{_esc(val_cmd)}</code></p>' if val_cmd else ""
         error = s.get("error") or ""
-        status_text = "成功" if status in ("SUCCESS", "COMPLETED", "成功") else (
-            "失败" if status in ("FAILED", "ERROR") else "未执行/跳过")
+        status_text = "依赖缺失" if dep_missing else (
+            "成功" if status in ("SUCCESS", "COMPLETED", "成功") else (
+                "失败" if status in ("FAILED", "ERROR") else "未执行/跳过"))
         if error:
             status_text += f"（{_esc(error)}）"
         rows.append(f"""

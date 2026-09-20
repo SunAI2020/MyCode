@@ -46,6 +46,8 @@ class ToolExecutor(BaseExecutor):
         self.confirm_callback = confirm_callback
         self.credential_callback = credential_callback
         self._build_error = None  # build_command 返回 None 时附带的具体原因
+        self._validate_error = ""  # validate 返回 False 时的具体原因
+        self._dependency_missing = False  # 是否因外部工具未安装而跳过
 
     # ---- 辅助 ----
 
@@ -116,17 +118,24 @@ class ToolExecutor(BaseExecutor):
     # ---- BaseExecutor 接口 ----
 
     async def validate(self, step_input: StepInput) -> bool:
+        self._validate_error = ""
+        self._dependency_missing = False
         host = self._extract_host(step_input.target)
         if not host:
+            self._validate_error = "无法解析目标主机"
             logger.warning("无法解析目标主机: %r", step_input.target)
             return False
         if not self._validate_host(host):
+            self._validate_error = f"目标 {host} 含非法字符"
             logger.warning("目标 %s 含非法字符，拒绝执行", host)
             return False
         if not self._in_whitelist(host):
+            self._validate_error = f"目标 {host} 不在白名单内"
             logger.warning("目标 %s 不在白名单内，拒绝执行", host)
             return False
         if not self._tool_available():
+            self._validate_error = f"工具 {self.tool_name} 未安装"
+            self._dependency_missing = True
             logger.warning("工具 %s 未安装", self.tool_name)
             return False
         return True

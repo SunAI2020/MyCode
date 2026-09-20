@@ -5,6 +5,7 @@ AI-PTS 启动入口
 """
 import sys
 import os
+import shutil
 
 # 确保项目路径正确
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -24,8 +25,27 @@ def run_cli():
     cli_main()
 
 
+# 攻击链依赖的外部工具（executable 名 -> 对应攻击步骤）；缺失仅提示，不阻断启动
+ATTACK_TOOLS = {
+    "sqlmap": "SQL注入（sql_injection）",
+    "nuclei": "模板化漏洞扫描（nuclei）",
+    "semgrep": "源码静态审计（code_audit）",
+    "msfconsole": "Metasploit（msf，可用 Docker 兜底）",
+    "nxc": "横向移动（lateral_movement）",
+    "bloodhound-python": "域关系采集（bloodhound）",
+    "secretsdump.py": "凭据哈希提取（privesc）",
+    "wmiexec.py": "远程命令执行（rce/impacket）",
+    "mimikatz": "内存凭据抓取（credential_dump）",
+}
+
+
+def check_attack_tools():
+    """检查攻击链依赖的外部工具；返回缺失工具名列表（仅提示）。"""
+    return [t for t in ATTACK_TOOLS if shutil.which(t) is None]
+
+
 def check_dependencies():
-    """检查依赖"""
+    """检查依赖：必需模块缺失则阻断；攻击工具缺失仅提示。"""
     missing = []
 
     # 检查必需模块
@@ -40,6 +60,13 @@ def check_dependencies():
             __import__(mod)
         except ImportError:
             missing.append(pkg)
+
+    # 攻击链外部工具（可选）：缺失仅提示，不阻断
+    missing_tools = check_attack_tools()
+    if missing_tools:
+        print("提示：以下攻击工具未安装（对应攻击步骤将跳过）:")
+        for t in missing_tools:
+            print(f"  - {t}  ({ATTACK_TOOLS[t]})")
 
     if missing:
         print("缺少依赖，请安装:")

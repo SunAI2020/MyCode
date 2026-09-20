@@ -52,6 +52,7 @@ class StepOutput:
     error: str = ""
     evidence: List[str] = field(default_factory=list)
     execution_time: float = 0.0
+    dependency_missing: bool = False  # 外部工具未安装导致的跳过
 
 
 @dataclass
@@ -315,13 +316,16 @@ class ExploitWorkflow:
         try:
             valid = await executor.validate(step_input)
             if not valid:
-                logger.warning(f"前置条件验证失败: {step_id}")
+                err = getattr(executor, "_validate_error", "") or "前置条件不满足"
+                dep_missing = bool(getattr(executor, "_dependency_missing", False))
+                logger.warning(f"前置条件验证失败: {step_id} - {err}")
                 return StepResult(
                     step_id=step_id,
                     status=StepStatus.SKIPPED,
                     output=StepOutput(
                         status=StepStatus.SKIPPED,
-                        error="前置条件不满足"
+                        error=err,
+                        dependency_missing=dep_missing,
                     )
                 )
         except Exception as e:

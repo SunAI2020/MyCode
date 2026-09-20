@@ -7,6 +7,7 @@ import os
 import html
 import json
 import logging
+import webbrowser
 from pathlib import Path
 from typing import Optional, List
 from datetime import datetime
@@ -311,6 +312,7 @@ class ExploitChainThread(QThread):
                         "step_id": r.step_id,
                         "status": r.status.value,
                         "error": r.output.error,
+                        "dependency_missing": getattr(r.output, "dependency_missing", False),
                         "evidence": r.output.evidence,
                         "result": getattr(r.output, "result", None) or {},
                     }
@@ -775,7 +777,7 @@ class MainWindow(QMainWindow):
             "语义验证": "第二步：语义验证",
             "扫描结果": "  📄 扫描结果",
             "AI分析": "第三步：AI分析",
-            "攻击链规划": "第四步：攻击链规划",
+            "攻击链规划": "第四步：攻击规划",
             "执行攻击": "第五步：执行攻击",
             "生成报告": "第六步：生成报告",
             "AI修复建议": "🛡️ AI修复建议",
@@ -949,6 +951,7 @@ class MainWindow(QMainWindow):
         item = self.nav_list.item(idx)
         text = self.nav_labels.get(name, name)
         if done:
+            item.setText("")  # 清空原文字，避免与 QLabel 里的文字重影
             w = QLabel()
             w.setTextFormat(Qt.RichText)
             w.setText(
@@ -1650,9 +1653,10 @@ class MainWindow(QMainWindow):
     def _render_attack_detail(self, result: dict):
         """在「攻击详情」标签页渲染攻击链执行结果（步骤/状态/证据/错误）。
 
-        状态以粗体+彩色显示在步骤标题右侧：待执行=黄、成功=绿、失败=红。
+        状态以粗体+彩色显示在步骤标题右侧：待执行=黄、成功=绿、失败=红、依赖缺失=橙。
         """
-        status_color = {"成功": "#2ecc71", "失败": "#e74c3c", "跳过": "#f39c12", "待执行": "#f39c12"}
+        status_color = {"成功": "#2ecc71", "失败": "#e74c3c", "跳过": "#f39c12",
+                        "待执行": "#f39c12", "依赖缺失": "#e67e22"}
 
         def _norm_status(status):
             s = str(status or "").strip().lower()
@@ -1676,6 +1680,8 @@ class MainWindow(QMainWindow):
             title = (f"第{i}步 [{s.get('exploit_type') or '-'}] "
                      f"工具={s.get('tool') or '-'} 目标={s.get('target') or '-'}")
             st = _norm_status(sr.get("status", "待执行"))
+            if sr.get("dependency_missing"):
+                st = "依赖缺失"
             color = status_color.get(st, "#f39c12")
             parts.append(
                 '<table width="100%" cellspacing="0" cellpadding="0" style="margin-top:8px;">'
@@ -1733,12 +1739,13 @@ class MainWindow(QMainWindow):
 
         report_dir = self._report_dir()
         report_dir.mkdir(parents=True, exist_ok=True)
-        default_name = f"渗透测试报告_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
-        file_path, _ = QFileDialog.getSaveFileName(
-            self, "导出报告", str(report_dir / default_name), "HTML报告 (*.html);;JSON文件 (*.json)"
-        )
-        if not file_path:
-            return
+
+        # 自动文件名：渗透测试报告_{目标}_{时间}.html（目标做文件安全处理，保存到首选项目录）
+        target_name = str(self._current_target() or "target")
+        safe_target = (target_name.replace(":", "_").replace("/", "_")
+                       .replace("\\", "_").replace(" ", "_"))
+        file_path = report_dir / (
+            f"渗透测试报告_{safe_target}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html")
 
         self.animation.set_scene("report")
         self.set_stage("生成报告")
@@ -1765,6 +1772,7 @@ class MainWindow(QMainWindow):
                     "validation_cmd": s.get("validation_cmd") or "",
                     "status": sr.get("status", ""),
                     "error": sr.get("error", ""),
+                    "dependency_missing": sr.get("dependency_missing", False),
                     "evidence": sr.get("evidence", []),
                     "parsed": (sr.get("result") or {}).get("parsed"),
                 })
@@ -1794,15 +1802,27 @@ class MainWindow(QMainWindow):
                 semantic_enhance=getattr(self, "semantic_enhance", {}),
             )
 
-            if file_path.lower().endswith(".json"):
-                with open(file_path, "w", encoding="utf-8") as f:
-                    json.dump(context, f, indent=2, ensure_ascii=False, default=str)
-            else:
-                with open(file_path, "w", encoding="utf-8") as f:
-                    f.write(build_report_html(context))
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(build_report_html(context))
+
             self.report_list_tab.refresh()
             self._step_done("生成报告", True)
-            QMessageBox.information(self, "完成", f"报告已导出到 {file_path}")
+
+            # 完成弹窗：提示保存目录 + 「打开报告 / 关闭」按钮
+            dlg = QDialog(self)
+            dlg.setWindowTitle("报告生成完成")
+            dlay = QVBoxLayout(dlg)
+            dlay.addWidget(QLabel(f"渗透测试报告已生成，保存在 {report_dir} 目录下！"))
+            btns = QHBoxLayout()
+            btns.addStretch(1)
+            open_btn = QPushButton("打开报告")
+            close_btn = QPushButton("关闭")
+            btns.addWidget(open_btn)
+            btns.addWidget(close_btn)
+            dlay.addLayout(btns)
+            open_btn.clicked.connect(lambda: (webbrowser.open(str(file_path)), dlg.accept()))
+            close_btn.clicked.connect(dlg.reject)
+            dlg.exec_()
         except Exception as e:
             QMessageBox.critical(self, "导出失败", str(e))
 

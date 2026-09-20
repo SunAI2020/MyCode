@@ -22,10 +22,17 @@ class SemgrepExecutor(ToolExecutor):
 
     async def validate(self, step_input) -> bool:
         """本地审计：跳过主机白名单，仅校验路径非空 + 工具可用。"""
+        self._validate_error = ""
+        self._dependency_missing = False
         path = (step_input.target or "").strip()
         if not path:
+            self._validate_error = "semgrep 需提供源码目录/文件路径"
             return False
-        return self._tool_available()
+        if not self._tool_available():
+            self._validate_error = "工具 semgrep 未安装"
+            self._dependency_missing = True
+            return False
+        return True
 
     def build_command(self, step_input, step_config) -> Optional[List[str]]:
         path = (step_config.get("path") or step_input.target or "").strip()
