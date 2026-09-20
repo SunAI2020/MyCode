@@ -69,6 +69,7 @@ CAPABILITIES: List[Dict[str, str]] = [
         "tool": "sqlmap",
         "desc": "用 sqlmap 自动检测与利用 SQL 注入（目标为 http/https URL）",
         "param": "url",
+        "param_field": "params",
     },
     {
         "exploit_type": "nuclei",
@@ -76,6 +77,7 @@ CAPABILITIES: List[Dict[str, str]] = [
         "tool": "nuclei",
         "desc": "基于 YAML 模板的 Web/网络漏洞扫描（目标为 http/https URL）",
         "param": "url",
+        "param_field": "params",
     },
     {
         "exploit_type": "code_audit",
@@ -83,6 +85,7 @@ CAPABILITIES: List[Dict[str, str]] = [
         "tool": "semgrep",
         "desc": "本地源码静态审计 OWASP Top 10（目标为本地路径）",
         "param": "path",
+        "param_field": "params",
     },
     {
         "exploit_type": "xss",
@@ -143,7 +146,14 @@ def build_capability_prompt() -> str:
     lines = []
     for c in CAPABILITIES:
         manual = "（人工验证）" if c.get("manual") == "true" else ""
-        param_hint = f"，tool 字段需填 {c['param']}" if c.get("param") else "，tool 字段留空"
+        param_field = c.get("param_field", "tool")
+        if c.get("param"):
+            if param_field == "params":
+                param_hint = f"，params 字段需填 {c['param']}=<值>"
+            else:
+                param_hint = f"，tool 字段需填 {c['param']}"
+        else:
+            param_hint = "，tool 字段留空"
         lines.append(
             f"- {c['exploit_type']}: {c['label']}（工具: {c['tool']}）{manual}\n"
             f"  {c['desc']}{param_hint}"

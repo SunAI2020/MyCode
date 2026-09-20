@@ -808,17 +808,25 @@ CVE: {vuln.cve_id}
         if not text or not text.strip():
             raise ValueError("AI 返回内容为空（推理模型 thinking 可能耗尽 token）")
         try:
-            # 尝试提取JSON块
+            # 尝试提取JSON块（对象或数组）
             if "```json" in text:
-                text = text.split("```json")[1].split("```")[0]
+                text = text.split("```json", 1)[1].split("```", 1)[0]
             elif "```" in text:
-                text = text.split("```")[1].split("```")[0]
-            elif "{" in text:
-                start = text.find("{")
-                end = text.rfind("}") + 1
-                text = text[start:end]
+                text = text.split("```", 1)[1].split("```", 1)[0]
 
             text = text.strip()
+            # 提取最外层 JSON：取首个 { 或 [ 中更靠前者（数组也正确解析）
+            brace = text.find("{")
+            bracket = text.find("[")
+            if bracket != -1 and (brace == -1 or bracket < brace):
+                close_c = "]"
+                start = bracket
+            elif brace != -1:
+                close_c = "}"
+                start = brace
+            else:
+                raise ValueError("AI 返回中未找到 JSON 结构")
+            text = text[start:text.rfind(close_c) + 1].strip()
             try:
                 return json.loads(text)
             except json.JSONDecodeError:

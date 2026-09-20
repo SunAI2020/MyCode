@@ -32,6 +32,7 @@ logger = logging.getLogger(__name__)
 _ALLOWED_PARAM_KEYS = {
     "username", "password", "hashes", "domain",
     "command", "protocol", "module", "exploit", "lhost", "lport", "shell", "peas_path",
+    "url", "path", "dbs", "level", "severity", "config",
 }
 
 # 允许 LLM 指定的远程侦察命令（impacket 执行，仅安全只读类；其余丢弃回退默认 whoami）
@@ -46,6 +47,8 @@ _SAFE_SHELLS = {"bash", "sh", "cmd", "powershell"}
 # 安全 token / 路径字符集
 _TOKEN_RE = re.compile(r"^[A-Za-z0-9_.\-]+$")
 _PATH_RE = re.compile(r"^[A-Za-z0-9_./\-]+$")
+# 执行器选项值字符集（允许逗号/斜杠，供 severity/config 等）
+_SAFE_OPT_RE = re.compile(r"^[A-Za-z0-9_,./\-]+$")
 
 
 class PenTestOrchestrator:
@@ -253,7 +256,11 @@ class PenTestOrchestrator:
                 continue
             if key in ("module", "protocol") and not _TOKEN_RE.fullmatch(val):
                 continue
-            # username/password/hashes/domain/lhost/lport：字符串即可，下游决定如何使用
+            if key == "url" and not val.lower().startswith(("http://", "https://")):
+                continue  # 非法 URL 丢弃
+            if key in ("dbs", "level", "severity", "config") and not _SAFE_OPT_RE.fullmatch(val):
+                continue
+            # username/password/hashes/domain/lhost/lport/path：字符串即可，下游决定如何使用
             out[key] = val
         return out
 
@@ -436,9 +443,15 @@ class PenTestOrchestrator:
         tree = AttackTree(root_goal=target_goal)
         agents = self._build_agents()
         wf = self.build_workflow(plan=None)
+        summarizer = Summarizer(
+            summarize_fn=getattr(self.analyzer, "summarize_history", None),
+            max_steps=agentic_cfg.get("summarize_max_steps", 8),
+            max_chars=agentic_cfg.get("summarize_max_chars", 6000),
+        )
 
         async def _loop():
             goal_hit = False
+            done_flag = False
             for _ in range(max_steps):
                 ctx_text = memory.to_context()
                 ctx_text = f"{ctx_text}\n\n{self._rag_context(target_goal, memory)}"
@@ -450,6 +463,8 @@ class PenTestOrchestrator:
                     memory.add_observation(f"Planner 分解：{plan.get('reason', '')}")
                     continue
                 if decision in ("done", "stop"):
+                    if decision == "done":
+                        done_flag = True
                     break
 
                 # select（或其它）→ 找节点
@@ -527,12 +542,14 @@ class PenTestOrchestrator:
                 if self._goal_reached(step, result, goal_types):
                     goal_hit = True
                     break
-            return goal_hit
 
-        goal_hit = asyncio.run(_loop())
+                summarizer.maybe_summarize(memory, len(ctx_text))
+            return goal_hit, done_flag
+
+        goal_hit, done_flag = asyncio.run(_loop())
         if goal_hit:
             status = "goal_reached"
-        elif tree.all_succeeded():
+        elif done_flag or tree.all_succeeded():
             status = "done"
         else:
             status = "stopped"

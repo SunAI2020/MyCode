@@ -531,9 +531,11 @@ def resolve_step_targets(steps: List[Dict], hosts: List[str]) -> List[Dict]:
     primary = (hosts[0] if hosts else "") or ""
     for s in steps:
         t = (s.get("target") or "").strip()
-        for prefix in ("http://", "https://"):
-            if t.lower().startswith(prefix):
-                t = t[len(prefix):]
+        # URL 目标（http/https）与本地路径保持不变，供 web（sqlmap/nuclei）与静态审计（semgrep）使用
+        if t.lower().startswith(("http://", "https://")):
+            continue
+        if t.startswith(("/", "./", "../", "~")) or (len(t) >= 2 and t[1] == ":"):
+            continue
         host = t.split("/")[0].split(":")[0]
         if host and _HOST_TOKEN_RE.fullmatch(host):
             s["target"] = host

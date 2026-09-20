@@ -224,10 +224,16 @@ class TestResolveStepTargets(unittest.TestCase):
         self.assertEqual(steps[1]["target"], "10.0.0.1")
 
     def test_host_port_normalized(self):
-        steps = [{"target": "192.168.1.100:8080"}, {"target": "http://host/path"}]
+        steps = [{"target": "192.168.1.100:8080"}]
         resolve_step_targets(steps, [])
         self.assertEqual(steps[0]["target"], "192.168.1.100")
-        self.assertEqual(steps[1]["target"], "host")
+
+    def test_url_and_local_path_preserved(self):
+        # web/静态执行器（sqlmap/nuclei/semgrep）需保留完整 URL/本地路径
+        steps = [{"target": "http://host/path"}, {"target": "/src/repo"}]
+        resolve_step_targets(steps, [])
+        self.assertEqual(steps[0]["target"], "http://host/path")
+        self.assertEqual(steps[1]["target"], "/src/repo")
 
     def test_no_hosts_and_descriptive_yields_empty(self):
         steps = [{"target": "some description"}]

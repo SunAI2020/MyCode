@@ -160,3 +160,14 @@ def test_decide_next_step_returns_stop_on_non_object_json():
 
     out = analyzer.decide_next_step("ctx", "get_shell")
     assert out["decision"] == "stop"
+
+
+def test_parse_json_response_handles_array():
+    # 修复：_parse_json_response 应正确解析 JSON 数组（业务逻辑检测的 LLM 路径依赖此）
+    from core.ai_analyzer import AIAnalyzer
+
+    analyzer = AIAnalyzer(api_key="test-key", model="test-model")
+    result = analyzer._parse_json_response('[{"index": 0}, {"index": 1}]')
+    assert isinstance(result, list)
+    assert len(result) == 2
+    assert result[0]["index"] == 0

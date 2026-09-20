@@ -495,6 +495,14 @@ def main():
                         detail = f" - {st.get('error')}" if st.get("error") else ""
                         print(f"  [{st.get('status')}] {action.get('exploit_type', '?')} "
                               f"{action.get('tool', '')} @ {action.get('target', '')}{detail}")
+                    if args.report:
+                        from core.report_builder import build_report_context, save_report, loop_steps_to_attack_steps
+                        ctx = build_report_context(
+                            scan_result=result,
+                            attack_steps=loop_steps_to_attack_steps(loop_result.get("steps", [])),
+                        )
+                        path = save_report(ctx, output_dir="reports")
+                        print(f"报告已导出: {path}")
                     return
 
                 if args.multi_agent:
@@ -524,6 +532,14 @@ def main():
                         detail = f" - {st.get('error')}" if st.get("error") else ""
                         print(f"  [{st.get('status')}] {action.get('exploit_type', '?')} "
                               f"{action.get('tool', '')} @ {action.get('target', '')}{detail}")
+                    if args.report:
+                        from core.report_builder import build_report_context, save_report, loop_steps_to_attack_steps
+                        ctx = build_report_context(
+                            scan_result=result,
+                            attack_steps=loop_steps_to_attack_steps(loop_result.get("steps", [])),
+                        )
+                        path = save_report(ctx, output_dir="reports")
+                        print(f"报告已导出: {path}")
                     return
 
                 steps = WorkflowBuilder.from_ai_plan(plan)
