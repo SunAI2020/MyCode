@@ -262,6 +262,21 @@ def _esc(s: Any) -> str:
     return html.escape(str(s if s is not None else ""))
 
 
+def _safe_url(url: str) -> str:
+    """URL 属性（href/src）安全化：仅放行 http/https 与本地相对路径/锚点，
+    拒绝 javascript:/data:/vbscript:/file: 等危险协议（html.escape 无法防协议注入）。
+    不合法时返回空串，调用方应据此不渲染该链接/图片。"""
+    u = (url or "").strip()
+    if not u:
+        return ""
+    low = u.lower()
+    if low.startswith(("http://", "https://", "/", "./", "../", "#")):
+        return u
+    if low.startswith(("javascript:", "data:", "vbscript:", "file:", "ftp:")) or "://" in low:
+        return ""
+    return u
+
+
 def _sev_color(sev: str) -> str:
     return _SEV_COLORS.get((sev or "").lower(), "#546e7a")
 
@@ -497,7 +512,9 @@ def _render_attack_steps(steps: List[Dict], evidence_dir: str) -> str:
         shot_html = ""
         if shot:
             rel = os.path.relpath(shot, evidence_dir) if os.path.isabs(shot) else shot
-            shot_html = f'<p><img src="{_esc(rel)}" style="max-width:100%;border:1px solid #e0e0e0;"/></p>'
+            safe_rel = _safe_url(rel)
+            if safe_rel:
+                shot_html = f'<p><img src="{_esc(safe_rel)}" style="max-width:100%;border:1px solid #e0e0e0;"/></p>'
         verify = _VERIFY_METHODS.get(etype, "核对攻击输出与目标状态，确认攻击是否成功")
         # 攻击策略 / 攻击脚本 / 验证命令 分块展示
         desc = s.get("description") or ""
