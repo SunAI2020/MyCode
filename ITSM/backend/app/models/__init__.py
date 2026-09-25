@@ -2,6 +2,7 @@
 from app.models.customer import Customer
 from app.models.contract import CmdbCi, Contract, ContractItem
 from app.models.dispatch import OrderDispatch
+from app.models.issue import Issue, Rectification, RectificationRecord
 from app.models.service import ServiceCycle, ServiceReminder, SlaPolicy
 from app.models.system import (
     SysAuditLog,
@@ -30,6 +31,9 @@ __all__ = [
     "OrderDispatch",
     "WorkOrder",
     "WorkOrderAssignee",
+    "Issue",
+    "Rectification",
+    "RectificationRecord",
     "ServiceCycle",
     "ServiceReminder",
     "SlaPolicy",
