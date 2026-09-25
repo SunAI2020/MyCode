@@ -36,7 +36,7 @@ def create_article(
     user: SysUser = Depends(require_role(*RW_ROLE)),
     db: Session = Depends(get_db),
 ):
-    obj = KbArticle(**body.model_dump())
+    obj = KbArticle(**body.model_dump(), author_id=user.id)  # 作者取自当前用户，防 mass-assignment 冒名
     db.add(obj)
     db.flush()
     record(db, user_id=user.id, action="create", resource=f"kb_article:{obj.id}", after=str(body.model_dump()))

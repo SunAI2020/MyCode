@@ -10,7 +10,6 @@ class KbArticleCreate(BaseModel):
     content: str
     tags: str | None = None
     status: str = "已发布"
-    author_id: int | None = None
 
 
 class KbArticleUpdate(BaseModel):
