@@ -1,5 +1,6 @@
 # 汇总导入所有模型，供 Alembic autogenerate 发现
 from app.models.customer import Customer
+from app.models.change_order import ChangeOrder
 from app.models.contract import CmdbCi, Contract, ContractItem
 from app.models.delivery import Delivery
 from app.models.dispatch import OrderDispatch
@@ -28,6 +29,7 @@ __all__ = [
     "SysAuditLog",
     "SysDict",
     "Customer",
+    "ChangeOrder",
     "Contract",
     "CmdbCi",
     "ContractItem",

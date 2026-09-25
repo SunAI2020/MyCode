@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>步骤十三：变更单（阶段四 · FR-14）</title>
+<style>body{font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;max-width:860px;margin:40px auto;padding:0 20px;line-height:1.7;color:#24292f}h1{border-bottom:2px solid #e1e4e8;padding-bottom:.3em}h2{margin-top:1.5em;border-bottom:1px solid #eaecef;padding-bottom:.2em}code{background:#f6f8fa;padding:.15em .4em;border-radius:4px;font-family:Consolas,monospace;font-size:.9em}pre{background:#f6f8fa;padding:12px;border-radius:6px;overflow:auto}table{border-collapse:collapse;width:100%}th,td{border:1px solid #d0d7de;padding:6px 10px;text-align:left}th{background:#f6f8fa}blockquote{color:#57606a;border-left:4px solid #d0d7de;margin:0;padding-left:12px}</style>
+</head>
+<body>
+<h1>步骤十三：变更单（阶段四 · FR-14）</h1>
+<blockquote>依据：《IT运维集中管控平台_软件设计方案.html》V1.0 定稿 · §4.13 / §6.2<br>范围：变更登记 + 风险评估 + 冲突检测 + 回滚计划 + 审批状态机。</blockquote>
+
+<h2>1. 目标</h2>
+<p>实现变更管理：变更工单挂接配置项（CI），登记风险等级、回滚计划；同一 CI 存在多个活跃变更时自动标记冲突（<code>conflict_flag</code>）；走「草稿 → 待审批 → 已批准 → 实施中 → 已完成/已回滚」状态机。</p>
+
+<h2>2. 表（1 张，依据 §6.2）</h2>
+<p><code>change_order</code> 变更：<code>id, work_order_id, ci_id, risk_level, conflict_flag, rollback_plan, status</code></p>
+
+<h2>3. 业务规则</h2>
+<ul>
+<li><b>风险评估</b> <code>risk_level</code>：高 / 中 / 低（MVP 手动登记；问卷评分后置）。</li>
+<li><b>冲突检测</b>：创建/更新时，若同一 <code>ci_id</code> 存在其他「待审批/已批准/实施中」变更，<code>conflict_flag</code> 置真。</li>
+<li><b>状态机</b> <code>status</code>：<pre>草稿 → 待审批 / 已取消
+待审批 → 已批准 / 已拒绝
+已批准 → 实施中 / 已取消
+实施中 → 已完成 / 已回滚</pre></li>
+<li><b>回滚计划</b> <code>rollback_plan</code>：变更失败的回退方案。</li>
+</ul>
+
+<h2>4. 文件清单</h2>
+<ul>
+<li><code>app/models/change_order.py</code></li>
+<li><code>alembic/versions/0007_change_order.py</code></li>
+<li><code>app/schemas/change_order.py</code></li>
+<li><code>app/services/change_service.py</code> — 冲突检测 + 状态机</li>
+<li><code>app/api/v1/change_orders.py</code></li>
+<li><code>tests/test_change_service.py</code></li>
+</ul>
+
+<h2>5. API</h2>
+<ul>
+<li><code>GET/POST /change-orders</code>、<code>GET/PUT/DELETE /change-orders/{id}</code></li>
+<li><code>PUT /change-orders/{id}/status</code> 状态流转</li>
+</ul>
+
+<h2>6. 角色</h2>
+<p>变更管理属平台域：读/写 <code>sys_admin / sys_ops / ticket_mgr</code>，删除 <code>sys_admin / sys_ops</code>。</p>
+
+<h2>7. 验证</h2>
+<pre>cd backend &amp;&amp; .venv/Scripts/activate
+alembic upgrade head
+python -m pytest tests -q</pre>
+</body>
+</html>
