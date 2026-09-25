@@ -1,7 +1,7 @@
 """接单 / 工单 / 派单 / 执行人 schema。"""
 from datetime import date, datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 # ---- 接单 ----
@@ -50,7 +50,7 @@ class WorkOrderCreate(BaseModel):
 
 class WorkOrderStatusUpdate(BaseModel):
     status: str
-    progress: int | None = None
+    progress: int | None = Field(None, ge=0, le=100)
 
 
 class WorkOrderOut(BaseModel):
@@ -83,6 +83,11 @@ class TransferIn(BaseModel):
     from_user_id: int
     to_user_id: int
     actual_hours: float | None = None
+
+
+class AssigneeHoursIn(BaseModel):
+    actual_hours: float
+    complete: bool = False  # 完成则离岗（is_active=False）
 
 
 class DispatchCreate(BaseModel):

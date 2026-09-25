@@ -7,10 +7,11 @@ from app.core.deps import (
     customer_scope_of,
     get_current_user,
     get_db,
+    owning_customer_id,
     require_role,
     scope_filter,
 )
-from app.models import Contract, Delivery, SysUser
+from app.models import Contract, Delivery, SysUser, WorkOrder
 from app.schemas.delivery import DeliveryCreate, DeliveryOut, DeliveryUpdate
 from app.services.audit_service import record
 from app.utils.pagination import paginate
@@ -73,7 +74,18 @@ def update_delivery(
     obj = db.get(Delivery, did)
     if obj is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "交付不存在")
-    assert_scoped(obj, customer_scope_of(user, db), db)
+    scope = customer_scope_of(user, db)
+    assert_scoped(obj, scope, db)
+    # 防御纵深：校验 body 目标合同/工单归属，防止把交付挂到其他客户名下（与 create_delivery 一致）
+    if scope is not None:
+        if body.contract_id is not None:
+            c = db.get(Contract, body.contract_id)
+            if c is None or c.customer_id != scope:
+                raise HTTPException(status.HTTP_403_FORBIDDEN, "无权将交付挂到其他客户合同")
+        if body.work_order_id is not None:
+            wo = db.get(WorkOrder, body.work_order_id)
+            if wo is None or owning_customer_id(wo, db) != scope:
+                raise HTTPException(status.HTTP_403_FORBIDDEN, "无权将交付挂到其他客户工单")
     before = {k: getattr(obj, k) for k in body.model_dump(exclude_unset=True)}
     for k, v in body.model_dump(exclude_unset=True).items():
         setattr(obj, k, v)

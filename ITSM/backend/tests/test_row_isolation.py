@@ -3,7 +3,7 @@ import pytest
 from fastapi import HTTPException
 
 from app.core.deps import assert_scoped, owning_customer_id, scope_filter
-from app.models import Contract, Customer
+from app.models import Contract, Customer, OrderReceive, WorkOrder
 
 
 def test_scope_filter_customer(db):
@@ -43,3 +43,33 @@ def test_assert_scoped_customer(db):
     assert_scoped(c, c.id, db)  # 不抛
     with pytest.raises(HTTPException):
         assert_scoped(c, c.id + 999, db)  # 越权 → 404
+
+
+def test_owning_customer_id_via_receive(db):
+    c = Customer(name="A")
+    db.add(c)
+    db.commit()
+    rec = OrderReceive(customer_id=c.id)
+    db.add(rec)
+    db.commit()
+    wo = WorkOrder(no="WO-2026-0101", type="客户工单", receive_id=rec.id, contract_id=None)
+    db.add(wo)
+    db.commit()
+    assert owning_customer_id(wo, db) == c.id
+
+
+def test_scope_filter_work_order_null_contract_via_receive(db):
+    c1 = Customer(name="A")
+    c2 = Customer(name="B")
+    db.add_all([c1, c2])
+    db.commit()
+    rec1 = OrderReceive(customer_id=c1.id)
+    rec2 = OrderReceive(customer_id=c2.id)
+    db.add_all([rec1, rec2])
+    db.commit()
+    wo1 = WorkOrder(no="WO-2026-0201", type="客户工单", receive_id=rec1.id, contract_id=None)
+    wo2 = WorkOrder(no="WO-2026-0202", type="客户工单", receive_id=rec2.id, contract_id=None)
+    db.add_all([wo1, wo2])
+    db.commit()
+    q = scope_filter(db.query(WorkOrder), WorkOrder, c1.id)
+    assert [r.id for r in q.all()] == [wo1.id]

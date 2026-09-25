@@ -3,11 +3,21 @@ from typing import Iterator
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy.orm import Session
+from sqlalchemy import or_
+from sqlalchemy.orm import Session, aliased
 
 from app.core.security import decode_token
 from app.db.session import SessionLocal
-from app.models import Contract, Customer, SysRole, SysUser, SysUserRole
+from app.models import (
+    Contract,
+    Customer,
+    Delivery,
+    OrderReceive,
+    SysRole,
+    SysUser,
+    SysUserRole,
+    WorkOrder,
+)
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -78,7 +88,9 @@ def scope_filter(q, model, scope: int | None):
     """行级隔离过滤：客户侧用户仅可见本客户数据。
 
     - model 含 `customer_id`：直接过滤；
-    - 否则（contract_item / work_order）经 `contract` 关联过滤。
+    - WorkOrder / Delivery 经 contract 或 receive / work_order 链路过滤（左连接，
+      避免 contract_id 为 NULL 时被内连接丢弃）；
+    - 其余无 customer_id 的模型（如 ContractItem）经 `contract_id` 内连接过滤。
     平台侧用户（scope 为 None）不做过滤。
     """
     if scope is None:
@@ -87,20 +99,53 @@ def scope_filter(q, model, scope: int | None):
         return q.filter(model.id == scope)
     if hasattr(model, "customer_id"):
         return q.filter(model.customer_id == scope)
+    if model is WorkOrder:
+        q = q.outerjoin(Contract, model.contract_id == Contract.id)
+        q = q.outerjoin(OrderReceive, model.receive_id == OrderReceive.id)
+        return q.filter(or_(Contract.customer_id == scope, OrderReceive.customer_id == scope))
+    if model is Delivery:
+        wo_contract = aliased(Contract)
+        q = q.outerjoin(Contract, model.contract_id == Contract.id)
+        q = q.outerjoin(WorkOrder, model.work_order_id == WorkOrder.id)
+        q = q.outerjoin(wo_contract, WorkOrder.contract_id == wo_contract.id)
+        q = q.outerjoin(OrderReceive, WorkOrder.receive_id == OrderReceive.id)
+        return q.filter(
+            or_(
+                Contract.customer_id == scope,
+                wo_contract.customer_id == scope,
+                OrderReceive.customer_id == scope,
+            )
+        )
     return q.join(Contract, model.contract_id == Contract.id).filter(
         Contract.customer_id == scope
     )
 
 
 def owning_customer_id(obj, db: Session) -> int | None:
-    """解析对象归属的 customer_id；无归属返回 None。"""
+    """解析对象归属的 customer_id；无归属返回 None。
+
+    归属链路：直接 customer_id → contract_id → receive_id → work_order_id。
+    """
     if isinstance(obj, Customer):
         return obj.id
-    if getattr(obj, "customer_id", None) is not None:
-        return obj.customer_id
-    if getattr(obj, "contract_id", None) is not None:
-        c = db.get(Contract, obj.contract_id)
-        return c.customer_id if c else None
+    cid = getattr(obj, "customer_id", None)
+    if cid is not None:
+        return cid
+    cid = getattr(obj, "contract_id", None)
+    if cid is not None:
+        c = db.get(Contract, cid)
+        if c is not None:
+            return c.customer_id
+    rid = getattr(obj, "receive_id", None)
+    if rid is not None:
+        r = db.get(OrderReceive, rid)
+        if r is not None:
+            return owning_customer_id(r, db)
+    wid = getattr(obj, "work_order_id", None)
+    if wid is not None:
+        wo = db.get(WorkOrder, wid)
+        if wo is not None:
+            return owning_customer_id(wo, db)
     return None
 
 

@@ -1,5 +1,5 @@
 """脱敏工具单测。"""
-from app.core.security import mask_sensitive, masked_page
+from app.core.security import mask_ip, mask_sensitive, masked_page
 
 
 def test_mask_sensitive_customer_scope():
@@ -23,3 +23,15 @@ def test_masked_page():
     out = masked_page(result, scope=1)
     assert out["items"][0]["ip"] == "10.1.*.*"
     assert out["items"][1]["ip"] == "192.168.*.*"
+
+
+def test_mask_ip_ipv4():
+    assert mask_ip("10.1.2.3") == "10.1.*.*"
+
+
+def test_mask_ip_ipv6():
+    assert mask_ip("fe80::1:2:3:4") == "fe80::*"
+
+
+def test_mask_ip_non_ip():
+    assert mask_ip("not-an-ip") == "***"

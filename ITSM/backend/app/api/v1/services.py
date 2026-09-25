@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, get_db, require_role
+from app.core.deps import get_db, require_role
 from app.models import ServiceCycle, ServiceReminder, SlaPolicy, SysUser
 from app.schemas.service import (
     ServiceCycleOut,
@@ -28,7 +28,7 @@ reminders = APIRouter(prefix="/reminders", tags=["服务提醒"])
 def list_policies(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
-    user: SysUser = Depends(get_current_user),
+    user: SysUser = Depends(require_role(*READ_ROLE)),
     db: Session = Depends(get_db),
 ):
     return ok(paginate(db.query(SlaPolicy), page, size, SlaPolicyOut))
@@ -49,7 +49,7 @@ def create_policy(
 
 
 @sla.get("/{pid}")
-def get_policy(pid: int, user: SysUser = Depends(get_current_user), db: Session = Depends(get_db)):
+def get_policy(pid: int, user: SysUser = Depends(require_role(*READ_ROLE)), db: Session = Depends(get_db)):
     obj = db.get(SlaPolicy, pid)
     if obj is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "SLA 策略不存在")

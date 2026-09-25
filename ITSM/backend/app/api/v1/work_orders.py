@@ -13,6 +13,7 @@ from app.core.deps import (
 from app.models import OrderDispatch, OrderReceive, SysUser, WorkOrder, WorkOrderAssignee
 from app.core.security import mask_sensitive, masked_page
 from app.schemas.work_order import (
+    AssigneeHoursIn,
     AssigneeOut,
     DispatchCreate,
     DispatchOut,
@@ -24,7 +25,7 @@ from app.schemas.work_order import (
     WorkOrderStatusUpdate,
 )
 from app.services.audit_service import record
-from app.services.dispatch_service import transfer_assignee
+from app.services.dispatch_service import record_assignee_hours, transfer_assignee
 from app.utils.pagination import paginate
 from app.utils.response import ok
 from app.utils.wo_no import next_work_order_no
@@ -226,3 +227,25 @@ def transfer(
     record(db, user_id=user.id, action="transfer", resource=f"work_order:{wid}", after=str(body.model_dump()))
     db.commit()
     return ok(AssigneeOut.model_validate(new).model_dump())
+
+
+@router.post("/{wid}/assignees/{uid}/hours")
+def record_hours(
+    wid: int,
+    uid: int,
+    body: AssigneeHoursIn,
+    user: SysUser = Depends(require_role(*WORK_WRITE_ROLE)),
+    db: Session = Depends(get_db),
+):
+    """记录执行人实际工时（换岗后新执行人续接完成时回填），可选离岗。"""
+    wo = db.get(WorkOrder, wid)
+    if wo is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "工单不存在")
+    assert_scoped(wo, customer_scope_of(user, db), db)
+    try:
+        a = record_assignee_hours(db, wid, uid, body.actual_hours, body.complete)
+    except ValueError as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
+    record(db, user_id=user.id, action="record_hours", resource=f"work_order:{wid}", after=str(body.model_dump()))
+    db.commit()
+    return ok(AssigneeOut.model_validate(a).model_dump())

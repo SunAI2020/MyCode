@@ -45,7 +45,10 @@ def mask_ip(ip: str | None) -> str:
     parts = ip.split(".")
     if len(parts) == 4:
         return f"{parts[0]}.{parts[1]}.*.*"
-    return ip
+    # IPv6（含冒号）或非标准格式：仅保留首个段，其余遮蔽，避免客户侧看到完整地址
+    if ":" in ip:
+        return ip.split(":")[0] + "::*"
+    return "***"
 
 
 def mask_amount(_value: float | None) -> str:
