@@ -42,15 +42,14 @@ class OnsiteServiceOut(BaseModel):
 # ---- 驻场日报 ----
 class OnsiteDailyReportCreate(BaseModel):
     onsite_id: int
-    user_id: int
     report_date: date
     work_type: str
     content: str
     issue_ref: int | None = None
+    # 不暴露 user_id：作者一律取当前登录用户（防 mass-assignment 冒名）
 
 
 class OnsiteDailyReportUpdate(BaseModel):
-    user_id: int | None = None
     report_date: date | None = None
     work_type: str | None = None
     content: str | None = None

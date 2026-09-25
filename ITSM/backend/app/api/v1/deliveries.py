@@ -42,10 +42,16 @@ def create_delivery(
     db: Session = Depends(get_db),
 ):
     scope = customer_scope_of(user, db)
-    if scope is not None and body.contract_id is not None:
-        c = db.get(Contract, body.contract_id)
-        if c is None or c.customer_id != scope:
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "无权为其他客户创建交付")
+    # 防御纵深：校验合同与工单双归属（与 update_delivery 对称），防跨租户挂载交付
+    if scope is not None:
+        if body.contract_id is not None:
+            c = db.get(Contract, body.contract_id)
+            if c is None or c.customer_id != scope:
+                raise HTTPException(status.HTTP_403_FORBIDDEN, "无权为其他客户创建交付")
+        if body.work_order_id is not None:
+            wo = db.get(WorkOrder, body.work_order_id)
+            if wo is None or owning_customer_id(wo, db) != scope:
+                raise HTTPException(status.HTTP_403_FORBIDDEN, "无权为其他客户工单创建交付")
     obj = Delivery(**body.model_dump())
     db.add(obj)
     db.flush()

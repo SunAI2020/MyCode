@@ -9,7 +9,7 @@ class ChangeOrderCreate(BaseModel):
     ci_id: int
     risk_level: str = "中"
     rollback_plan: str | None = None
-    status: str = "草稿"
+    # 不暴露 status：新建一律从「草稿」起步，杜绝客户端直接造出活跃/终态绕过状态机
 
 
 class ChangeOrderUpdate(BaseModel):

@@ -52,3 +52,32 @@ def test_submit_after_pass_raises(db):
     db.commit()
     with pytest.raises(ValueError):
         submit_round(db, rect.id, "again", 1, "通过")
+
+
+def test_rectification_pass_closes_issue_autoflush_off():
+    """复现生产 autoflush=False：最后一轮整改通过后问题必须关闭。"""
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    import app.models  # noqa: F401
+    from app.db.base import Base
+
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine, autoflush=False)
+    s = Session()
+    try:
+        wo = WorkOrder(no="WO-2026-0001", type="客户工单")
+        s.add(wo)
+        s.flush()
+        issue = Issue(work_order_id=wo.id, description="x", status="待整改")
+        s.add(issue)
+        s.flush()
+        rect = create_rectification(s, issue.id, "修复", None, 1)
+        s.commit()
+        submit_round(s, rect.id, "done", 1, "通过")
+        s.commit()
+        assert s.get(Issue, issue.id).status == "已关闭"
+    finally:
+        s.close()
+        engine.dispose()

@@ -160,7 +160,7 @@ def create_report(
     if os is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "驻场配置不存在")
     assert_scoped(os, customer_scope_of(user, db), db)
-    obj = OnsiteDailyReport(**body.model_dump())
+    obj = OnsiteDailyReport(**body.model_dump(), user_id=user.id)  # 作者取当前用户，防冒名
     db.add(obj)
     db.flush()
     record(db, user_id=user.id, action="create", resource=f"onsite_daily_report:{obj.id}", after=str(body.model_dump()))

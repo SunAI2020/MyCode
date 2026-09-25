@@ -34,3 +34,12 @@ def test_transition_status_invalid(db):
     o = _mk(db, ci_id=1, status="草稿")
     with pytest.raises(ValueError):
         transition_status(db, o, "已完成")  # 草稿 不能直接完成
+
+
+def test_set_conflict_flag_symmetric(db):
+    a = _mk(db, ci_id=1, status="已批准")
+    b = _mk(db, ci_id=1, status="实施中")
+    db.commit()
+    set_conflict_flag(db, a)
+    assert a.conflict_flag is True
+    assert b.conflict_flag is True  # 对称：同 CI 既有活跃变更也一并标记

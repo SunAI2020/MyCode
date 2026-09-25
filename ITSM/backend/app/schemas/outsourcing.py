@@ -40,7 +40,7 @@ class OutsourcingCreate(BaseModel):
     outsource_user_id: int
     price: float | None = None
     nda: str | None = None
-    status: str = "待接单"
+    # 不暴露 status：新建一律从「待接单」起步，杜绝客户端直接造出终态绕过状态机
 
 
 class OutsourcingUpdate(BaseModel):

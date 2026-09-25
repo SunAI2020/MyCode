@@ -20,8 +20,22 @@ def detect_conflict(db: Session, ci_id: int, exclude_id: int | None = None) -> l
 
 
 def set_conflict_flag(db: Session, change: ChangeOrder) -> ChangeOrder:
-    """按当前同一 CI 活跃变更重算冲突标记。"""
+    """按当前同一 CI 活跃变更重算冲突标记（对称：同 CI 其他活跃变更一并重算）。
+
+    否则仅对传入变更打标记，既有活跃变更侧始终为 False，冲突列表漏报一半。
+    """
     change.conflict_flag = bool(detect_conflict(db, change.ci_id, change.id))
+    siblings = (
+        db.query(ChangeOrder)
+        .filter(
+            ChangeOrder.ci_id == change.ci_id,
+            ChangeOrder.id != change.id,
+            ChangeOrder.status.in_(ACTIVE_STATUSES),
+        )
+        .all()
+    )
+    for s in siblings:
+        s.conflict_flag = bool(detect_conflict(db, s.ci_id, s.id))
     db.flush()
     return change
 

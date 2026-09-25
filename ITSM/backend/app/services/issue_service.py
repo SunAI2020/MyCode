@@ -54,6 +54,9 @@ def submit_round(
 
 
 def _maybe_close_issue(db: Session, issue_id: int) -> None:
+    # 生产 SessionLocal 为 autoflush=False，须先 flush 使 rect.status 的待写变更落库，
+    # 否则下方 count 读到陈旧「整改中」，导致最后一个整改通过后问题仍不关闭。
+    db.flush()
     remaining = (
         db.query(Rectification)
         .filter(Rectification.issue_id == issue_id, Rectification.status != "已通过")
