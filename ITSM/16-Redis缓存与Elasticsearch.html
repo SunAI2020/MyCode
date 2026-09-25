@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>步骤十六：Redis 缓存 + Elasticsearch（阶段五 · 中间件）</title>
+<style>body{font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;max-width:860px;margin:40px auto;padding:0 20px;line-height:1.7;color:#24292f}h1{border-bottom:2px solid #e1e4e8;padding-bottom:.3em}h2{margin-top:1.5em;border-bottom:1px solid #eaecef;padding-bottom:.2em}code{background:#f6f8fa;padding:.15em .4em;border-radius:4px;font-family:Consolas,monospace;font-size:.9em}pre{background:#f6f8fa;padding:12px;border-radius:6px;overflow:auto}table{border-collapse:collapse;width:100%}th,td{border:1px solid #d0d7de;padding:6px 10px;text-align:left}th{background:#f6f8fa}blockquote{color:#57606a;border-left:4px solid #d0d7de;margin:0;padding-left:12px}</style>
+</head>
+<body>
+<h1>步骤十六：Redis 缓存 + Elasticsearch（阶段五 · 中间件）</h1>
+<blockquote>依据：《IT运维集中管控平台_软件设计方案.html》V1.0 定稿 · §3.4 技术选型 / §4.18<br>范围：缓存抽象（Redis + 内存降级）、知识库全文检索（Elasticsearch + SQL 降级）、docker-compose 一键启用。</blockquote>
+
+<h2>1. 目标</h2>
+<p>引入两个可选中间件，均<b>优雅降级</b>——未配置或不可用时回退到进程内缓存 / SQL <code>ilike</code>，不影响现有功能与测试（测试环境无 Redis/ES，走降级路径）：</p>
+<ul>
+<li><b>Redis 缓存</b>：热数据缓存，<code>Cache</code> 抽象自动选后端（Redis → 内存）。</li>
+<li><b>Elasticsearch</b>：知识库全文检索（分词/相关性排序），回退 SQL <code>ilike</code>；建改删时增量同步索引。</li>
+</ul>
+
+<h2>2. 配置（新增，均可选）</h2>
+<ul>
+<li><code>REDIS_URL</code>（空 = 禁用，默认空）</li>
+<li><code>ELASTICSEARCH_URL</code>（空 = 禁用，默认空）</li>
+</ul>
+
+<h2>3. 文件清单</h2>
+<ul>
+<li><code>app/core/config.py</code> — 新增两个可选配置项</li>
+<li><code>app/core/cache.py</code> — <code>Cache</code> 抽象（Redis + 内存后端）</li>
+<li><code>app/services/search_service.py</code> — ES 索引/检索 + SQL 降级 + <code>search_kb</code></li>
+<li><code>app/api/v1/kb.py</code> — 检索走 <code>search_kb</code>；建/改/删增量同步索引</li>
+<li><code>docker-compose.yml</code> — 启用 redis + elasticsearch</li>
+<li><code>requirements.txt</code> — 追加 <code>redis</code>/<code>elasticsearch</code>（可选）</li>
+<li><code>tests/test_cache.py</code> / <code>tests/test_search_service.py</code></li>
+</ul>
+
+<h2>4. 业务规则</h2>
+<ul>
+<li><b>缓存</b>：<code>get/set/delete</code>，<code>set</code> 支持 TTL（秒）；Redis 不可达时内存字典兜底。</li>
+<li><b>检索</b>：<code>search_kb</code> 返回与 <code>paginate</code> 一致结构；ES 可用走 ES，否则 SQL <code>ilike</code>。</li>
+<li><b>索引同步</b>：条目增/改/删时 <code>index_kb_article</code> 尽力同步（不可用静默跳过）。</li>
+<li><b>降级原则</b>：中间件异常不抛给用户，回退主路径。</li>
+</ul>
+
+<h2>5. 验证</h2>
+<pre>cd backend &amp;&amp; .venv/Scripts/activate
+python -m pytest tests -q        # 无 Redis/ES 时走降级路径，全绿
+# 有 Docker 时：docker compose up -d redis elasticsearch 后同一套测试亦绿</pre>
+</body>
+</html>

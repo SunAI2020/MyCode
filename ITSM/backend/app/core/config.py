@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
     CORS_ORIGINS: str = "http://localhost:5173"
     ENABLE_SCHEDULER: bool = False
+    # 可选中间件（空 = 禁用，未配置时自动降级到进程内缓存 / SQL 检索）
+    REDIS_URL: str = ""
+    ELASTICSEARCH_URL: str = ""
 
     @property
     def cors_origins_list(self) -> list[str]:

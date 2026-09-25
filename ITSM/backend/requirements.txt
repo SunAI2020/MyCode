@@ -10,3 +10,6 @@ alembic>=1.13
 apscheduler>=3.10
 python-multipart>=0.0.9
 pytest>=8.0
+# 可选中间件（未安装时后端自动降级到内存缓存 / SQL 检索）
+redis>=5.0
+elasticsearch>=8.0

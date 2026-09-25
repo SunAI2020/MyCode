@@ -6,8 +6,8 @@ from app.core.deps import get_db, require_role
 from app.models import KbArticle, SysUser
 from app.schemas.kb import KbArticleCreate, KbArticleOut, KbArticleUpdate
 from app.services.audit_service import record
-from app.services.kb_service import increment_view, search_articles
-from app.utils.pagination import paginate
+from app.services.kb_service import increment_view
+from app.services.search_service import delete_kb_article, index_kb_article, search_kb
 from app.utils.response import ok
 
 RW_ROLE = ("sys_admin", "sys_ops", "ticket_mgr")
@@ -26,8 +26,7 @@ def list_articles(
     user: SysUser = Depends(require_role(*RW_ROLE)),
     db: Session = Depends(get_db),
 ):
-    query = search_articles(db, q, category, status)
-    return ok(paginate(query, page, size, KbArticleOut))
+    return ok(search_kb(db, q, category, status, page, size))
 
 
 @router.post("")
@@ -41,6 +40,7 @@ def create_article(
     db.flush()
     record(db, user_id=user.id, action="create", resource=f"kb_article:{obj.id}", after=str(body.model_dump()))
     db.commit()
+    index_kb_article(obj)  # 增量同步 ES 索引（ES 不可用静默跳过）
     return ok(KbArticleOut.model_validate(obj).model_dump())
 
 
@@ -67,6 +67,7 @@ def update_article(
     db.flush()
     record(db, user_id=user.id, action="update", resource=f"kb_article:{aid}", after=str(body.model_dump(exclude_unset=True)))
     db.commit()
+    index_kb_article(obj)  # 增量同步 ES 索引
     return ok(KbArticleOut.model_validate(obj).model_dump())
 
 
@@ -78,6 +79,7 @@ def delete_article(aid: int, user: SysUser = Depends(require_role(*DEL_ROLE)), d
     db.delete(obj)
     record(db, user_id=user.id, action="delete", resource=f"kb_article:{aid}")
     db.commit()
+    delete_kb_article(aid)  # 同步删除 ES 索引
     return ok({"deleted": aid})
 
 

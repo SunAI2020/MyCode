@@ -16,12 +16,35 @@ services:
       timeout: 5s
       retries: 10
 
-  # 阶段四/五按需启用：缓存与队列
-  # redis:
-  #   image: redis:7-alpine
-  #   container_name: itsm-redis
-  #   ports:
-  #     - "6379:6379"
+  # 阶段五：缓存 + 全文检索（可选；未启用时后端自动降级到内存缓存 / SQL 检索）
+  redis:
+    image: redis:7-alpine
+    container_name: itsm-redis
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.0
+    container_name: itsm-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "127.0.0.1:9200:9200"
+    volumes:
+      - itsm_esdata:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
 
 volumes:
   itsm_pgdata:
+  itsm_esdata:
