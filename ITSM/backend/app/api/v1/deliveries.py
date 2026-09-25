@@ -10,7 +10,7 @@ from app.core.deps import (
     require_role,
     scope_filter,
 )
-from app.models import Delivery, SysUser
+from app.models import Contract, Delivery, SysUser
 from app.schemas.delivery import DeliveryCreate, DeliveryOut, DeliveryUpdate
 from app.services.audit_service import record
 from app.utils.pagination import paginate
@@ -40,6 +40,11 @@ def create_delivery(
     user: SysUser = Depends(require_role(*WRITE_ROLE)),
     db: Session = Depends(get_db),
 ):
+    scope = customer_scope_of(user, db)
+    if scope is not None and body.contract_id is not None:
+        c = db.get(Contract, body.contract_id)
+        if c is None or c.customer_id != scope:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "无权为其他客户创建交付")
     obj = Delivery(**body.model_dump())
     db.add(obj)
     db.flush()
@@ -68,6 +73,7 @@ def update_delivery(
     obj = db.get(Delivery, did)
     if obj is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "交付不存在")
+    assert_scoped(obj, customer_scope_of(user, db), db)
     before = {k: getattr(obj, k) for k in body.model_dump(exclude_unset=True)}
     for k, v in body.model_dump(exclude_unset=True).items():
         setattr(obj, k, v)
