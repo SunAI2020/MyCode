@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>步骤一：工程骨架与基础设施</title>
+<style>
+  :root{--primary:#0f6bff;--primary-dark:#0a4fc0;--bg:#f5f7fa;--card:#fff;--text:#1f2733;--text-light:#5b6470;--border:#e3e8ef;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);line-height:1.75;font-size:15px;}
+  .wrap{max-width:960px;margin:0 auto;padding:0 20px 60px;}
+  .cover{background:linear-gradient(135deg,#0a3d91,#0f6bff 55%,#2b8cff);color:#fff;padding:48px 40px 40px;border-radius:0 0 22px 22px;}
+  .cover h1{font-size:26px;font-weight:700;margin-bottom:10px;}
+  .cover .sub{font-size:14px;opacity:.92;}
+  .section{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:26px 30px;margin:22px 0;}
+  .section h2{font-size:19px;color:var(--primary-dark);margin-bottom:12px;padding-bottom:10px;border-bottom:2px solid var(--primary);}
+  .section h3{font-size:16px;margin:16px 0 8px;padding-left:10px;border-left:4px solid #ff7a00;}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:14px;}
+  th,td{border:1px solid var(--border);padding:9px 12px;text-align:left;vertical-align:top;}
+  th{background:#f0f5ff;color:var(--primary-dark);font-weight:600;}
+  tr:nth-child(even) td{background:#fafbfd;}
+  code{font-family:Consolas,Menlo,monospace;background:#eef2f7;color:#c2410c;padding:1px 5px;border-radius:4px;font-size:13px;}
+  pre{background:#1e293b;color:#e2e8f0;padding:16px 18px;border-radius:10px;overflow-x:auto;font-size:13px;line-height:1.6;margin:12px 0;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="cover">
+    <h1>步骤一：工程骨架与基础设施</h1>
+    <div class="sub">依据《IT运维集中管控平台_软件设计方案.html》V1.0 定稿 · §9.1 阶段一</div>
+  </div>
+
+  <div class="section">
+    <h2>1. 目标</h2>
+    <p>跑通「本机可运行空壳系统」：PostgreSQL（Docker）→ FastAPI 后端（Swagger 可访问）→ Vue3 前端（登录页占位可访问），三者通过 <code>.env</code> + vite 代理串起来。</p>
+  </div>
+
+  <div class="section">
+    <h2>2. 交付物清单</h2>
+    <table>
+      <tr><th>文件</th><th>作用</th></tr>
+      <tr><td><code>docker-compose.yml</code></td><td>拉起 PostgreSQL 16，数据卷持久化，预留 Redis 注释位</td></tr>
+      <tr><td><code>.env.example</code></td><td>DATABASE_URL / SECRET_KEY / 过期时间模板</td></tr>
+      <tr><td><code>README.md</code></td><td>项目说明 + 一键启动步骤</td></tr>
+      <tr><td><code>backend/requirements.txt</code></td><td>FastAPI 全家桶依赖</td></tr>
+      <tr><td><code>backend/app/main.py</code></td><td>入口：路由挂载、CORS、健康检查、Swagger</td></tr>
+      <tr><td><code>backend/app/core/config.py</code></td><td>pydantic-settings 读 .env</td></tr>
+      <tr><td><code>backend/app/db/session.py / base.py</code></td><td>SQLAlchemy engine / SessionLocal / Base</td></tr>
+      <tr><td><code>backend/app/utils/response.py</code></td><td>统一响应 + 分页</td></tr>
+      <tr><td><code>frontend/</code></td><td>Vite + Vue3 + Element Plus + Pinia + Router + Axios 脚手架</td></tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>3. 技术要点</h2>
+    <ul style="padding-left:20px">
+      <li><strong>后端</strong>：FastAPI + Uvicorn；pydantic-settings 读 .env；SQLAlchemy 2.0（psycopg 驱动）。</li>
+      <li><strong>统一响应契约</strong>（文档 §7.1）：<code>/api/v1</code> 前缀、<code>{"code":0,"message":"ok","data":{}}</code>、分页 <code>?page=&amp;size=</code>。</li>
+      <li><strong>前端</strong>：Vite 代理 <code>/api</code> → <code>http://localhost:8000</code>；axios 拦截器统一带 JWT、解析 code。</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>4. 验证方式</h2>
+    <pre># 数据库
+docker compose up -d
+# 后端
+cd backend &amp;&amp; python -m venv .venv &amp;&amp; .venv/Scripts/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+# 打开 http://localhost:8000/docs 看 Swagger；GET /api/v1/health 返回 ok
+# 前端
+cd frontend &amp;&amp; npm install &amp;&amp; npm run dev
+# 打开 http://localhost:5173 看登录页占位</pre>
+  </div>
+
+  <div class="section">
+    <h2>5. 后续衔接</h2>
+    <p>步骤二基于本骨架：SQLAlchemy 模型 + Alembic 初始迁移 + 种子数据（七级角色/权限/字典/管理员）。</p>
+  </div>
+</div>
+</body>
+</html>

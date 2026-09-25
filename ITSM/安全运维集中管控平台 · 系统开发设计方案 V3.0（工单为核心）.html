@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<!-- saved from url=(0312)file:///C:/Users/sun/AppData/Local/Temp/MicrosoftEdgeDownloads/7cda7606-4687-43a1-b6d0-63e3718e2120/%E5%AE%89%E5%85%A8%E8%BF%90%E7%BB%B4%E9%9B%86%E4%B8%AD%E7%AE%A1%E6%8E%A7%E5%B9%B3%E5%8F%B0_%E7%B3%BB%E7%BB%9F%E5%BC%80%E5%8F%91%E8%AE%BE%E8%AE%A1%E6%96%B9%E6%A1%88_V3-%2D-3ef9bf0b-812c-4328-88d4-3ef590df923f.html -->
+<html lang="zh-CN"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>安全运维集中管控平台 · 系统开发设计方案 V3.0（工单为核心）</title>
+<style>
+  :root{--primary:#0f6bff;--primary-dark:#0a4fc0;--accent:#ff7a00;--bg:#f5f7fa;--card:#fff;--text:#1f2733;--text-light:#5b6470;--border:#e3e8ef;--green:#16a34a;--red:#dc2626;--amber:#d97706;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);line-height:1.75;font-size:15px;}
+  .wrap{max-width:1100px;margin:0 auto;padding:0 20px 80px;}
+  .cover{background:linear-gradient(135deg,#0a3d91,#0f6bff 55%,#2b8cff);color:#fff;padding:70px 50px 55px;border-radius:0 0 28px 28px;position:relative;overflow:hidden;}
+  .cover::after{content:"";position:absolute;right:-60px;top:-60px;width:260px;height:260px;background:rgba(255,255,255,.08);border-radius:50%;}
+  .cover .tag{display:inline-block;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);padding:5px 14px;border-radius:20px;font-size:13px;letter-spacing:1px;margin-bottom:22px;}
+  .cover h1{font-size:33px;line-height:1.35;font-weight:700;margin-bottom:14px;}
+  .cover .sub{font-size:16px;opacity:.92;}
+  .cover .meta{margin-top:34px;font-size:13px;opacity:.8;display:flex;gap:24px;flex-wrap:wrap;}
+  .toc{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:26px 30px;margin:28px 0;}
+  .toc h2{font-size:18px;margin-bottom:14px;color:var(--primary-dark);}
+  .toc ol{padding-left:22px;}.toc li{margin:6px 0;color:var(--text-light);}.toc a{color:var(--text);text-decoration:none;}.toc a:hover{color:var(--primary);}
+  .section{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:32px 34px;margin:24px 0;}
+  .section h2{font-size:22px;color:var(--primary-dark);margin-bottom:8px;padding-bottom:12px;border-bottom:2px solid var(--primary);display:flex;align-items:center;gap:10px;}
+  .section h2 .num{background:var(--primary);color:#fff;width:30px;height:30px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;}
+  .section h3{font-size:17px;color:var(--text);margin:22px 0 10px;padding-left:12px;border-left:4px solid var(--accent);}
+  .section h4{font-size:15px;margin:16px 0 8px;color:var(--primary-dark);}
+  .section p{margin:8px 0;}.section ul,.section ol{padding-left:24px;margin:8px 0;}.section li{margin:5px 0;}
+  .highlight{background:#eef4ff;border-left:4px solid var(--primary);padding:14px 18px;border-radius:0 8px 8px 0;margin:14px 0;color:#233b66;}
+  .warn{background:#fff7e6;border-left:4px solid var(--amber);padding:14px 18px;border-radius:0 8px 8px 0;margin:14px 0;}
+  .danger{background:#fee2e2;border-left:4px solid var(--red);padding:14px 18px;border-radius:0 8px 8px 0;margin:14px 0;color:#7f1d1d;}
+  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;}
+  th,td{border:1px solid var(--border);padding:10px 12px;text-align:left;vertical-align:top;}
+  th{background:#f0f5ff;color:var(--primary-dark);font-weight:600;}tr:nth-child(even) td{background:#fafbfd;}
+  pre{background:#1e293b;color:#e2e8f0;padding:18px 20px;border-radius:10px;overflow-x:auto;font-family:"SF Mono",Consolas,Menlo,monospace;font-size:13px;line-height:1.6;margin:14px 0;}
+  .badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600;}
+  .badge.red{background:#fee2e2;color:var(--red);}.badge.green{background:#dcfce7;color:var(--green);}.badge.blue{background:#dbeafe;color:var(--primary-dark);}.badge.amber{background:#fef3c7;color:#b45309;}
+  .pill{display:inline-block;padding:2px 8px;border-radius:6px;background:#eef4ff;color:#233b66;font-size:13px;margin:1px 2px;}
+  .flow{background:#f8fafc;border:1px dashed var(--border);border-radius:10px;padding:16px;text-align:center;margin:14px 0;}
+  .flow span{display:inline-block;background:#fff;border:1px solid var(--primary);color:var(--primary-dark);padding:6px 12px;border-radius:8px;margin:4px;font-size:13px;}
+  .flow .arr{background:none;border:none;color:#9aa5b1;font-size:18px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="cover">
+  <span class="tag">系统开发设计方案 · V3.0</span>
+  <h1>安全运维集中管控平台<br>系统开发设计方案（工单为核心）</h1>
+  <div class="sub">接单 → 派单 → 工单跟踪 → 风险整改 → 交付 → 绩效考核 全链路一体化</div>
+  <div class="meta">
+    <span>📅 编制日期：2026-08-28</span>
+    <span>👥 适用对象：安服团队 / MSSP</span>
+    <span>🎯 核心：以工单为纽带贯通全流程</span>
+  </div>
+</div>
+
+<div class="toc">
+  <h2>目录</h2>
+  <ol>
+    <li><a href="file:///C:/Users/sun/AppData/Local/Temp/MicrosoftEdgeDownloads/7cda7606-4687-43a1-b6d0-63e3718e2120/%E5%AE%89%E5%85%A8%E8%BF%90%E7%BB%B4%E9%9B%86%E4%B8%AD%E7%AE%A1%E6%8E%A7%E5%B9%B3%E5%8F%B0_%E7%B3%BB%E7%BB%9F%E5%BC%80%E5%8F%91%E8%AE%BE%E8%AE%A1%E6%96%B9%E6%A1%88_V3---3ef9bf0b-812c-4328-88d4-3ef590df923f.html#s1">项目概述与总体架构</a></li>
+    <li><a href="file:///C:/Users/sun/AppData/Local/Temp/MicrosoftEdgeDownloads/7cda7606-4687-43a1-b6d0-63e3718e2120/%E5%AE%89%E5%85%A8%E8%BF%90%E7%BB%B4%E9%9B%86%E4%B8%AD%E7%AE%A1%E6%8E%A7%E5%B9%B3%E5%8F%B0_%E7%B3%BB%E7%BB%9F%E5%BC%80%E5%8F%91%E8%AE%BE%E8%AE%A1%E6%96%B9%E6%A1%88_V3---3ef9bf0b-812c-4328-88d4-3ef590df923f.html#s2">接单模块</a></li>
+    <li><a href="file:///C:/Users/sun/AppData/Local/Temp/MicrosoftEdgeDownloads/7cda7606-4687-43a1-b6d0-63e3718e2120/%E5%AE%89%E5%85%A8%E8%BF%90%E7%BB%B4%E9%9B%86%E4%B8%AD%E7%AE%A1%E6%8E%A7%E5%B9%B3%E5%8F%B0_%E7%B3%BB%E7%BB%9F%E5%BC%80%E5%8F%91%E8%AE%BE%E8%AE%A1%E6%96%B9%E6%A1%88_V3---3ef9bf0b-812c-4328-88d4-3ef590df923f.html#s3">派单模块</a></li>
+    <li><a href="file:///C:/Users/sun/AppData/Local/Temp/MicrosoftEdgeDownloads/7cda7606-4687-43a1-b6d0-63e3718e2120/%E5%AE%89%E5%85%A8%E8%BF%90%E7%BB%B4%E9%9B%86%E4%B8%AD%E7%AE%A1%E6%8E%A7%E5%B9%B3%E5%8F%B0_%E7%B3%BB%E7%BB%9F%E5%BC%80%E5%8F%91%E8%AE%BE%E8%AE%A1%E6%96%B9%E6%A1%88_V3---3ef9bf0b-812c-4328-88d4-3ef590df923f.html#s4">工单管理（核心）</a></li>
+    <li><a href="file:///C:/Users/sun/AppData/Local/Temp/MicrosoftEdgeDownloads/7cda7606-4687-43a1-b6d0-63e3718e2120/%E5%AE%89%E5%85%A8%E8%BF%90%E7%BB%B4%E9%9B%86%E4%B8%AD%E7%AE%A1%E6%8E%A7%E5%B9%B3%E5%8F%B0_%E7%B3%BB%E7%BB%9F%E5%BC%80%E5%8F%91%E8%AE%BE%E8%AE%A1%E6%96%B9%E6%A1%88_V3---3ef9bf0b-812c-4328-88d4-3ef590df923f.html#s5">问题发现与整改闭环</a></li>
+    <li><a href="file:///C:/Users/sun/AppData/Local/Temp/MicrosoftEdgeDownloads/7cda7606-4687-43a1-b6d0-63e3718e2120/%E5%AE%89%E5%85%A8%E8%BF%90%E7%BB%B4%E9%9B%86%E4%B8%AD%E7%AE%A1%E6%8E%A7%E5%B9%B3%E5%8F%B0_%E7%B3%BB%E7%BB%9F%E5%BC%80%E5%8F%91%E8%AE%BE%E8%AE%A1%E6%96%B9%E6%A1%88_V3---3ef9bf0b-812c-4328-88d4-3ef590df923f.html#s6">项目交付</a></li>
+    <li><a href="file:///C:/Users/sun/AppData/Local/Temp/MicrosoftEdgeDownloads/7cda7606-4687-43a1-b6d0-63e3718e2120/%E5%AE%89%E5%85%A8%E8%BF%90%E7%BB%B4%E9%9B%86%E4%B8%AD%E7%AE%A1%E6%8E%A7%E5%B9%B3%E5%8F%B0_%E7%B3%BB%E7%BB%9F%E5%BC%80%E5%8F%91%E8%AE%BE%E8%AE%A1%E6%96%B9%E6%A1%88_V3---3ef9bf0b-812c-4328-88d4-3ef590df923f.html#s7">运维人员绩效考核</a></li>
+    <li><a href="file:///C:/Users/sun/AppData/Local/Temp/MicrosoftEdgeDownloads/7cda7606-4687-43a1-b6d0-63e3718e2120/%E5%AE%89%E5%85%A8%E8%BF%90%E7%BB%B4%E9%9B%86%E4%B8%AD%E7%AE%A1%E6%8E%A7%E5%B9%B3%E5%8F%B0_%E7%B3%BB%E7%BB%9F%E5%BC%80%E5%8F%91%E8%AE%BE%E8%AE%A1%E6%96%B9%E6%A1%88_V3---3ef9bf0b-812c-4328-88d4-3ef590df923f.html#s8">工单进度与超时提醒</a></li>
+    <li><a href="file:///C:/Users/sun/AppData/Local/Temp/MicrosoftEdgeDownloads/7cda7606-4687-43a1-b6d0-63e3718e2120/%E5%AE%89%E5%85%A8%E8%BF%90%E7%BB%B4%E9%9B%86%E4%B8%AD%E7%AE%A1%E6%8E%A7%E5%B9%B3%E5%8F%B0_%E7%B3%BB%E7%BB%9F%E5%BC%80%E5%8F%91%E8%AE%BE%E8%AE%A1%E6%96%B9%E6%A1%88_V3---3ef9bf0b-812c-4328-88d4-3ef590df923f.html#s9">数据模型设计</a></li>
+    <li><a href="file:///C:/Users/sun/AppData/Local/Temp/MicrosoftEdgeDownloads/7cda7606-4687-43a1-b6d0-63e3718e2120/%E5%AE%89%E5%85%A8%E8%BF%90%E7%BB%B4%E9%9B%86%E4%B8%AD%E7%AE%A1%E6%8E%A7%E5%B9%B3%E5%8F%B0_%E7%B3%BB%E7%BB%9F%E5%BC%80%E5%8F%91%E8%AE%BE%E8%AE%A1%E6%96%B9%E6%A1%88_V3---3ef9bf0b-812c-4328-88d4-3ef590df923f.html#s10">权限、安全、技术选型</a></li>
+    <li><a href="file:///C:/Users/sun/AppData/Local/Temp/MicrosoftEdgeDownloads/7cda7606-4687-43a1-b6d0-63e3718e2120/%E5%AE%89%E5%85%A8%E8%BF%90%E7%BB%B4%E9%9B%86%E4%B8%AD%E7%AE%A1%E6%8E%A7%E5%B9%B3%E5%8F%B0_%E7%B3%BB%E7%BB%9F%E5%BC%80%E5%8F%91%E8%AE%BE%E8%AE%A1%E6%96%B9%E6%A1%88_V3---3ef9bf0b-812c-4328-88d4-3ef590df923f.html#s11">实施路线</a></li>
+  </ol>
+</div>
+
+<!-- 1 概述 -->
+<div class="section" id="s1">
+  <h2><span class="num">1</span>项目概述与总体架构</h2>
+  <h3>1.1 核心设计理念</h3>
+  <div class="highlight">本版本将系统重心从「风险台账」重构为<strong>「以工单为核心」</strong>——一切业务围绕工单展开：接单、派单、跟踪、发现问题、整改、交付、绩效考核，全部挂接在工单主线上，形成可追溯、可量化、可考核的闭环。</div>
+  <h3>1.2 核心业务流程</h3>
+  <div class="flow">
+    <span>接单</span><span class="arr">→</span><span>派单</span><span class="arr">→</span><span>工单执行跟踪</span><span class="arr">→</span><span>发现问题</span><span class="arr">→</span><span>整改（多轮）</span><span class="arr">→</span><span>整改效果</span><span class="arr">→</span><span>项目交付</span><span class="arr">→</span><span>绩效考核</span>
+  </div>
+  <h3>1.3 模块划分（九大核心模块）</h3>
+  <table>
+    <tbody><tr><th>模块</th><th>说明</th></tr>
+    <tr><td>① 接单模块</td><td>商务/销售录入客户需求，沉淀合同与验收标准</td></tr>
+    <tr><td>② 派单模块</td><td>项目经理指派运维人员，确定派单价格与服务时间</td></tr>
+    <tr><td>③ 工单管理（核心）</td><td>工单全生命周期跟踪、状态流转、超时提醒</td></tr>
+    <tr><td>④ 问题发现与整改</td><td>问题录入、多轮整改、效果确认</td></tr>
+    <tr><td>⑤ 项目交付</td><td>四类报告（运维/问题/整改/验收）</td></tr>
+    <tr><td>⑥ 绩效考核</td><td>工作量 + 价格 + 质量 + 评价 加权计算</td></tr>
+    <tr><td>⑦ 客户与资产管理</td><td>客户档案、资产清单、运维项目</td></tr>
+    <tr><td>⑧ 报告中心</td><td>分客户/分项目归档</td></tr>
+    <tr><td>⑨ 系统管理</td><td>权限、字典、审计、水印、脱敏</td></tr>
+  </tbody></table>
+</div>
+
+<!-- 2 接单 -->
+<div class="section" id="s2">
+  <h2><span class="num">2</span>接单模块</h2>
+  <p>接单是业务的起点，由商务/销售人员（或客户门户自助）录入客户需求，生成待派的工单。</p>
+  <h3>2.1 接单表单字段</h3>
+  <table>
+    <tbody><tr><th>字段</th><th>类型</th><th>说明</th></tr>
+    <tr><td>来源</td><td>单选</td><td>客户报障 / 商务拓展 / 巡检发现 / 安全事件 / 客户续约</td></tr>
+    <tr><td>用户名称</td><td>文本/关联</td><td>客户名称（关联客户档案）</td></tr>
+    <tr><td>资产名称</td><td>关联</td><td>客户运维系统/资产（关联资产清单）</td></tr>
+    <tr><td>运维项目</td><td>下拉选择</td><td>漏洞扫描/渗透测试/应急演练/安全加固/安全培训/代码审计/基线核查/安全巡检/安全评估/应急处置/重保值守/攻防演练/安全防护/设备巡检/等级保护测评/故障排查</td></tr>
+    <tr><td>合同价格</td><td>数字</td><td>合同约定金额（元）</td></tr>
+    <tr><td>甲方联系人</td><td>文本</td><td>客户对接人姓名</td></tr>
+    <tr><td>甲方联系电话</td><td>电话</td><td>客户联系电话（脱敏展示）</td></tr>
+    <tr><td>服务时间</td><td>日期区间</td><td>起止日期</td></tr>
+    <tr><td>验收标准</td><td>富文本</td><td>与客户约定的验收条件</td></tr>
+  </tbody></table>
+  <div class="warn"><strong>说明：</strong>接单完成后生成一条「待派单」状态的工单，携带合同价格、验收标准等原始信息，作为后续派单与验收的依据。</div>
+</div>
+
+<!-- 3 派单 -->
+<div class="section" id="s3">
+  <h2><span class="num">3</span>派单模块</h2>
+  <p>项目经理在接单基础上，指派具体运维人员并确定派单价格与服务时间。</p>
+  <h3>3.1 派单表单字段</h3>
+  <table>
+    <tbody><tr><th>字段</th><th>类型</th><th>说明</th></tr>
+    <tr><td>运维人员</td><td>人员选择</td><td>指派执行人（可单人/多人）</td></tr>
+    <tr><td>用户名称</td><td>关联</td><td>客户名称（继承自接单）</td></tr>
+    <tr><td>资产名称</td><td>关联</td><td>运维资产（继承自接单）</td></tr>
+    <tr><td>运维项目</td><td>下拉选择</td><td>同接单的运维项目枚举</td></tr>
+    <tr><td>派单价格</td><td>数字</td><td>派给运维人员的结算价格（用于绩效）</td></tr>
+    <tr><td>服务时间</td><td>日期区间</td><td>起止日期（含 SLA 时限）</td></tr>
+    <tr><td>验收标准</td><td>富文本</td><td>对该次派单的验收要求</td></tr>
+  </tbody></table>
+  <div class="highlight"><strong>关键点：</strong>「合同价格」（接单）与「派单价格」（派单）分离，二者差额即项目毛利；派单价格直接进入绩效加权计算。</div>
+</div>
+
+<!-- 4 工单管理 核心 -->
+<div class="section" id="s4">
+  <h2><span class="num">4</span>工单管理（核心）</h2>
+  <p>工单是系统主线，统一承载接单、派单、执行、跟踪、整改、交付、考核。</p>
+  <h3>4.1 工单状态机</h3>
+  <pre>待派单 → 已派单/进行中 → 计划中 ↔ 进行中 → 待验收 → 已完成
+                ↓
+          （超时预警/催办）</pre>
+  <h3>4.2 工单状态定义（含进度细分）</h3>
+  <table>
+    <tbody><tr><th>状态</th><th>说明</th></tr>
+    <tr><td>计划中</td><td>已排期未开始</td></tr>
+    <tr><td>正在进行 XX年第X次·漏洞扫描</td><td>执行中的具体服务项（动态拼接服务名）</td></tr>
+    <tr><td>正在进行 XX年第X次·渗透测试</td><td>同上，按运维项目动态生成</td></tr>
+    <tr><td>…（其余 14 类项目）</td><td>故障排查 等，均显示「正在进行 + 项目名」</td></tr>
+    <tr><td>已完成</td><td>服务执行完毕</td></tr>
+    <tr><td>已交付 / 已验收 / 已关闭</td><td>交付报告、客户验收、结案</td></tr>
+  </tbody></table>
+  <div class="warn"><strong>动态状态：</strong>工单的「进行中」状态动态拼接服务项名称（如「正在进行 2026 年第 3 次·漏洞扫描」），而非固定枚举，便于一眼看清当前在做什么。</div>
+</div>
+
+<!-- 5 问题与整改 -->
+<div class="section" id="s5">
+  <h2><span class="num">5</span>问题发现与整改闭环</h2>
+  <h3>5.1 发现问题</h3>
+  <p>运维人员在执行工单过程中记录发现的问题，挂接在工单之下：问题类型、严重等级、描述、截图/日志附件。</p>
+  <h3>5.2 整改情况（多轮）</h3>
+  <table>
+    <tbody><tr><th>整改状态</th><th>说明</th></tr>
+    <tr><td>第 1 轮整改中…</td><td>首轮整改进行中</td></tr>
+    <tr><td>第 N 轮整改中…</td><td>整改不通过后的后续轮次</td></tr>
+    <tr><td>整改完成</td><td>本轮整改完成，待验证效果</td></tr>
+    <tr><td>整改不通过</td><td>效果未达标，自动发起下一轮</td></tr>
+  </tbody></table>
+  <h3>5.3 整改效果</h3>
+  <ul>
+    <li>效果描述采用具体成果式：<span class="badge green">XX 漏洞已修复</span> <span class="badge green">XX 问题已修复</span></li>
+    <li>效果验证三态：通过 / 不通过 / 部分完成继续整改</li>
+  </ul>
+</div>
+
+<!-- 6 交付 -->
+<div class="section" id="s6">
+  <h2><span class="num">6</span>项目交付</h2>
+  <p>工单完成后，产出标准化交付物，统一归入报告中心。</p>
+  <h3>6.1 四类核心交付报告</h3>
+  <table>
+    <tbody><tr><th>报告类型</th><th>内容</th></tr>
+    <tr><td>运维报告</td><td>本次运维执行过程、服务内容汇总</td></tr>
+    <tr><td>发现问题报告</td><td>执行中发现的全部问题清单</td></tr>
+    <tr><td>整改报告</td><td>多轮整改过程、措施、效果</td></tr>
+    <tr><td>验收报告</td><td>验收标准、验收结论、客户签字</td></tr>
+  </tbody></table>
+  <p>另支持：漏洞扫描报告、渗透测试报告、应急演练报告、安全评估报告、基线核查报告、等保测评报告等按项目类型生成。</p>
+</div>
+
+<!-- 7 绩效 -->
+<div class="section" id="s7">
+  <h2><span class="num">7</span>运维人员绩效考核</h2>
+  <p>绩效考核以<strong>加权公式</strong>自动计算每个运维人员的绩效分。</p>
+  <h3>7.1 绩效构成要素</h3>
+  <table>
+    <tbody><tr><th>要素</th><th>说明</th></tr>
+    <tr><td>工作量</td><td>完成工单/服务项的数量、投入工时</td></tr>
+    <tr><td>派单价格</td><td>该单的派单价格（结算金额）</td></tr>
+    <tr><td>工作质量</td><td>管理者/安全专家打分（如 0.6~1.2 系数）</td></tr>
+    <tr><td>用户评价</td><td>客户满意度评价（如 0.8~1.2 系数）</td></tr>
+  </tbody></table>
+  <h3>7.2 绩效计算公式</h3>
+  <pre>绩效分 = Σ ( 工作量 × 派单价格 × 工作质量系数 × 用户评价系数 )</pre>
+  <div class="highlight"><strong>说明：</strong>工作量与派单价格构成「创收基数」，工作质量与用户评价作为乘数系数调节，既鼓励多干活，又保证干得漂亮、客户满意。</div>
+  <h3>7.3 统计维度</h3>
+  <ul>
+    <li>按人员、按客户、按运维项目、按时间（日/周/月/季/年）</li>
+    <li>产出：个人绩效报表、团队排名、成本毛利核算依据</li>
+  </ul>
+</div>
+
+<!-- 8 超时提醒 -->
+<div class="section" id="s8">
+  <h2><span class="num">8</span>工单进度与超时提醒</h2>
+  <h3>8.1 提醒机制</h3>
+  <ul>
+    <li>工单设置 SLA 时限（服务时间截止）</li>
+    <li>即将超时（如剩余 24h / 4h）时，系统自动触发提醒</li>
+    <li>提醒对象：<strong>运维人员（执行人）+ 管理员（项目经理）</strong></li>
+  </ul>
+  <h3>8.2 提醒渠道</h3>
+  <table>
+    <tbody><tr><th>渠道</th><th>说明</th></tr>
+    <tr><td>站内消息</td><td>系统消息中心红点提醒</td></tr>
+    <tr><td>移动端推送</td><td>小程序/App 推送通知</td></tr>
+    <tr><td>短信/企微/飞书/钉钉</td><td>可选第三方渠道</td></tr>
+  </tbody></table>
+  <h3>8.3 提醒等级</h3>
+  <table>
+    <tbody><tr><th>等级</th><th>触发条件</th><th>颜色</th></tr>
+    <tr><td>预警</td><td>剩余 24h</td><td><span class="badge amber">黄色预警</span></td></tr>
+    <tr><td>紧急</td><td>剩余 4h</td><td><span class="badge red">红色紧急</span></td></tr>
+    <tr><td>已超时</td><td>超过截止时间</td><td><span class="badge red">超时告警 + 升级通知管理员</span></td></tr>
+  </tbody></table>
+</div>
+
+<!-- 9 数据模型 -->
+<div class="section" id="s9">
+  <h2><span class="num">9</span>数据模型设计</h2>
+  <h3>9.1 实体关系（工单为核心）</h3>
+  <pre>接单(order_receive) 1—1 工单(work_order) 1—1 派单(order_dispatch)
+工单 1—N 问题(issue) → 1—N 整改(rectification) → 1—N 整改记录(多轮)
+工单 1—N 交付物(delivery)
+工单/问题/整改/交付 → 绩效(performance)
+客户 1—N 项目/资产 → 关联工单</pre>
+  <h3>9.2 核心表清单</h3>
+  <table>
+    <tbody><tr><th>表名</th><th>关键字段</th></tr>
+    <tr><td><code>order_receive</code> 接单</td><td>id, source, customer_id, asset_id, project(运维项目), contract_price, contact_name, contact_phone, service_start/end, accept_standard</td></tr>
+    <tr><td><code>order_dispatch</code> 派单</td><td>id, work_order_id, engineer_id, customer_id, asset_id, project, dispatch_price, service_start/end, accept_standard</td></tr>
+    <tr><td><code>work_order</code> 工单</td><td>id, no, receive_id, dispatch_id, customer_id, asset_id, project, status(计划中/进行中xx/已完成...), sla_deadline, progress</td></tr>
+    <tr><td><code>issue</code> 问题</td><td>id, work_order_id, type, level, description, attachments</td></tr>
+    <tr><td><code>rectification</code> 整改</td><td>id, issue_id, plan, deadline, assignee, status</td></tr>
+    <tr><td><code>rectification_record</code> 整改记录</td><td>id, rectification_id, round_no, action, executor, effect(通过/不通过/部分完成)</td></tr>
+    <tr><td><code>delivery</code> 交付</td><td>id, work_order_id, customer_id, report_type(运维/问题/整改/验收), report_id, sign</td></tr>
+    <tr><td><code>performance</code> 绩效</td><td>id, user_id, work_order_id, workload, dispatch_price, quality_score, customer_score, perf_score</td></tr>
+    <tr><td><code>reminder</code> 提醒</td><td>id, work_order_id, level, to_user_id, channel, sent_at</td></tr>
+    <tr><td><code>customer</code>/<code>asset_system</code></td><td>客户档案 / 资产清单</td></tr>
+  </tbody></table>
+</div>
+
+<!-- 10 权限/安全/技术 -->
+<div class="section" id="s10">
+  <h2><span class="num">10</span>权限、安全与技术选型</h2>
+  <h3>10.1 角色权限</h3>
+  <table>
+    <tbody><tr><th>角色</th><th>权限</th></tr>
+    <tr><td>商务/销售</td><td>接单录入</td></tr>
+    <tr><td>项目经理/管理员</td><td>派单、工单跟踪、绩效审核、超时督办</td></tr>
+    <tr><td>运维人员</td><td>执行工单、问题录入、整改、打卡</td></tr>
+    <tr><td>安全专家</td><td>质量打分、整改审核、验收</td></tr>
+    <tr><td>客户</td><td>评价、验收签字、查看本客户报告</td></tr>
+  </tbody></table>
+  <h3>10.2 安全要求</h3>
+  <ul>
+    <li>数据脱敏（联系方式、IP、密码等）</li>
+    <li>全程 HTTPS 加密传输，敏感数据加密存储</li>
+    <li>屏幕 + 打印隐藏数字水印，防拍照防截屏</li>
+    <li>操作审计日志全留痕</li>
+  </ul>
+  <h3>10.3 技术选型</h3>
+  <table>
+    <tbody><tr><th>层次</th><th>推荐</th></tr>
+    <tr><td>前端</td><td>Vue3 + Ant Design / Element Plus</td></tr>
+    <tr><td>移动端</td><td>uni-app / 微信小程序（GPS+拍照+推送）</td></tr>
+    <tr><td>后端</td><td>Java Spring Boot / Go / Python FastAPI</td></tr>
+    <tr><td>数据库</td><td>MySQL / PostgreSQL</td></tr>
+    <tr><td>缓存/检索</td><td>Redis + Elasticsearch</td></tr>
+    <tr><td>消息提醒</td><td>站内 + 移动推送 + 企微/飞书/钉钉/短信</td></tr>
+    <tr><td>对象存储</td><td>MinIO / OSS（加密）</td></tr>
+  </tbody></table>
+</div>
+
+<!-- 11 实施 -->
+<div class="section" id="s11">
+  <h2><span class="num">11</span>实施路线</h2>
+  <table>
+    <tbody><tr><th>阶段</th><th>内容</th><th>周期（估）</th></tr>
+    <tr><td>一期</td><td>客户/资产管理 + 接单 + 派单 + 工单状态跟踪 + 超时提醒</td><td>8-10 周</td></tr>
+    <tr><td>二期</td><td>问题发现 + 多轮整改 + 整改效果</td><td>4-6 周</td></tr>
+    <tr><td>三期</td><td>项目交付（四类报告）+ 报告中心 + 客户评价</td><td>4-6 周</td></tr>
+    <tr><td>四期</td><td>绩效考核加权计算 + 移动端 + 安全水印/脱敏 + 数据看板</td><td>4-6 周</td></tr>
+  </tbody></table>
+  <div class="highlight">MVP 建议：<strong>一期先跑通「接单→派单→工单跟踪→超时提醒」</strong>，这是新架构的主干闭环，快速验证后逐步叠加整改、交付、绩效。</div>
+</div>
+
+<p style="text-align:center;color:#9aa5b1;margin-top:40px;font-size:13px;">—— 安全运维集中管控平台 · 系统开发设计方案 V3.0（工单为核心）· 完 ——</p>
+</div>
+
+
+</body></html>

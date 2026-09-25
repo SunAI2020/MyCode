@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>步骤四：合同履约主干 API</title>
+<style>
+  :root{--primary:#0f6bff;--primary-dark:#0a4fc0;--bg:#f5f7fa;--card:#fff;--text:#1f2733;--text-light:#5b6470;--border:#e3e8ef;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);line-height:1.75;font-size:15px;}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 20px 60px;}
+  .cover{background:linear-gradient(135deg,#0a3d91,#0f6bff 55%,#2b8cff);color:#fff;padding:48px 40px 40px;border-radius:0 0 22px 22px;}
+  .cover h1{font-size:26px;font-weight:700;margin-bottom:10px;}
+  .cover .sub{font-size:14px;opacity:.92;}
+  .section{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:26px 30px;margin:22px 0;}
+  .section h2{font-size:19px;color:var(--primary-dark);margin-bottom:12px;padding-bottom:10px;border-bottom:2px solid var(--primary);}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:14px;}
+  th,td{border:1px solid var(--border);padding:8px 11px;text-align:left;vertical-align:top;}
+  th{background:#f0f5ff;color:var(--primary-dark);font-weight:600;}
+  tr:nth-child(even) td{background:#fafbfd;}
+  code{font-family:Consolas,Menlo,monospace;background:#eef2f7;color:#c2410c;padding:1px 5px;border-radius:4px;font-size:13px;}
+  pre{background:#1e293b;color:#e2e8f0;padding:16px 18px;border-radius:10px;overflow-x:auto;font-size:13px;line-height:1.6;margin:12px 0;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="cover">
+    <h1>步骤四：合同履约主干 API</h1>
+    <div class="sub">客户 → 合同 → 子项 → CI → 接单 → 派单 → 工单 → SLA → 周期 → 提醒 全链路 CRUD</div>
+  </div>
+
+  <div class="section">
+    <h2>1. 目标</h2>
+    <p>在步骤三认证底座上，落地主干资源的增删改查与关键动作（创建工单、派单、状态流转），全部写接口挂 <code>require_role</code> + 审计，列表接口挂 <code>customer_scope_of</code> 行级隔离。</p>
+  </div>
+
+  <div class="section">
+    <h2>2. API 面</h2>
+    <table>
+      <tr><th>资源</th><th>方法</th><th>路径</th><th>角色</th></tr>
+      <tr><td rowspan="3">客户</td><td>GET/POST</td><td><code>/customers</code></td><td>读：登录即可（隔离）；写：sys_admin/sys_ops</td></tr>
+      <tr><td>GET/PUT/DELETE</td><td><code>/customers/{id}</code></td><td>写：sys_admin/sys_ops；删：sys_admin</td></tr>
+      <tr><td colspan="3" style="background:#fafbfd;">（合同 / 子项 / CI 与客户同构，略）</td></tr>
+      <tr><td>接单</td><td>GET/POST</td><td><code>/receives</code></td><td>写：sys_admin/sys_ops/ticket_mgr</td></tr>
+      <tr><td rowspan="3">工单</td><td>GET/POST</td><td><code>/work-orders</code></td><td>写：sys_admin/sys_ops/ticket_mgr</td></tr>
+      <tr><td>POST</td><td><code>/work-orders/{id}/dispatch</code></td><td>sys_admin/sys_ops/ticket_mgr</td></tr>
+      <tr><td>PUT</td><td><code>/work-orders/{id}/status</code></td><td>sys_admin/sys_ops/ticket_mgr/cs_staff/sec_staff</td></tr>
+      <tr><td>SLA</td><td>GET/POST/PUT/DELETE</td><td><code>/sla-policies</code></td><td>写：sys_admin/sys_ops</td></tr>
+      <tr><td>周期</td><td>GET</td><td><code>/cycles</code></td><td>sys_admin/sys_ops/ticket_mgr（生成在步骤五）</td></tr>
+      <tr><td>提醒</td><td>GET</td><td><code>/reminders</code></td><td>sys_admin/sys_ops/ticket_mgr</td></tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>3. 新增文件</h2>
+    <pre>backend/app/
+├── utils/pagination.py        # paginate(q, page, size, schema)
+├── utils/wo_no.py             # 工单号 WO-YYYY-NNNN
+├── schemas/customer.py / contract.py / work_order.py / service.py
+└── api/v1/customers.py / contracts.py / work_orders.py / services.py</pre>
+  </div>
+
+  <div class="section">
+    <h2>4. 关键设计</h2>
+    <ul style="margin-left:22px;">
+      <li><strong>行级隔离</strong>：<code>deps.scope_filter(q, model, scope)</code>——客户侧用户仅见本客户数据。</li>
+      <li><strong>工单号</strong>：<code>WO-YYYY-NNNN</code> 按年递增。</li>
+      <li><strong>派单校验</strong>：执行人 <code>workload_ratio</code> 合计须为 100%。</li>
+      <li><strong>状态机</strong>：硬编码合法迁移表，非法迁移 400。</li>
+      <li><strong>统一错误</strong>：沿用步骤三 <code>HTTPException</code> 处理器。</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>5. 验证方式</h2>
+    <pre>cd backend &amp;&amp; .venv/Scripts/activate
+uvicorn app.main:app --reload --port 8000
+# 登录拿 token 后依次：建客户→建合同→建子项→建 CI→接单→创建工单→派单(2人60/40)→状态流转
+# 全程 code=0；写操作落审计；非法状态流转应 400</pre>
+  </div>
+</div>
+</body>
+</html>

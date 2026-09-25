@@ -1,0 +1,27 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: itsm-postgres
+    environment:
+      POSTGRES_USER: itsm
+      POSTGRES_PASSWORD: itsm_password
+      POSTGRES_DB: itsm
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - itsm_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U itsm"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # 阶段四/五按需启用：缓存与队列
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: itsm-redis
+  #   ports:
+  #     - "6379:6379"
+
+volumes:
+  itsm_pgdata:

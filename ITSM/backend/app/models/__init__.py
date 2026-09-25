@@ -1,0 +1,36 @@
+# 汇总导入所有模型，供 Alembic autogenerate 发现
+from app.models.customer import Customer
+from app.models.contract import CmdbCi, Contract, ContractItem
+from app.models.dispatch import OrderDispatch
+from app.models.service import ServiceCycle, ServiceReminder, SlaPolicy
+from app.models.system import (
+    SysAuditLog,
+    SysDict,
+    SysPermission,
+    SysRole,
+    SysRolePermission,
+    SysUser,
+    SysUserRole,
+)
+from app.models.work_order import OrderReceive, WorkOrder, WorkOrderAssignee
+
+__all__ = [
+    "SysUser",
+    "SysRole",
+    "SysPermission",
+    "SysUserRole",
+    "SysRolePermission",
+    "SysAuditLog",
+    "SysDict",
+    "Customer",
+    "Contract",
+    "CmdbCi",
+    "ContractItem",
+    "OrderReceive",
+    "OrderDispatch",
+    "WorkOrder",
+    "WorkOrderAssignee",
+    "ServiceCycle",
+    "ServiceReminder",
+    "SlaPolicy",
+]

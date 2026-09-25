@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>安全运维集中管控平台 · 系统开发设计方案 V2.0</title>
+<style>
+  :root {
+    --primary: #0f6bff; --primary-dark: #0a4fc0; --accent: #ff7a00;
+    --bg: #f5f7fa; --card: #fff; --text: #1f2733; --text-light: #5b6470;
+    --border: #e3e8ef; --green: #16a34a; --red: #dc2626; --amber: #d97706;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--text); line-height:1.75; font-size:15px; }
+  .wrap { max-width:980px; margin:0 auto; padding:0 20px 80px; }
+  .cover { background:linear-gradient(135deg,#0a3d91,#0f6bff 55%,#2b8cff); color:#fff; padding:70px 50px 55px; border-radius:0 0 28px 28px; position:relative; overflow:hidden; }
+  .cover::after { content:""; position:absolute; right:-60px; top:-60px; width:260px; height:260px; background:rgba(255,255,255,.08); border-radius:50%; }
+  .cover .tag { display:inline-block; background:rgba(255,255,255,.18); border:1px solid rgba(255,255,255,.35); padding:5px 14px; border-radius:20px; font-size:13px; letter-spacing:1px; margin-bottom:22px; }
+  .cover h1 { font-size:33px; line-height:1.35; font-weight:700; margin-bottom:14px; }
+  .cover .sub { font-size:16px; opacity:.92; }
+  .cover .meta { margin-top:34px; font-size:13px; opacity:.8; display:flex; gap:24px; flex-wrap:wrap; }
+  .toc { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:26px 30px; margin:28px 0; }
+  .toc h2 { font-size:18px; margin-bottom:14px; color:var(--primary-dark); }
+  .toc ol { padding-left:22px; } .toc li { margin:6px 0; color:var(--text-light); } .toc a { color:var(--text); text-decoration:none; } .toc a:hover { color:var(--primary); }
+  .section { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:32px 34px; margin:24px 0; }
+  .section h2 { font-size:22px; color:var(--primary-dark); margin-bottom:8px; padding-bottom:12px; border-bottom:2px solid var(--primary); display:flex; align-items:center; gap:10px; }
+  .section h2 .num { background:var(--primary); color:#fff; width:30px; height:30px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; font-size:15px; flex-shrink:0; }
+  .section h3 { font-size:17px; color:var(--text); margin:22px 0 10px; padding-left:12px; border-left:4px solid var(--accent); }
+  .section h4 { font-size:15px; margin:16px 0 8px; color:var(--primary-dark); }
+  .section p { margin:8px 0; } .section ul,.section ol { padding-left:24px; margin:8px 0; } .section li { margin:5px 0; }
+  .highlight { background:#eef4ff; border-left:4px solid var(--primary); padding:14px 18px; border-radius:0 8px 8px 0; margin:14px 0; color:#233b66; }
+  .warn { background:#fff7e6; border-left:4px solid var(--amber); padding:14px 18px; border-radius:0 8px 8px 0; margin:14px 0; }
+  table { width:100%; border-collapse:collapse; margin:16px 0; font-size:14px; }
+  th,td { border:1px solid var(--border); padding:10px 12px; text-align:left; vertical-align:top; }
+  th { background:#f0f5ff; color:var(--primary-dark); font-weight:600; } tr:nth-child(even) td { background:#fafbfd; }
+  pre { background:#1e293b; color:#e2e8f0; padding:18px 20px; border-radius:10px; overflow-x:auto; font-family:"SF Mono",Consolas,Menlo,monospace; font-size:13px; line-height:1.6; margin:14px 0; }
+  .badge { display:inline-block; padding:2px 10px; border-radius:12px; font-size:12px; font-weight:600; }
+  .badge.red { background:#fee2e2; color:var(--red); } .badge.green { background:#dcfce7; color:var(--green); } .badge.blue { background:#dbeafe; color:var(--primary-dark); } .badge.amber { background:#fef3c7; color:#b45309; }
+  .pill { display:inline-block; padding:2px 8px; border-radius:6px; background:#eef4ff; color:#233b66; font-size:13px; margin:1px 2px; }
+  .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; } @media(max-width:700px){.grid-2{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="cover">
+    <span class="tag">系统开发设计方案 · V2.0</span>
+    <h1>安全运维集中管控平台<br>系统开发设计方案</h1>
+    <div class="sub">多客户安全服务与安全运维（MSS）一体化管控 · 工单 / 资产 / 风险 / 整改 / 巡检 / 交付 / 工作量 / 归档</div>
+    <div class="meta">
+      <span>📅 编制日期：2026-08-27</span>
+      <span>👥 适用对象：安服团队 / MSSP</span>
+      <span>🔒 安全等级：数据脱敏 + 加密传输 + 数字水印</span>
+    </div>
+  </div>
+
+  <div class="toc">
+    <h2>目录</h2>
+    <ol>
+      <li><a href="#s1">项目概述</a></li>
+      <li><a href="#s2">总体架构设计</a></li>
+      <li><a href="#s3">详细功能设计（十一大核心模块）</a></li>
+      <li><a href="#s4">数据模型设计</a></li>
+      <li><a href="#s5">权限与角色设计</a></li>
+      <li><a href="#s6">安全与合规设计</a></li>
+      <li><a href="#s7">技术选型建议</a></li>
+      <li><a href="#s8">非功能性要求</a></li>
+      <li><a href="#s9">实施路线（分阶段）</a></li>
+      <li><a href="#s10">补充建议</a></li>
+    </ol>
+  </div>
+
+  <!-- 1 -->
+  <div class="section" id="s1">
+    <h2><span class="num">1</span>项目概述</h2>
+    <h3>1.1 建设背景</h3>
+    <p>公司面向多个客户提供安全服务与安全运维（MSS）。多客户、多项目、多人员、多工单场景下，工单散落、资产不清、巡检靠人工、风险无台账、整改验收链路不闭环、交付付款脱节、报告混乱、工作量难以量化。</p>
+    <h3>1.2 建设目标</h3>
+    <ul>
+      <li>客户 / 项目资产集中管理</li>
+      <li>工单全生命周期闭环（18 类工单类型）</li>
+      <li>风险发现 → 整改（多轮）→ 验收 → 归档全流程线上化</li>
+      <li>安服人员移动端巡检打卡（GPS + 拍照）</li>
+      <li>安服人员工作量量化统计</li>
+      <li>交付 + 客户评价 + 验收 + 付款 + 结案归档一体化</li>
+      <li>数据脱敏、加密传输、数字水印、防拍照防截屏</li>
+    </ul>
+    <h3>1.3 核心价值</h3>
+    <ul>
+      <li>提升管理效率，减少人工台账与沟通成本</li>
+      <li>风险与整改全程留痕，满足审计合规要求</li>
+      <li>交付物标准化、可追溯、可量化，客户评价闭环</li>
+      <li>工作量可统计，支持绩效与成本核算</li>
+    </ul>
+  </div>
+
+  <!-- 2 -->
+  <div class="section" id="s2">
+    <h2><span class="num">2</span>总体架构设计</h2>
+    <h3>2.1 架构风格</h3>
+    <p>采用 B/S + 移动端，前后端分离。</p>
+    <pre>┌─────────────────────────────────────────────┐
+│              接入层（Nginx / API 网关 / 鉴权）  │
+├──────────────┬──────────────┬───────────────┤
+│  PC 管理端    │  移动端（安服人员）│  客户门户(可选) │
+├──────────────┴──────────────┴───────────────┤
+│              应用服务层（微服务）              │
+│ 工单/资产/风险/整改/巡检/交付/工作量/报告/归档  │
+├─────────────────────────────────────────────┤
+│              公共组件层                       │
+│ 统一认证/权限/审批流/消息/文件存储/GIS/水印/审计│
+├─────────────────────────────────────────────┤
+│              数据层（含脱敏加密）              │
+│  关系库 + 对象存储 + 缓存检索 + 密钥管理        │
+└─────────────────────────────────────────────┘</pre>
+    <h3>2.2 模块划分（十一大核心模块）</h3>
+    <table>
+      <tr><th>模块</th><th>说明</th></tr>
+      <tr><td>① 客户与项目管理</td><td>客户资料、客户运维系统列表、项目生命周期</td></tr>
+      <tr><td>② 工单管理</td><td>18 类工单、派发、处理、关闭全流程</td></tr>
+      <tr><td>③ 安全风险台账</td><td>9 大类风险清单统一管理</td></tr>
+      <tr><td>④ 整改管理</td><td>整改方案、多轮整改、效果三态、验收签字</td></tr>
+      <tr><td>⑤ 移动巡检打卡</td><td>GPS 定位、拍照上传、打卡记录</td></tr>
+      <tr><td>⑥ 交付管理</td><td>16 类交付、客户评价签字确认</td></tr>
+      <tr><td>⑦ 运维计划</td><td>时间节点、内容、负责人、方案、资源协调</td></tr>
+      <tr><td>⑧ 应急预案</td><td>预案库、演练计划/方案/记录/报告</td></tr>
+      <tr><td>⑨ 报告中心</td><td>分客户 / 分项目归档各类报告</td></tr>
+      <tr><td>⑩ 工作量统计</td><td>按各项工人量化统计安服人员工作量</td></tr>
+      <tr><td>⑪ 结案归档</td><td>验收、付款、归档一体化</td></tr>
+    </table>
+  </div>
+
+  <!-- 3 -->
+  <div class="section" id="s3">
+    <h2><span class="num">3</span>详细功能设计（十一大核心模块）</h2>
+
+    <h3>3.1 客户与项目管理</h3>
+    <p><strong>客户档案</strong>：名称、行业、联系人、合同、SLA、服务周期、对接人。</p>
+    <p><strong>客户运维系统列表（资产清单）</strong>：系统名称、用途、IP/域名、部署位置、关联安全设备（FW/WAF/IDS/IPS/堡垒机/日志审计）、责任人（客户侧+我方侧）、状态（在运/停用/下架）。</p>
+    <p><strong>项目管理</strong>：状态机 <code>立项→进行中→交付→验收→付款→结案→归档</code>。</p>
+
+    <h3>3.2 工单管理模块（18 类工单）</h3>
+    <p><strong>工单类型（共 18 类）</strong>：</p>
+    <p>
+      <span class="pill">生产型：XX年第X次·漏洞扫描</span><span class="pill">XX年第X次·渗透测试</span><span class="pill">XX年第X次·应急演练</span><span class="pill">XX年第X次·安全加固</span><span class="pill">XX年第X次·安全培训</span><span class="pill">XX年第X次·代码审计</span><span class="pill">XX年第X次·基线核查</span><span class="pill">XX年第X次·安全巡检</span><span class="pill">XX年第X次·安全评估</span><span class="pill">XX年第X次·应急处置</span><span class="pill">XX年第X次·重保值守</span><span class="pill">XX年第X次·攻防演练</span><span class="pill">XX年第X次·安全防护</span><span class="pill">XX年第X次·设备巡检</span><span class="pill">XX年第X次·等级保护测评</span><span class="pill">XX年第X次·故障排查</span>
+    </p>
+    <p><span class="pill">事件/管理型：变更申请</span><span class="pill">整改督办</span></p>
+    <ul>
+      <li>状态流转：<code>新建→已派发→处理中→待验证→已完成→已关闭</code></li>
+      <li>字段：编号、客户、系统、类型、优先级、SLA 时限、处理人、耗时、处理记录</li>
+      <li>支持关联：风险台账、整改记录、客户运维系统、交付记录</li>
+    </ul>
+
+    <h3>3.3 安全风险台账模块（核心）</h3>
+    <p>9 大类风险：</p>
+    <ol>
+      <li>高危漏洞</li><li>安全设备报警日志</li><li>安全设备 License 过期</li>
+      <li>僵木蠕病毒 / 勒索 / 挖矿感染</li><li>跨网段非法外联</li><li>弱口令</li>
+      <li>硬件设备故障</li><li>机房环境问题</li><li>服务器性能异常</li>
+    </ol>
+    <p>记录字段：编号、客户、系统、类型、等级（高/中/低）、发现时间、发现方式、描述、附件、状态 <code>待整改→整改中→整改完成→已验收→已关闭</code>、关联整改/工单。</p>
+    <div class="highlight"><strong>关键点：</strong>风险台账是「一屏看清所有客户安全态势」的核心，支持多维度筛选、统计与导出。</div>
+
+    <h3>3.4 整改管理模块（多轮整改 + 三态效果）</h3>
+    <pre>风险发现 → 制定整改方案 → 实施整改 → 整改效果验证 → 验收签字 → 归档
+                ↑________________________________________|
+          （不通过 / 部分完成，继续整改 → 发起新一轮整改）</pre>
+    <ul>
+      <li><strong>整改方案</strong>：整改措施、时间节点、实施人员、需协调资源</li>
+      <li><strong>整改记录</strong>：每次整改的过程、措施、实施人、整改日期</li>
+      <li><strong>整改效果（三态）</strong>：
+        <span class="badge green">通过</span>
+        <span class="badge red">不通过</span>
+        <span class="badge amber">部分完成，继续整改</span>
+        <br>「不通过 / 部分完成」均自动发起新一轮整改，形成多轮整改链</li>
+      <li><strong>验收记录</strong>：验收人签字（电子签名/照片）、验收结论</li>
+      <li><strong>整改报告</strong>：自动汇总多轮整改产出报告</li>
+    </ul>
+
+    <h3>3.5 移动巡检打卡模块</h3>
+    <ul>
+      <li>巡检任务下发（运维计划生成 → 推送指定人员）</li>
+      <li>GPS 定位打卡（定位偏差校验防作弊）</li>
+      <li>拍照上传（水印：时间+定位+人员，多图）</li>
+      <li>巡检项填写（模板逐项勾选）</li>
+      <li>打卡记录（轨迹 + 考勤，可导出）</li>
+    </ul>
+    <div class="warn"><strong>技术点：</strong>GPS 定位能力、照片水印防伪、离线暂存、联网补传。</div>
+
+    <h3>3.6 交付管理模块（16 类交付 + 客户评价）</h3>
+    <p><strong>交付类型（16 类）</strong>：漏洞扫描、渗透测试、应急演练、安全加固、安全培训、代码审计、基线核查、安全巡检、安全评估、应急处置、重保值守、攻防演练、安全防护、设备巡检、等级保护测评、故障排查。</p>
+    <ul>
+      <li>交付名称：<code>X 年第 X 次</code>（如「2026 年第 3 次」）</li>
+      <li>交付时间节点、交付报告（关联报告中心）</li>
+      <li><strong>客户评价：每项交付需客户签字确认</strong>（电子签名 + 评价内容 + 满意度）</li>
+    </ul>
+    <div class="highlight"><strong>新增：客户评价闭环</strong> —— 每项工作交付均需客户签字确认与评价，作为验收与服务的证据链。</div>
+
+    <h3>3.7 运维计划模块</h3>
+    <ul>
+      <li>计划字段：时间节点、运维内容、负责人、实施方案、需协调资源</li>
+      <li>计划类型：日常巡检、漏洞扫描、渗透测试、应急演练、安全培训等</li>
+      <li>状态：<code>待执行→执行中→已完成→已关闭</code>；自动生成巡检任务/工单</li>
+    </ul>
+
+    <h3>3.8 应急预案模块</h3>
+    <ul>
+      <li>预案库：按风险类型维护标准预案</li>
+      <li>预案触发：关联风险事件</li>
+      <li><strong>应急演练（四件套）</strong>：演练计划、演练方案、演练记录、演练报告（关联交付）</li>
+    </ul>
+
+    <h3>3.9 报告中心模块</h3>
+    <ul>
+      <li>按客户、项目维度归档所有报告</li>
+      <li>分类：巡检/漏洞扫描/渗透测试/应急演练/安全评估/基线核查/等保测评/整改报告等</li>
+      <li>在线预览、版本管理、下载、检索、模板化自动生成</li>
+    </ul>
+
+    <h3>3.10 工作量统计模块（新增）</h3>
+    <p>按照各项工作类型，<strong>分别计算安服人员工作量</strong>：</p>
+    <ul>
+      <li>统计维度：按人员、按客户、按工作类型、按时间（日/周/月/季/年）</li>
+      <li>工作量来源：工单处理、巡检打卡、风险录入、整改实施、交付产出等自动归集</li>
+      <li>量化口径：工单数、巡检次数、风险处理数、整改轮次、交付次数、投入工时</li>
+      <li>产出：个人工作量报表、团队汇总、绩效与成本核算依据</li>
+    </ul>
+
+    <h3>3.11 验收 / 付款 / 结案归档</h3>
+    <ul>
+      <li><strong>验收记录</strong>：验收项、标准、验收人、结论、签字/盖章</li>
+      <li><strong>付款记录</strong>：节点、金额、发票、到账状态、收款确认</li>
+      <li><strong>结案归档</strong>：全量资料一键归档，生成结案档案，只读锁定</li>
+    </ul>
+  </div>
+
+  <!-- 4 -->
+  <div class="section" id="s4">
+    <h2><span class="num">4</span>数据模型设计</h2>
+    <h3>4.1 实体关系</h3>
+    <pre>客户 1—N 项目 / 运维系统
+项目 1—N 工单/风险/整改/交付/报告/验收/付款
+运维系统 1—N 风险 → 1—N 整改 → 1—N 整改记录（多轮）
+运维计划 1—N 巡检任务 → 1—N 打卡记录
+交付/工单/巡检/整改 → 工作量统计（多来源聚合）</pre>
+    <h3>4.2 关键表清单（示意）</h3>
+    <table>
+      <tr><th>表名</th><th>关键字段</th></tr>
+      <tr><td><code>customer</code></td><td>id, name, industry, contact, sla_level, contract</td></tr>
+      <tr><td><code>project</code></td><td>id, customer_id, name, status, start/end_date</td></tr>
+      <tr><td><code>asset_system</code></td><td>id, customer_id, name, purpose, ip, owner, status</td></tr>
+      <tr><td><code>work_order</code></td><td>id, customer_id, system_id, type(18类), priority, status, assignee, sla_deadline</td></tr>
+      <tr><td><code>risk_item</code></td><td>id, customer_id, system_id, type(9类), level, desc, status, found_at</td></tr>
+      <tr><td><code>rectification</code></td><td>id, risk_id, plan, deadline, assignee, status</td></tr>
+      <tr><td><code>rectification_record</code></td><td>id, rectification_id, round_no, action, executor, effect(通过/不通过/部分完成), verified_by</td></tr>
+      <tr><td><code>patrol_task</code></td><td>id, plan_id, customer_id, assignee, content, status</td></tr>
+      <tr><td><code>patrol_checkin</code></td><td>id, task_id, user_id, gps_lat/lng, photos[], checkin_time</td></tr>
+      <tr><td><code>delivery</code></td><td>id, customer_id, project_id, year, seq_no, type(16类), report_id, customer_review, review_sign</td></tr>
+      <tr><td><code>ops_plan</code></td><td>id, customer_id, type, content, owner, resources, status</td></tr>
+      <tr><td><code>emergency_plan</code></td><td>id, customer_id, risk_type, plan, scheme, record, report</td></tr>
+      <tr><td><code>report</code></td><td>id, customer_id, project_id, type, file_url, version</td></tr>
+      <tr><td><code>workload</code></td><td>id, user_id, customer_id, work_type, count, hours, period</td></tr>
+      <tr><td><code>acceptance</code></td><td>id, project_id, item, standard, result, signer</td></tr>
+      <tr><td><code>payment</code></td><td>id, project_id, node, amount, invoice, status</td></tr>
+      <tr><td><code>archive</code></td><td>id, project_id, archive_data_json, archived_at</td></tr>
+    </table>
+  </div>
+
+  <!-- 5 -->
+  <div class="section" id="s5">
+    <h2><span class="num">5</span>权限与角色设计</h2>
+    <h3>5.1 角色矩阵</h3>
+    <table>
+      <tr><th>角色</th><th>权限范围</th></tr>
+      <tr><td>平台管理员</td><td>全局配置、用户、权限、字典</td></tr>
+      <tr><td>项目经理</td><td>管辖项目全量数据、交付、验收</td></tr>
+      <tr><td>安服工程师</td><td>巡检打卡、工单处理、风险录入与整改</td></tr>
+      <tr><td>安全专家（审核）</td><td>风险定级、整改方案审核、验收签字</td></tr>
+      <tr><td>商务 / 财务</td><td>付款记录、合同</td></tr>
+      <tr><td>客户（可选门户）</td><td>只读查看本客户风险 / 交付 / 报告、客户评价签字</td></tr>
+    </table>
+    <h3>5.2 数据隔离</h3>
+    <div class="highlight">按客户 + 项目维度的<strong>行级数据权限隔离</strong>，防止跨客户数据泄露。</div>
+  </div>
+
+  <!-- 6 安全 -->
+  <div class="section" id="s6">
+    <h2><span class="num">6</span>安全与合规设计（新增重点）</h2>
+    <h3>6.1 数据脱敏处理</h3>
+    <ul>
+      <li>敏感字段（IP、手机号、身份证、客户联系人、密码/口令等）展示与导出时自动脱敏（掩码/星号）</li>
+      <li>支持按角色配置脱敏级别（完全可见 / 部分掩码 / 完全隐藏）</li>
+      <li>日志与报告输出同样执行脱敏规则</li>
+    </ul>
+    <h3>6.2 全程加密传输</h3>
+    <ul>
+      <li>全站 HTTPS/TLS 1.2+ 强制</li>
+      <li>接口层数据加密，敏感数据存储加密（AES-256）+ 密钥分层管理</li>
+      <li>文件 / 照片传输加密，对象存储服务端加密</li>
+    </ul>
+    <h3>6.3 数字水印（防泄露溯源）</h3>
+    <ul>
+      <li><strong>屏幕显示水印</strong>：页面叠加隐藏数字水印（用户 ID + 时间 + 会话），仅肉眼弱可见，可被程序识别用于泄露追踪</li>
+      <li><strong>打印件水印</strong>：打印输出嵌入隐藏数字水印，可追溯打印人、时间</li>
+    </ul>
+    <h3>6.4 防拍照 / 防截屏</h3>
+    <ul>
+      <li><strong>防截屏</strong>：检测截屏/录屏行为并告警（移动端），敏感页面置灰或警示</li>
+      <li><strong>防拍照</strong>：敏感页面叠加动态水印 + 屏显警示，配合移动端截屏检测</li>
+      <li>关键操作（下载、导出、打印）均记录审计日志</li>
+    </ul>
+  </div>
+
+  <!-- 7 技术选型 -->
+  <div class="section" id="s7">
+    <h2><span class="num">7</span>技术选型建议</h2>
+    <table>
+      <tr><th>层次</th><th>推荐</th><th>说明</th></tr>
+      <tr><td>前端</td><td>Vue 3 + Ant Design / Element Plus</td><td>PC 管理端 + 水印组件</td></tr>
+      <tr><td>移动端</td><td>uni-app / 微信小程序</td><td>GPS + 拍照 + 截屏检测</td></tr>
+      <tr><td>后端</td><td>Java Spring Boot / Go / Python FastAPI</td><td>按团队技术栈</td></tr>
+      <tr><td>数据库</td><td>MySQL / PostgreSQL</td><td>业务关系数据（含加密列）</td></tr>
+      <tr><td>对象存储</td><td>MinIO / 阿里云 OSS</td><td>照片、报告（服务端加密）</td></tr>
+      <tr><td>缓存 / 检索</td><td>Redis + Elasticsearch</td><td>风险 / 工单 / 报告检索</td></tr>
+      <tr><td>电子签名</td><td>签名板 / 手写签名组件</td><td>验收 / 客户评价签字</td></tr>
+      <tr><td>地图</td><td>高德 / 腾讯地图 API</td><td>定位展示</td></tr>
+      <tr><td>水印 / 防截屏</td><td>前端水印 sdk + 移动截图检测 sdk</td><td>数字水印 + 防拍照防截屏</td></tr>
+    </table>
+  </div>
+
+  <!-- 8 非功能 -->
+  <div class="section" id="s8">
+    <h2><span class="num">8</span>非功能性要求</h2>
+    <ul>
+      <li><strong>安全</strong>：HTTPS、数据脱敏、加密传输、数字水印、防拍照防截屏、操作审计</li>
+      <li><strong>可靠</strong>：数据备份、异常监控</li>
+      <li><strong>性能</strong>：大数据量检索（ES）</li>
+      <li><strong>可审计</strong>：关键操作全留痕</li>
+      <li><strong>移动友好</strong>：打卡离线暂存、弱网补传</li>
+    </ul>
+  </div>
+
+  <!-- 9 实施 -->
+  <div class="section" id="s9">
+    <h2><span class="num">9</span>实施路线（分阶段）</h2>
+    <table>
+      <tr><th>阶段</th><th>内容</th><th>周期（估）</th></tr>
+      <tr><td>一期</td><td>客户/项目/资产管理 + 工单(18类) + 风险台账 + 整改闭环(三态多轮)</td><td>8-10 周</td></tr>
+      <tr><td>二期</td><td>移动巡检打卡 + 运维计划 + 工作量统计</td><td>4-6 周</td></tr>
+      <tr><td>三期</td><td>交付管理(16类+客户评价) + 报告中心 + 应急预案(四件套)</td><td>4-6 周</td></tr>
+      <tr><td>四期</td><td>验收/付款/结案归档 + 客户门户 + 安全水印/防截屏/脱敏 + 数据看板</td><td>4-6 周</td></tr>
+    </table>
+    <div class="highlight">MVP 建议：<strong>先做一期</strong>，覆盖「客户资产 → 工单 → 风险 → 整改」核心闭环，快速上线验证。</div>
+  </div>
+
+  <!-- 10 -->
+  <div class="section" id="s10">
+    <h2><span class="num">10</span>补充建议</h2>
+    <ul>
+      <li><span class="badge blue">风险台账</span> 是灵魂，9 类风险做全、指标化、沉淀安全态势看板。</li>
+      <li><span class="badge green">整改三态 + 多轮 + 电子签字</span> 是客户审计的关键证据链。</li>
+      <li><span class="badge blue">客户评价签字</span> 是服务满意度的直接证据，务必闭环。</li>
+      <li><span class="badge amber">工作量统计</span> 建议与工单/巡检/交付自动联动，避免重复填报。</li>
+      <li><span class="badge red">水印 + 防截屏</span> 在移动端实现最有效，PC 端以水印 + 审计为主。</li>
+    </ul>
+  </div>
+
+  <p style="text-align:center;color:#9aa5b1;margin-top:40px;font-size:13px;">—— 安全运维集中管控平台 · 系统开发设计方案 V2.0 · 完 ——</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,1483 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>安全运维集中管控平台 · 系统开发设计方案 V7.0（完整交付 · 含界面设计）</title>
+<style>
+  :root{--primary:#0f6bff;--primary-dark:#0a4fc0;--accent:#ff7a00;--bg:#f5f7fa;--card:#fff;--text:#1f2733;--text-light:#5b6470;--border:#e3e8ef;--green:#16a34a;--red:#dc2626;--amber:#d97706;--orange:#ea580c;--purple:#7c3aed;--teal:#0d9488;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);line-height:1.75;font-size:15px;}
+  .wrap{max-width:1140px;margin:0 auto;padding:0 20px 80px;}
+  .cover{background:linear-gradient(135deg,#0a3d91,#0f6bff 55%,#2b8cff);color:#fff;padding:70px 50px 55px;border-radius:0 0 28px 28px;position:relative;overflow:hidden;}
+  .cover::after{content:"";position:absolute;right:-60px;top:-60px;width:260px;height:260px;background:rgba(255,255,255,.08);border-radius:50%;}
+  .cover .tag{display:inline-block;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);padding:5px 14px;border-radius:20px;font-size:13px;letter-spacing:1px;margin-bottom:22px;}
+  .cover h1{font-size:33px;line-height:1.35;font-weight:700;margin-bottom:14px;}
+  .cover .sub{font-size:16px;opacity:.92;}
+  .cover .meta{margin-top:34px;font-size:13px;opacity:.8;display:flex;gap:24px;flex-wrap:wrap;}
+  .toc{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:26px 30px;margin:28px 0;}
+  .toc h2{font-size:18px;margin-bottom:14px;color:var(--primary-dark);}
+  .toc ol{padding-left:22px;}.toc li{margin:6px 0;color:var(--text-light);}.toc a{color:var(--text);text-decoration:none;}.toc a:hover{color:var(--primary);}
+  .section{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:32px 34px;margin:24px 0;}
+  .section h2{font-size:22px;color:var(--primary-dark);margin-bottom:8px;padding-bottom:12px;border-bottom:2px solid var(--primary);display:flex;align-items:center;gap:10px;}
+  .section h2 .num{background:var(--primary);color:#fff;width:30px;height:30px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;}
+  .section h3{font-size:17px;color:var(--text);margin:22px 0 10px;padding-left:12px;border-left:4px solid var(--accent);}
+  .section h4{font-size:15px;margin:16px 0 8px;color:var(--primary-dark);}
+  .section p{margin:8px 0;}.section ul,.section ol{padding-left:24px;margin:8px 0;}.section li{margin:5px 0;}
+  .highlight{background:#eef4ff;border-left:4px solid var(--primary);padding:14px 18px;border-radius:0 8px 8px 0;margin:14px 0;color:#233b66;}
+  .warn{background:#fff7e6;border-left:4px solid var(--amber);padding:14px 18px;border-radius:0 8px 8px 0;margin:14px 0;}
+  .danger{background:#fee2e2;border-left:4px solid var(--red);padding:14px 18px;border-radius:0 8px 8px 0;margin:14px 0;color:#7f1d1d;}
+  .purple{background:#f5f3ff;border-left:4px solid var(--purple);padding:14px 18px;border-radius:0 8px 8px 0;margin:14px 0;color:#4c1d95;}
+  .teal{background:#f0fdfa;border-left:4px solid var(--teal);padding:14px 18px;border-radius:0 8px 8px 0;margin:14px 0;color:#115e59;}
+  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;}
+  th,td{border:1px solid var(--border);padding:10px 12px;text-align:left;vertical-align:top;}
+  th{background:#f0f5ff;color:var(--primary-dark);font-weight:600;}tr:nth-child(even) td{background:#fafbfd;}
+  pre{background:#1e293b;color:#e2e8f0;padding:18px 20px;border-radius:10px;overflow-x:auto;font-family:"SF Mono",Consolas,Menlo,monospace;font-size:13px;line-height:1.6;margin:14px 0;}
+  .badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600;}
+  .badge.red{background:#fee2e2;color:var(--red);}.badge.green{background:#dcfce7;color:var(--green);}.badge.blue{background:#dbeafe;color:var(--primary-dark);}.badge.amber{background:#fef3c7;color:#b45309;}.badge.orange{background:#ffedd5;color:var(--orange);}.badge.purple{background:#ede9fe;color:var(--purple);}.badge.teal{background:#ccfbf1;color:var(--teal);}
+  .pill{display:inline-block;padding:2px 8px;border-radius:6px;background:#eef4ff;color:#233b66;font-size:13px;margin:1px 2px;}
+  .flow{background:#f8fafc;border:1px dashed var(--border);border-radius:10px;padding:16px;text-align:center;margin:14px 0;}
+  .flow span{display:inline-block;background:#fff;border:1px solid var(--primary);color:var(--primary-dark);padding:6px 12px;border-radius:8px;margin:4px;font-size:13px;}
+  .flow .arr{background:none;border:none;color:#9aa5b1;font-size:18px;}
+  .new{display:inline-block;background:#dcfce7;color:#15803d;border:1px solid #86efac;padding:1px 8px;border-radius:6px;font-size:11px;font-weight:600;margin-left:6px;vertical-align:middle;}
+  .lv{display:inline-block;background:#fef9c3;color:#854d0e;border:1px solid #fde047;padding:1px 8px;border-radius:6px;font-size:11px;font-weight:600;margin-left:6px;vertical-align:middle;}
+
+  /* ==== 内嵌架构图样式（作用域隔离） ==== */
+  .diagram { background:#fbfcfe; border:1px solid var(--border); border-radius:10px; padding:16px; margin:18px 0; overflow-x:auto; }
+  .diagram svg { width:100%; height:auto; display:block; }
+  .diagram-title { font-size:16px; font-weight:700; color:var(--primary-dark); margin:0 0 2px; }
+  .diagram-sub { font-size:12px; color:var(--text-light); margin:0 0 12px; }
+  .diagram .node { stroke:#64748b; stroke-width:1; }
+  .diagram .neutral { fill:#e2e8f0; } .diagram .input { fill:#bfdbfe; }
+  .diagram .process { fill:#c7d2fe; } .diagram .storage { fill:#99f6e4; }
+  .diagram .external { fill:#fde68a; } .diagram .risk { fill:#fecaca; }
+  .diagram .edge { stroke:#64748b; stroke-width:1.5; fill:none; }
+  .diagram .zone { fill:none; stroke:#64748b; stroke-width:1; stroke-dasharray:6 5; opacity:.8; }
+  .diagram .lbl { font-size:13px; font-weight:600; fill:#172033; }
+  .diagram .sml { font-size:11px; fill:#5b6475; }
+  .diagram .zhead { font-size:13px; font-weight:700; fill:#0a4fc0; }
+  .diagram .check { font-size:12px; font-weight:700; fill:#16a34a; }
+  .diagram .dash { font-size:12px; fill:#9aa5b1; }
+
+:root{
+  --brand:#0a4fc0; --brand2:#0f6bff; --accent:#ff7a00; --bg:#f2f5f9; --card:#fff;
+  --line:#e3e8ef; --tx:#1f2733; --muted:#7c8694; --green:#16a34a; --red:#dc2626;
+  --amber:#d97706; --orange:#ea580c; --purple:#7c3aed; --sidebar:#0f2440;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font:14px/1.6 -apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--tx)}
+.topbar{height:56px;background:linear-gradient(90deg,#0a3d91,#0f6bff);color:#fff;display:flex;align-items:center;padding:0 20px}
+.logo{width:36px;height:36px;background:#fff;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--brand);font-size:16px;margin-right:12px;flex-shrink:0}
+.topbar .tbox{display:flex;flex-direction:column;justify-content:center}
+.topbar .title{font-size:17px;font-weight:700;letter-spacing:1px;line-height:1.2}
+.topbar .copyright{font-size:10px;opacity:.78;color:#dbeafe}
+.topbar .spacer{flex:1}
+.topmenu{display:flex;gap:2px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.topmenu .mi{color:#fff;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:13px;white-space:nowrap}
+.topmenu .mi:hover{background:rgba(255,255,255,.18)}
+.layout{display:flex;min-height:calc(100vh - 56px)}
+.sidebar{width:220px;background:var(--sidebar);color:#cbd5e1;flex-shrink:0;padding:14px 0;overflow-y:auto}
+.sidebar .side-title{font-size:12px;color:#7c94b8;padding:6px 20px;letter-spacing:1px}
+.sidebar .item{padding:10px 20px;cursor:pointer;display:flex;align-items:center;gap:8px;font-size:14px}
+.sidebar .item:hover{background:rgba(255,255,255,.06)}
+.sidebar .item.on{background:rgba(15,107,255,.25);color:#fff;border-left:3px solid var(--brand2)}
+.sidebar .item .ic{width:16px;text-align:center;opacity:.8}
+.sidebar .grp>.sub{padding-left:36px;font-size:13px}
+.sidebar .grp>.sub .ic{display:none}
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.tabs{display:flex;background:#fff;border-bottom:1px solid var(--line);overflow-x:auto}
+.tab{padding:11px 18px;cursor:pointer;font-size:14px;color:var(--muted);border-bottom:2px solid transparent;white-space:nowrap}
+.tab:hover{color:var(--brand)}
+.tab.on{color:var(--brand);border-bottom:2px solid var(--brand);font-weight:600}
+.content{flex:1;padding:20px}
+.kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px}
+.kpi .bx{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.kpi .bx .n{font-size:26px;font-weight:800;color:var(--brand)}
+.kpi .bx .n.red{color:var(--red)}
+.kpi .bx .t{font-size:12px;color:var(--muted)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin-top:16px}
+.card h3{font-size:15px;margin-bottom:12px;color:#0a3d91;border-left:3px solid var(--accent);padding-left:10px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left}
+th{background:#f0f5ff;color:#0a4fc0;font-weight:600}
+tr:nth-child(even) td{background:#fafbfd}
+.badge{display:inline-block;padding:1px 9px;border-radius:10px;font-size:11px;font-weight:600}
+.b-green{background:#dcfce7;color:#15803d}.b-red{background:#fee2e2;color:#b91c1c}
+.b-amber{background:#fef3c7;color:#b45309}.b-orange{background:#ffedd5;color:#c2410c}
+.b-blue{background:#dbeafe;color:#1d4ed8}.b-purple{background:#ede9fe;color:#6d28d9}
+.note{background:#fef9c3;border:1px solid #fde047;border-radius:8px;padding:10px 14px;font-size:12px;color:#854d0e;margin-bottom:14px}
+.phone-wrap{display:flex;justify-content:center;padding-top:20px}
+.phone{width:360px;border:10px solid #111;border-radius:36px;background:#f5f7fa;overflow:hidden;box-shadow:0 14px 44px rgba(0,0,0,.28);height:740px;display:flex;flex-direction:column}
+.phone .ptop{background:linear-gradient(135deg,#0a3d91,#0f6bff);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px}
+.phone .ptop .plogo{width:30px;height:30px;background:#fff;border-radius:8px;color:var(--brand);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px}
+.phone .ptop .pt{font-size:14px;font-weight:700;line-height:1.2}
+.phone .ptop .pc{font-size:10px;opacity:.85}
+.phone .pbody{flex:1;padding:14px;overflow-y:auto}
+.phone .pmenu{display:flex;border-top:1px solid #ddd;background:#fff}
+.phone .pmenu .pm{flex:1;text-align:center;padding:9px 0;font-size:11px;color:var(--muted);cursor:pointer}
+.phone .pmenu .pm.on{color:var(--brand);font-weight:700}
+.phone .pmenu .pm .pi{font-size:19px;display:block;margin-bottom:1px}
+.switchbar{background:#fff;border-bottom:1px solid var(--line);padding:10px 20px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.switchbar .lbl{font-size:13px;color:var(--muted);font-weight:600}
+.switchbar .btn{background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px 14px;font-size:13px;cursor:pointer;color:var(--tx)}
+.switchbar .btn.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+
+
+  #uiSwitchbar{background:#fff;border:1px solid var(--line);border-radius:8px;padding:10px 14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+  #uiSwitchbar .lbl{font-size:13px;color:#7c8694;font-weight:600}
+  #uiSwitchbar .btn{background:#fff;border:1px solid #cfd8e3;border-radius:8px;padding:6px 14px;font-size:13px;cursor:pointer;color:#1f2733}
+  #uiSwitchbar .btn.on{background:#0f6bff;color:#fff;border-color:#0f6bff}
+  .ui-view .switchbar{display:none}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="cover">
+  <span class="tag">系统开发设计方案 · V7.0（定稿）</span>
+  <h1>安全运维集中管控平台<br>系统开发设计方案（PG + 阿里云 + 七级权限 + 界面设计）</h1>
+  <div class="sub">合同 → 子项 → 工单 全链路 · 驻场 · 外包 · 内部任务 · 七级权限 · 数据安全</div>
+  <div class="meta">
+    <span>📅 编制日期：2026-09-10</span>
+    <span>👥 适用对象：安服团队 / MSSP</span>
+    <span>🎯 核心：客户多合同 · 合同多子项 · 以工单贯通履约</span>
+    <span>🆕 V6.0：PostgreSQL / 阿里云部署 / 七级 RBAC 权限 / 脱敏加密</span>
+  </div>
+</div>
+
+<div class="toc">
+  <h2>目录</h2>
+  <ol>
+    <li><a href="#s0">V7.0 升级说明（多合同至界面设计）</a></li>
+    <li><a href="#s1">项目概述与总体架构</a></li>
+    <li><a href="#s2">客户与合同管理</a></li>
+    <li><a href="#s3">合同子项与服务对象</a></li>
+    <li><a href="#s4">接单模块</a></li>
+    <li><a href="#s5">派单模块（含智能派单）</a></li>
+    <li><a href="#s6">工单管理（核心）</a></li>
+    <li><a href="#s7">驻场服务模块</a></li>
+    <li><a href="#s8">内部任务模块</a></li>
+    <li><a href="#s9">外包管理模块</a></li>
+    <li><a href="#s10">问题发现与整改闭环</a></li>
+    <li><a href="#s11">项目交付</a></li>
+    <li><a href="#s12">运维人员绩效考核（含换岗分摊）</a></li>
+    <li><a href="#s13">服务频率与定期工单</a></li>
+    <li><a href="#s14">服务提醒与 SLA 契约引擎</a></li>
+    <li><a href="#s15">AI 智能增强</a></li>
+    <li><a href="#s16">工作流编排与审批</a></li>
+    <li><a href="#s17">知识库与自助门户</a></li>
+    <li><a href="#s18">数据模型设计</a></li>
+    <li><a href="#s19">权限、安全、技术选型</a></li>
+    <li><a href="#s20">七级权限模型（RBAC）</a></li>
+    <li><a href="#s21">部署架构（阿里云）</a></li>
+    <li><a href="#s22">数据安全（脱敏+加密）</a></li>
+    <li><a href="#s23">实施路线</a></li>
+    <li><a href="#s24">界面设计（UI 原型）</a></li>
+  </ol>
+</div>
+
+<!-- 0 模型升级 -->
+<div class="section" id="s0">
+  <h2><span class="num">0</span>V7.0 升级说明（部署 · 安全 · 权限 · 界面）</h2>
+  <div class="highlight">V6.0 在 V5.0 业务模型基础上完成三项基础设施级升级：<strong>(1) 数据库迁移 PostgreSQL，落实脱敏与加密传输；(2) 明确阿里云部署架构；(3) 建立七级 RBAC 权限模型</strong>。</div>
+  <p>V5.0 在 V4.0 基础上，将单一「客户→工单」模型升级为<strong>「客户多合同 → 合同多子项 → 子项多服务对象 → 定期工单」</strong>的多层级履约模型，并新增驻场、外包、内部任务三类工单来源。</p>
+  <h3>0.1 模型层级对比</h3>
+  <table>
+    <tr><th>层级</th><th>V4.0</th><th>V5.0</th></tr>
+    <tr><td>客户</td><td>1 客户</td><td>1 客户 → <strong>N 合同</strong>（安全服务/安全运维/设备升级/购机/机房改造…）</td></tr>
+    <tr><td>合同</td><td>❌ 无独立层</td><td>1 合同 → <strong>N 合同子项</strong>（每个服务项独立频率/SLA/验收）</td></tr>
+    <tr><td>服务对象</td><td>资产清单</td><td><strong>服务对象/系统</strong>（OA / XX / YY 系统）作为子项的绑定目标</td></tr>
+    <tr><td>服务项</td><td>运维项目 + 服务频率</td><td><strong>合同子项</strong> = 服务对象 + 运维项目 + 服务频率 + 验收标准</td></tr>
+    <tr><td>工单来源</td><td>客户工单</td><td>客户工单 / <strong>驻场日报</strong> / <strong>内部任务</strong> / <strong>临时工作</strong> / <strong>外包工单</strong></td></tr>
+    <tr><td>执行人</td><td>单人/多人</td><td>多人 <strong>按工作量比例分摊</strong>（换岗自动重算）</td></tr>
+  </table>
+  <h3>0.2 服务频率枚举扩展</h3>
+  <div class="highlight">频率单位由「次/天·周·月·年」扩展为：<strong>次/天 · 次/周 · 次/月 · 次/季度 · 次/半年 · 次/年 · 不定期</strong>。其中「不定期」对应应急处置、临时检查等无固定周期、按需派单的服务项。</div>
+</div>
+
+<!-- 1 概述 -->
+<div class="section" id="s1">
+  <h2><span class="num">1</span>项目概述与总体架构</h2>
+  <h3>1.1 核心设计理念</h3>
+  <div class="highlight">以<strong>「合同 → 子项 → 工单」为主轴</strong>，统一承载客户合同的全部履约义务（定频服务、驻场服务、临时工作）、公司内部任务与外包协作，配合 AI 增强与流程自动化，形成可追溯、可量化、可考核、可自动化的完整交付闭环。</div>
+  <h3>1.2 核心业务流程</h3>
+  <div class="flow">
+    <span>客户/合同登记</span><span class="arr">→</span><span>合同子项（服务项+频率）</span><span class="arr">→</span><span>定期/临时工单生成</span><span class="arr">→</span><span>派单（智能+外包）</span><span class="arr">→</span><span>执行/驻场/整改</span><span class="arr">→</span><span>交付/验收</span><span class="arr">→</span><span>绩效（比例分摊）</span>
+  </div>
+  <h3>1.3 模块划分（十九大核心模块）</h3>
+  <table>
+    <tr><th>模块</th><th>说明</th></tr>
+    <tr><td>① 客户与合同管理<span class="new">新增</span></td><td>客户档案、多合同登记、合同台账</td></tr>
+    <tr><td>② 合同子项与服务对象<span class="new">新增</span></td><td>合同内多服务项、服务对象（系统）、频率</td></tr>
+    <tr><td>③ 接单模块</td><td>客户需求/报障录入、生成工单</td></tr>
+    <tr><td>④ 派单模块</td><td>人工 + 智能派单、定价、换岗分摊</td></tr>
+    <tr><td>⑤ 工单管理（核心）</td><td>全生命周期、状态机、SLA</td></tr>
+    <tr><td>⑥ 驻场服务模块<span class="new">新增</span></td><td>驻场人员、日报（巡检/日志/补丁/故障）</td></tr>
+    <tr><td>⑦ 内部任务模块<span class="new">新增</span></td><td>公司内部工单下发员工</td></tr>
+    <tr><td>⑧ 外包管理模块<span class="new">新增</span></td><td>外包工单、外包接单/汇报/验收</td></tr>
+    <tr><td>⑨ 问题发现与整改</td><td>问题录入、多轮整改、效果确认</td></tr>
+    <tr><td>⑩ 项目交付</td><td>四类报告 + 专项报告</td></tr>
+    <tr><td>⑪ 绩效考核</td><td>加权计算 + 换岗比例分摊</td></tr>
+    <tr><td>⑫ 客户与资产管理</td><td>资产清单、资产依赖</td></tr>
+    <tr><td>⑬ 报告中心</td><td>归档、数据看板</td></tr>
+    <tr><td>⑭ 服务频率与定期工单</td><td>周期拆分、定期工单自动生成</td></tr>
+    <tr><td>⑮ 服务提醒与 SLA 引擎</td><td>启动提醒、分级预警、SLA 升级链</td></tr>
+    <tr><td>⑯ AI 智能增强</td><td>分类、派单建议、摘要、相似推荐</td></tr>
+    <tr><td>⑰ 工作流编排</td><td>审批、流转规则、自动化动作</td></tr>
+    <tr><td>⑱ 知识库与自助门户</td><td>知识库、自助报障/查询</td></tr>
+    <tr><td>⑳ 系统管理</td><td>七级权限、字典、审计、水印、脱敏</td></tr>
+    <tr><td>㉑ 部署与数据安全<span class="new">新增</span></td><td>阿里云部署、PostgreSQL 脱敏加密</td></tr>
+  </table>
+</div>
+
+<!-- 2 客户与合同 -->
+<div class="section" id="s2">
+  
+<div class="diagram">
+<p class="diagram-title">图4 · 核心业务流程图</p>
+<p class="diagram-sub">从合同到绩效的全链路闭环（四泳道）</p>
+<svg viewBox="0 0 960 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="核心业务流程图">
+    <defs>
+      <marker id="a3" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#0a4fc0"/></marker>
+    </defs>
+
+    <!-- 泳道 -->
+    <rect class="zone" x="30" y="80" width="900" height="120" rx="8"/>
+    <text class="zhead" x="48" y="106" font-size="14">泳道 1 · 商务/合同</text>
+    <rect class="zone" x="30" y="220" width="900" height="140" rx="8"/>
+    <text class="zhead" x="48" y="246" font-size="14">泳道 2 · 调度/派单</text>
+    <rect class="zone" x="30" y="380" width="900" height="160" rx="8"/>
+    <text class="zhead" x="48" y="406" font-size="14">泳道 3 · 执行/交付</text>
+    <rect class="zone" x="30" y="560" width="900" height="140" rx="8"/>
+    <text class="zhead" x="48" y="586" font-size="14">泳道 4 · 验收/绩效</text>
+
+    <!-- 泳道1 -->
+    <rect class="node external" x="60" y="120" width="150" height="56" rx="8"/>
+    <text class="lbl" x="72" y="142">客户需求 / 合同登记</text>
+    <text class="sml" x="72" y="158">多合同 · 多子项</text>
+
+    <rect class="node process" x="260" y="120" width="150" height="56" rx="8"/>
+    <text class="lbl" x="272" y="142">合同子项拆解</text>
+    <text class="sml" x="272" y="158">服务对象 + 频率</text>
+
+    <path class="edge" d="M210 148 L256 148" marker-end="url(#a3)"/>
+
+    <!-- 泳道2 -->
+    <rect class="node process" x="460" y="140" width="150" height="56" rx="8"/>
+    <text class="lbl" x="472" y="162">定期工单自动生成</text>
+    <text class="sml" x="472" y="178">按频率周期拆分</text>
+
+    <rect class="node process" x="260" y="260" width="150" height="56" rx="8"/>
+    <text class="lbl" x="272" y="282">派单 / 智能推荐</text>
+    <text class="sml" x="272" y="298">内部 / 外包</text>
+
+    <path class="edge" d="M535 196 L335 256" marker-end="url(#a3)"/>
+
+    <!-- 泳道3 -->
+    <rect class="node process" x="60" y="400" width="150" height="56" rx="8"/>
+    <text class="lbl" x="72" y="422">执行工单 / 驻场日报</text>
+    <text class="sml" x="72" y="438">填表单 · 日志</text>
+
+    <rect class="node process" x="260" y="400" width="150" height="56" rx="8"/>
+    <text class="lbl" x="272" y="422">发现问题</text>
+    <text class="sml" x="272" y="438">相似推荐</text>
+
+    <rect class="node process" x="460" y="400" width="150" height="56" rx="8"/>
+    <text class="lbl" x="472" y="422">多轮整改</text>
+    <text class="sml" x="472" y="438">效果验证</text>
+
+    <rect class="node risk" x="660" y="400" width="150" height="56" rx="8"/>
+    <text class="lbl" x="672" y="422">整改不通过</text>
+    <text class="sml" x="672" y="438">自动下一轮</text>
+
+    <path class="edge" d="M335 320 L135 396" marker-end="url(#a3)"/>
+    <path class="edge" d="M210 428 L256 428" marker-end="url(#a3)"/>
+    <path class="edge" d="M410 428 L456 428" marker-end="url(#a3)"/>
+    <path class="edge" d="M610 428 L656 428" marker-end="url(#a3)"/>
+    <path class="edge" d="M660 456 L535 456 L535 460" marker-end="url(#a3)" stroke-dasharray="4 4"/>
+
+    <!-- 泳道4 -->
+    <rect class="node storage" x="60" y="580" width="150" height="56" rx="8"/>
+    <text class="lbl" x="72" y="602">项目交付</text>
+    <text class="sml" x="72" y="618">四类报告</text>
+
+    <rect class="node storage" x="260" y="580" width="150" height="56" rx="8"/>
+    <text class="lbl" x="272" y="602">客户验收</text>
+    <text class="sml" x="272" y="618">签字 · 评价</text>
+
+    <rect class="node storage" x="460" y="580" width="150" height="56" rx="8"/>
+    <text class="lbl" x="472" y="602">绩效考核（比例分摊）</text>
+    <text class="sml" x="472" y="618">换岗重算</text>
+
+    <rect class="node storage" x="660" y="580" width="180" height="56" rx="8"/>
+    <text class="lbl" x="672" y="602">报告中心 / 数据看板</text>
+    <text class="sml" x="672" y="618">归档 · 洞察</text>
+
+    <path class="edge" d="M135 456 L135 576" marker-end="url(#a3)"/>
+    <path class="edge" d="M210 608 L256 608" marker-end="url(#a3)"/>
+    <path class="edge" d="M410 608 L456 608" marker-end="url(#a3)"/>
+    <path class="edge" d="M610 608 L656 608" marker-end="url(#a3)"/>
+
+    <!-- 侧边闭环备注 -->
+    <rect class="node neutral" x="850" y="120" width="80" height="420" rx="8"/>
+    <text class="lbl" x="862" y="150" font-size="12">贯穿全程</text>
+    <text class="sml" x="862" y="180">SLA 提醒</text>
+    <text class="sml" x="862" y="200">升级链</text>
+    <text class="sml" x="862" y="230">AI 智能</text>
+    <text class="sml" x="862" y="250">辅助</text>
+    <text class="sml" x="862" y="280">工作流</text>
+    <text class="sml" x="862" y="300">审批/自动化</text>
+    <text class="sml" x="862" y="330">外包</text>
+    <text class="sml" x="862" y="350">接单/汇报/验收</text>
+    <text class="sml" x="862" y="380">内部任务</text>
+    <text class="sml" x="862" y="400">统一工单池</text>
+    <text class="sml" x="862" y="430">七级权限</text>
+    <text class="sml" x="862" y="450">脱敏/加密</text>
+  </svg>
+</div>
+
+<h2><span class="num">2</span>客户与合同管理 <span class="badge teal">新增</span></h2>
+  <p>每个客户可维护<strong>多个合同</strong>，合同是子项与履约的容器。</p>
+  <h3>2.1 客户档案</h3>
+  <table>
+    <tr><th>字段</th><th>说明</th></tr>
+    <tr><td>客户名称 / 简称</td><td>唯一标识</td></tr>
+    <tr><td>行业 / 规模</td><td>用于智能派单与技能匹配</td></tr>
+    <tr><td>客户等级</td><td>金牌 / 银牌 / 普通（关联 SLA 契约）</td></tr>
+    <tr><td>联系人 / 电话</td><td>多人，脱敏展示</td></tr>
+    <tr><td>服务对象清单</td><td>OA / XX / YY 等系统（关联第 3 章）</td></tr>
+  </table>
+  <h3>2.2 合同登记</h3>
+  <table>
+    <tr><th>字段</th><th>说明</th></tr>
+    <tr><td>合同类型</td><td>安全服务 / 安全运维 / 设备升级 / 购买设备 / 机房改造 / 其他</td></tr>
+    <tr><td>合同名称 / 编号</td><td>唯一标识，如「安全服务合同（2026.1.1-12.31）」</td></tr>
+    <tr><td>合同金额</td><td>总金额（元）</td></tr>
+    <tr><td>合同周期</td><td>起止日期</td></tr>
+    <tr><td>服务对象</td><td>关联服务对象（系统）清单</td></tr>
+    <tr><td>合同子项</td><td>明细列表（见第 3 章）</td></tr>
+    <tr><td>是否含驻场</td><td>勾选 → 进入驻场模块</td></tr>
+    <tr><td>状态</td><td>草稿 / 执行中 / 已到期 / 已续约</td></tr>
+  </table>
+  <div class="highlight"><strong>多合同模型：</strong>一个客户可有多个合同同时并行（如安全服务合同 + 设备升级合同 + 机房改造合同），系统按合同独立管理履约、结算与绩效。</div>
+</div>
+
+<!-- 3 合同子项与服务对象 -->
+<div class="section" id="s3">
+  <h2><span class="num">3</span>合同子项与服务对象 <span class="badge teal">新增</span></h2>
+  <p>合同内可包含<strong>多个子项（服务项）</strong>，每个子项绑定一个<strong>服务对象（系统/设备）</strong>，并定义独立的服务频率、SLA、验收标准。子项是「定期工单」的生成模板。</p>
+  <h3>3.1 服务对象（系统）字段</h3>
+  <table>
+    <tr><th>字段</th><th>说明</th></tr>
+    <tr><td>对象名称</td><td>如 OA 系统 / XX 系统 / YY 系统</td></tr>
+    <tr><td>对象类型</td><td>业务系统 / 网络设备 / 服务器 / 机房 / 数据库 …</td></tr>
+    <tr><td>IP / 位置</td><td>资产信息（关联资产清单）</td></tr>
+    <tr><td>依赖关系</td><td>与其他对象的依赖（影响分析）</td></tr>
+  </table>
+  <h3>3.2 合同子项字段</h3>
+  <table>
+    <tr><th>字段</th><th>说明</th></tr>
+    <tr><td>服务对象</td><td>绑定 OA / XX / YY 系统</td></tr>
+    <tr><td>运维项目</td><td>漏洞扫描 / 渗透测试 / 应急演练 / 安全加固 / 安全培训 / 代码审计 / 基线核查 / 安全巡检 / 安全评估 / 应急处置 / 重保值守 / 攻防演练 / 安全防护 / 设备巡检 / 等保测评 / 故障排查</td></tr>
+    <tr><td>服务频率</td><td>数值 + 单位（次/天·周·月·季度·半年·年 · 不定期）</td></tr>
+    <tr><td>SLA</td><td>响应/解决时限（可关联 SLA 契约）</td></tr>
+    <tr><td>验收标准</td><td>该子项的验收条件</td></tr>
+    <tr><td>子项价格</td><td>该服务项金额（用于毛利/绩效核算）</td></tr>
+  </table>
+  <h3>3.3 子项示例（安全服务合同 2026）</h3>
+  <table>
+    <tr><th>服务对象</th><th>运维项目</th><th>服务频率</th></tr>
+    <tr><td>OA 系统</td><td>漏洞扫描</td><td>1 次/季度</td></tr>
+    <tr><td>OA 系统</td><td>渗透测试</td><td>1 次/年</td></tr>
+    <tr><td>OA 系统</td><td>安全培训</td><td>1 次/半年</td></tr>
+    <tr><td>OA 系统</td><td>应急演练</td><td>1 次/年</td></tr>
+    <tr><td>OA 系统</td><td>安全报告</td><td>1 次/周</td></tr>
+    <tr><td>OA 系统</td><td>应急处置</td><td>不定期</td></tr>
+    <tr><td>OA 系统</td><td>安全评估</td><td>1 次/月</td></tr>
+    <tr><td>OA 系统</td><td>等保测评</td><td>1 次/年</td></tr>
+    <tr><td>OA 系统</td><td>设备巡检</td><td>1 次/周</td></tr>
+    <tr><td>OA 系统</td><td>重保值守</td><td>2 次/年</td></tr>
+    <tr><td>XX 系统</td><td>漏洞扫描</td><td>X 次/季度</td></tr>
+    <tr><td>YY 系统</td><td>…</td><td>Y 次/…</td></tr>
+  </table>
+  <div class="purple"><strong>关键：</strong>「服务频率」从工单级下放到<strong>合同子项级</strong>，同一合同内不同系统、不同服务项各自独立排期、独立提醒、独立验收，精准对应真实履约义务。</div>
+</div>
+
+<!-- 4 接单 -->
+<div class="section" id="s4">
+  <h2><span class="num">4</span>接单模块</h2>
+  <p>接单是工单的起点，来源多样：客户报障、商务拓展、巡检发现、安全事件、续约、<strong>临时增加的工作</strong>。</p>
+  <h3>4.1 接单表单字段</h3>
+  <table>
+    <tr><th>字段</th><th>类型</th><th>说明</th></tr>
+    <tr><td>来源</td><td>单选</td><td>客户报障 / 商务拓展 / 巡检发现 / 安全事件 / 续约 / <strong>临时新增</strong></td></tr>
+    <tr><td>所属客户</td><td>关联</td><td>客户名称</td></tr>
+    <tr><td>关联合同</td><td>关联</td><td>该工单归属的合同（可空，用于临时工作）</td></tr>
+    <tr><td>关联合同子项</td><td>关联</td><td>归属的服务项（可空）</td></tr>
+    <tr><td>服务对象</td><td>关联</td><td>OA / XX / YY 系统</td></tr>
+    <tr><td>运维项目</td><td>下拉</td><td>运维项目枚举</td></tr>
+    <tr><td>服务频率</td><td>数字+单位</td><td>继承自合同子项，可临时覆盖</td></tr>
+    <tr><td>合同价格</td><td>数字</td><td>合同金额（元）</td></tr>
+    <tr><td>甲方联系人/电话</td><td>文本</td><td>脱敏展示</td></tr>
+    <tr><td>服务时间</td><td>日期区间</td><td>起止</td></tr>
+    <tr><td>验收标准</td><td>富文本</td><td>验收条件</td></tr>
+  </table>
+  <div class="warn"><strong>临时工作快速开单：</strong>对「外出检查下级单位、应付上级抽检、处置重大舆情、处置重大安全问题」等临时任务，支持<strong>快速模板</strong>一键开单，可挂接或不挂接具体合同/子项。</div>
+</div>
+
+<!-- 5 派单 -->
+<div class="section" id="s5">
+  <h2><span class="num">5</span>派单模块（含智能派单 + 换岗分摊）</h2>
+  <p>项目经理指派执行人并定价；支持多人执行、<strong>按工作量比例分摊</strong>；中途换岗自动重算。</p>
+  <h3>5.1 派单表单字段</h3>
+  <table>
+    <tr><th>字段</th><th>类型</th><th>说明</th></tr>
+    <tr><td>运维人员</td><td>人员选择</td><td>可单人/多人，多人设定<strong>工作量比例</strong></td></tr>
+    <tr><td>工作量比例</td><td>百分比</td><td>多人协作时各自占比（合计 100%），用于绩效分摊</td></tr>
+    <tr><td>派单方式</td><td>单选</td><td>内部员工 / <strong>外包</strong>（见第 9 章）</td></tr>
+    <tr><td>用户名称/资产/项目/频率</td><td>关联</td><td>继承自接单/合同子项</td></tr>
+    <tr><td>派单价格</td><td>数字</td><td>结算价格（用于绩效）</td></tr>
+    <tr><td>服务时间</td><td>日期区间</td><td>含 SLA</td></tr>
+    <tr><td>验收标准</td><td>富文本</td><td>验收要求</td></tr>
+  </table>
+  <h3>5.2 智能派单建议 <span class="badge purple">AI</span></h3>
+  <p>基于技能矩阵 + 当前负载 + 历史绩效与评价，推荐执行人并给出理由；项目经理可采纳或调整。</p>
+  <h3>5.3 换岗 / 比例分摊 <span class="badge teal">新增</span></h3>
+  <div class="teal">
+    <strong>换岗机制：</strong>人员中途调换时，原执行人登记已完成工作量比例，剩余工作量转给新执行人。系统自动按<strong>「各人实际承担时长 × 当日派单价」</strong>重算绩效分摊，确保换岗后工作量、结算、绩效精确归属到每个人。
+  </div>
+</div>
+
+<!-- 6 工单管理 -->
+<div class="section" id="s6">
+  <h2><span class="num">6</span>工单管理（核心）</h2>
+  <p>工单是系统主线，统一承载客户工单、驻场日报、内部任务、外包工单，按「工单类型」区分。</p>
+  <h3>6.1 工单类型</h3>
+  <table>
+    <tr><th>类型</th><th>来源</th><th>说明</th></tr>
+    <tr><td>客户工单</td><td>合同子项 / 临时工作 / 报障</td><td>面向客户的履约工单</td></tr>
+    <tr><td>驻场工单</td><td>驻场服务日报</td><td>驻场人员每日工作（第 7 章）</td></tr>
+    <tr><td>内部任务</td><td>公司指派</td><td>非客户工单，公司内部下发（第 8 章）</td></tr>
+    <tr><td>外包工单</td><td>内部转派</td><td>外包给外部人员（第 9 章）</td></tr>
+  </table>
+  <h3>6.2 工单状态机</h3>
+  <pre>待派单 → 已派单/进行中 → 计划中 ↔ 进行中 → 待验收 → 已完成
+                ↓
+          （SLA 预警 / 催办 / 升级）</pre>
+  <h3>6.3 状态流转规则（工作流）</h3>
+  <p>状态流转通过工作流引擎（第 16 章）配置：整改通过 → 自动「待验收」；客户签字 → 自动「已关闭」+ 计绩效；外包验收通过 → 自动结算。</p>
+</div>
+
+<!-- 7 驻场服务 -->
+<div class="section" id="s7">
+  <h2><span class="num">7</span>驻场服务模块 <span class="badge teal">新增</span></h2>
+  <p>客户要求<strong>派驻 X 人驻场</strong>，在客户驻地开展日常工作，系统以「驻场工单/日报」形式记录与管理。</p>
+  <h3>7.1 驻场配置</h3>
+  <table>
+    <tr><th>字段</th><th>说明</th></tr>
+    <tr><td>驻场客户 / 合同</td><td>关联客户与合同</td></tr>
+    <tr><td>驻场人数</td><td>派驻人数</td></tr>
+    <tr><td>驻场人员</td><td>具体人员清单（可换岗）</td></tr>
+    <tr><td>驻场周期</td><td>起止日期</td></tr>
+    <tr><td>驻场工作项</td><td>设备巡检 / 日志分析 / 漏洞打补丁 / 资产梳理 / 软硬件故障处置 …</td></tr>
+  </table>
+  <h3>7.2 驻场日报</h3>
+  <p>驻场人员每日填报纸表，逐项记录当日工作，系统自动汇总生成周报/月报。</p>
+  <table>
+    <tr><th>工作项</th><th>记录内容</th></tr>
+    <tr><td>设备巡检</td><td>巡检对象、结果、异常</td></tr>
+    <tr><td>日志分析</td><td>日志来源、分析结论、发现</td></tr>
+    <tr><td>漏洞打补丁</td><td>漏洞、补丁、修复状态</td></tr>
+    <tr><td>资产梳理</td><td>资产变更、新增/下线</td></tr>
+    <tr><td>软硬件故障处置</td><td>故障、处置过程、结果</td></tr>
+  </table>
+  <div class="highlight"><strong>日报 → 交付：</strong>驻场日报可定期聚合为交付报告；发现的异常可一键转为「问题」进入整改闭环（第 10 章）。</div>
+</div>
+
+<!-- 8 内部任务 -->
+<div class="section" id="s8">
+  <h2><span class="num">8</span>内部任务模块 <span class="badge teal">新增</span></h2>
+  <p>除了客户工单，公司也会给员工安排工作，以<strong>内部工单</strong>形式下发。</p>
+  <h3>8.1 内部任务字段</h3>
+  <table>
+    <tr><th>字段</th><th>说明</th></tr>
+    <tr><td>任务名称</td><td>任务标题</td></tr>
+    <tr><td>任务类型</td><td>内部研发 / 制度建设 / 报告编写 / 培训准备 / 其他</td></tr>
+    <tr><td>指派人员</td><td>员工（可多人 + 比例）</td></tr>
+    <tr><td>优先级 / 截止时间</td><td>用于内部调度</td></tr>
+    <tr><td>任务说明</td><td>详细描述</td></tr>
+    <tr><td>关联客户</td><td>可空（纯内部）</td></tr>
+  </table>
+  <div class="highlight"><strong>统一工单池：</strong>内部任务与客户工单共用工单池、状态机、SLA/提醒机制，员工只需在一个视图内处理所有待办，避免多系统割裂。</div>
+</div>
+
+<!-- 9 外包管理 -->
+<div class="section" id="s9">
+  <h2><span class="num">9</span>外包管理模块 <span class="badge teal">新增</span></h2>
+  <p>当工单因<strong>能力不足或时间冲突</strong>无法内部完成时，可外包给<strong>非本公司人员</strong>；外包人员也通过本系统接单、汇报进展、接受验收。</p>
+  <h3>9.1 外包流程</h3>
+  <div class="flow">
+    <span>内部工单</span><span class="arr">→</span><span>发起外包</span><span class="arr">→</span><span>外包派单</span><span class="arr">→</span><span>外包接单</span><span class="arr">→</span><span>工作汇报</span><span class="arr">→</span><span>验收</span><span class="arr">→</span><span>结算</span>
+  </div>
+  <h3>9.2 外包管理字段</h3>
+  <table>
+    <tr><th>字段</th><th>说明</th></tr>
+    <tr><td>外包类型</td><td>能力外包 / 时间外包 / 特殊资质外包</td></tr>
+    <tr><td>外包人员/单位</td><td>外部人员档案（单位、资质、结算方式）</td></tr>
+    <tr><td>外包价格</td><td>外包结算金额</td></tr>
+    <tr><td>保密协议 / 权限范围</td><td>外包可见脱敏数据，仅限本工单范围</td></tr>
+    <tr><td>工作进展</td><td>外包人员汇报进展、上传成果</td></tr>
+    <tr><td>验收</td><td>项目经理验收，通过后结算</td></tr>
+  </table>
+  <h3>9.3 外包人员权限隔离 <span class="badge red">安全</span></h3>
+  <div class="danger">外包人员账号<strong>仅可见被指派的外包工单</strong>，数据脱敏，禁止访问客户其他合同、其他工单与内部数据；操作全程审计。外包可<strong>接单/拒单</strong>，接单后同样走汇报→验收流程。</div>
+</div>
+
+<!-- 10 问题与整改 -->
+<div class="section" id="s10">
+  <h2><span class="num">10</span>问题发现与整改闭环</h2>
+  <h3>10.1 发现问题</h3>
+  <p>运维人员在执行工单（含驻场日报）过程中记录问题，挂接工单之下：类型、等级、描述、截图/日志。系统提供<strong>问题相似度推荐</strong>。</p>
+  <h3>10.2 整改情况（多轮）</h3>
+  <table>
+    <tr><th>整改状态</th><th>说明</th></tr>
+    <tr><td>第 1 轮整改中…</td><td>首轮整改进行中</td></tr>
+    <tr><td>第 N 轮整改中…</td><td>整改不通过后的后续轮次</td></tr>
+    <tr><td>整改完成</td><td>本轮整改完成，待验证</td></tr>
+    <tr><td>整改不通过</td><td>效果未达标，自动发起下一轮</td></tr>
+  </table>
+  <h3>10.3 整改效果</h3>
+  <ul>
+    <li>成果式描述：<span class="badge green">XX 漏洞已修复</span> <span class="badge green">XX 问题已修复</span></li>
+    <li>验证三态：通过 / 不通过 / 部分完成继续整改</li>
+  </ul>
+</div>
+
+<!-- 11 交付 -->
+<div class="section" id="s11">
+  <h2><span class="num">11</span>项目交付</h2>
+  <p>工单完成产出标准化交付物，归入报告中心。交付可挂接到<strong>合同/子项</strong>层级，支持按合同整体交付或按子项分别交付。</p>
+  <h3>11.1 四类核心交付报告</h3>
+  <table>
+    <tr><th>报告类型</th><th>内容</th></tr>
+    <tr><td>运维报告</td><td>执行过程、服务内容汇总</td></tr>
+    <tr><td>发现问题报告</td><td>发现的问题清单</td></tr>
+    <tr><td>整改报告</td><td>多轮整改过程、措施、效果</td></tr>
+    <tr><td>验收报告</td><td>验收标准、结论、客户签字</td></tr>
+  </table>
+  <p>另按项目类型生成：漏洞扫描 / 渗透测试 / 应急演练 / 安全评估 / 基线核查 / 等保测评 / <strong>驻场服务月报</strong> 等。</p>
+</div>
+
+<!-- 12 绩效 -->
+<div class="section" id="s12">
+  <h2><span class="num">12</span>运维人员绩效考核（含换岗分摊）</h2>
+  <p>绩效考核以加权公式自动计算，并支持<strong>多人协作 / 换岗按比例分摊</strong>。</p>
+  <h3>12.1 绩效构成要素</h3>
+  <table>
+    <tr><th>要素</th><th>说明</th></tr>
+    <tr><td>工作量</td><td>完成工单/服务项数量、投入工时（按周期累计 × 个人比例）</td></tr>
+    <tr><td>派单价格</td><td>该单派单价格（× 个人分摊比例）</td></tr>
+    <tr><td>工作质量</td><td>管理者/安全专家打分（0.6~1.2）</td></tr>
+    <tr><td>用户评价</td><td>客户满意度（0.8~1.2）</td></tr>
+  </table>
+  <h3>12.2 绩效计算公式（含分摊）</h3>
+  <pre>个人绩效 = Σ ( 工作量 × 派单价格 × 分摊比例 × 质量系数 × 评价系数 )
+分摊比例 = 个人实际承担工作量 / 工单总工作量</pre>
+  <div class="highlight"><strong>换岗分摊：</strong>中途换岗时，按「各人实际投入时长/工作量」自动切分，换岗前后分别归属对应人员，结算与绩效精确到人。</div>
+  <h3>12.3 统计维度</h3>
+  <ul>
+    <li>按人员、客户、合同、合同子项、运维项目、时间（日/周/月/季/年）</li>
+    <li>产出：个人报表、团队排名、成本毛利核算、<strong>外包成本</strong>纳入毛利核算</li>
+  </ul>
+</div>
+
+<!-- 13 服务频率与定期工单 -->
+<div class="section" id="s13">
+  <h2><span class="num">13</span>服务频率与定期工单</h2>
+  <p>依据<strong>合同子项的服务频率</strong>，自动拆分服务周期并生成定期工单。</p>
+  <h3>13.1 周期拆分规则</h3>
+  <table>
+    <tr><th>频率</th><th>示例</th><th>逻辑</th></tr>
+    <tr><td>X 次/天</td><td>1 次/天</td><td>每日 1 次</td></tr>
+    <tr><td>X 次/周</td><td>2 次/周</td><td>每周均匀分布</td></tr>
+    <tr><td>X 次/月</td><td>4 次/月</td><td>每月均匀分布</td></tr>
+    <tr><td>X 次/季度</td><td>1 次/季度</td><td>每季度 1 次</td></tr>
+    <tr><td>X 次/半年</td><td>1 次/半年</td><td>每半年 1 次</td></tr>
+    <tr><td>X 次/年</td><td>2 次/年</td><td>每半年 1 次</td></tr>
+    <tr><td>不定期</td><td>应急处置</td><td>不自动生成，按需手动派单（作为待履约义务跟踪）</td></tr>
+  </table>
+  <div class="highlight"><strong>子项级排期：</strong>同一合同内 OA 系统的漏洞扫描、渗透测试、安全培训等各自独立排期，系统统一生成日历视图，直观展示全年履约计划与缺口。</div>
+</div>
+
+<!-- 14 提醒与SLA -->
+<div class="section" id="s14">
+  <h2><span class="num">14</span>服务提醒与 SLA 契约引擎</h2>
+  <h3>14.1 服务启动提醒</h3>
+  <table>
+    <tr><th>触发</th><th>内容</th></tr>
+    <tr><td>进入本次服务周期时</td><td>「<strong>第 X 次服务已启动，请及时处理！</strong>」（如「第 3 次服务已启动，请及时处理！·OA系统漏洞扫描」）</td></tr>
+  </table>
+  <h3>14.2 服务周期分级预警</h3>
+  <p>预警基准：<strong>本次服务周期结束日</strong>。</p>
+  <table>
+    <tr><th>等级</th><th>触发</th><th>颜色</th></tr>
+    <tr><td>黄色预警</td><td>距结束 ≤ 7 天</td><td><span class="badge amber">黄色</span></td></tr>
+    <tr><td>橙色预警</td><td>距结束 ≤ 3 天</td><td><span class="badge orange">橙色</span></td></tr>
+    <tr><td>红色紧急</td><td>距结束 ≤ 1 天</td><td><span class="badge red">红色</span></td></tr>
+  </table>
+  <h3>14.3 SLA 契约引擎</h3>
+  <ul>
+    <li><strong>多级 SLA</strong>：按客户等级 / 项目紧急度定义响应/解决时限</li>
+    <li><strong>工作日历</strong>：SLA 计时跳过非工作时段</li>
+    <li><strong>升级链</strong>：超时逐级上报 执行人 → 项目经理 → 部门负责人</li>
+  </ul>
+  <h3>14.4 提醒对象与渠道</h3>
+  <ul>
+    <li>对象：运维人员（执行人）+ 管理员（项目经理）；超时逐级追加</li>
+    <li>渠道：站内 / 移动推送 / 短信·企微·飞书·钉钉</li>
+  </ul>
+</div>
+
+<!-- 15 AI -->
+<div class="section" id="s15">
+  <h2><span class="num">15</span>AI 智能增强</h2>
+  <p>对标主流系统引入 AI 能力（本地 LLM 或云 API + RAG），覆盖多合同多子项场景。</p>
+  <table>
+    <tr><th>能力</th><th>应用场景</th></tr>
+    <tr><td>智能分类</td><td>根据报障/描述推荐运维项目、服务对象、优先级</td></tr>
+    <tr><td>智能派单建议</td><td>基于技能矩阵 + 负载 + 绩效推荐执行人（含外包建议）</td></tr>
+    <tr><td>工单摘要</td><td>自动生成执行摘要，辅助交付报告</td></tr>
+    <tr><td>问题相似推荐</td><td>相似问题与整改方案匹配</td></tr>
+    <tr><td>合同履约洞察</td><td>自动识别合同子项履约缺口、临近到期项，提示补单</td></tr>
+    <tr><td>知识问答</td><td>运维/客户自助问答（RAG）</td></tr>
+  </table>
+  <div class="purple"><strong>落地原则：</strong>AI 均以「建议 + 人工确认」落地，不替代关键决策；涉敏数据走本地化/脱敏 LLM。</div>
+</div>
+
+<!-- 16 工作流 -->
+<div class="section" id="s16">
+  <h2><span class="num">16</span>工作流编排与审批</h2>
+  <p>引入工作流引擎，让状态流转、审批、自动化动作可配置、可追溯。</p>
+  <h3>16.1 典型流程</h3>
+  <table>
+    <tr><th>流程</th><th>说明</th></tr>
+    <tr><td>审批流</td><td>派单价超阈值（含外包价）需审批；报告交付/验收审批</td></tr>
+    <tr><td>状态自动流转</td><td>整改通过 → 待验收；签字 → 已关闭 + 计绩效；外包验收 → 结算</td></tr>
+    <tr><td>自动化动作</td><td>超时升级、定期工单生成、提醒发送、履约缺口提示</td></tr>
+  </table>
+  <h3>16.2 实现</h3>
+  <ul>
+    <li>规则引擎：「事件 + 条件 + 动作」可视化配置</li>
+    <li>全量留痕：记录触发规则、时间、操作人</li>
+  </ul>
+</div>
+
+<!-- 17 知识库 -->
+<div class="section" id="s17">
+  <h2><span class="num">17</span>知识库与自助门户</h2>
+  <h3>17.1 知识库</h3>
+  <ul>
+    <li>沉淀：漏洞库、整改方案库、故障手册、SOP、驻场操作规范</li>
+    <li>检索：全文检索 + RAG 问答（运维/客户按权限访问）</li>
+    <li>闭环：高频问题 → 知识条目 → 自助解决</li>
+  </ul>
+  <h3>17.2 自助门户</h3>
+  <ul>
+    <li>客户自助报障、查进度、下报告、<strong>查看合同履约情况</strong></li>
+    <li>内部员工查知识、核对工作量</li>
+    <li>外包人员查看被指派工单、提交汇报</li>
+  </ul>
+</div>
+
+<!-- 18 数据模型 -->
+<div class="section" id="s18">
+  <h2><span class="num">18</span>数据模型设计</h2>
+  <h3>18.1 实体关系（合同为中心，工单为纽带）</h3>
+  <pre>客户(customer) 1—N 合同(contract) 1—N 合同子项(contract_item)
+合同子项 1—N 服务对象(service_object)
+合同子项 1—N 服务周期(service_cycle) → 1—N 定期工单
+工单(work_order) 1—1 派单(order_dispatch)  N—1 执行人(含比例)
+工单 类型：客户/驻场/内部/外包
+驻场(onsite_service) → 驻场日报(onsite_daily_report)
+外包(outsourcing) → 外包人员(outsource_user) → 汇报/验收
+工单 1—N 问题(issue) → 1—N 整改(rectification) → 1—N 整改记录
+工单 1—N 交付(delivery)
+绩效(performance/user_workload) ← 工时×比例分摊
+SLA 契约(sla_policy) → 工单 → 升级(escalation)</pre>
+  <h3>18.2 核心表清单</h3>
+  <table>
+    <tr><th>表名</th><th>关键字段</th></tr>
+    <tr><td><code>customer</code> 客户</td><td>id, name, industry, level(金牌/银牌/普通), contact</td></tr>
+    <tr><td><code>contract</code> 合同</td><td>id, customer_id, type(安全服务/安全运维/设备升级/购机/机房改造), name, no, amount, start/end, has_onsite, status</td></tr>
+    <tr><td><code>service_object</code> 服务对象</td><td>id, customer_id, name(OA/XX/YY), type, ip, dependencies</td></tr>
+    <tr><td><code>contract_item</code> 合同子项</td><td>id, contract_id, service_object_id, project, frequency, frequency_unit(天/周/月/季度/半年/年/不定期), sla_policy_id, accept_standard, price</td></tr>
+    <tr><td><code>order_receive</code> 接单</td><td>id, source, customer_id, contract_id, contract_item_id, service_object_id, project, contract_price, contact, service_start/end, accept_standard</td></tr>
+    <tr><td><code>order_dispatch</code> 派单</td><td>id, work_order_id, dispatch_type(内部/外包), dispatch_price, service_start/end, accept_standard, suggest_reason</td></tr>
+    <tr><td><code>work_order</code> 工单</td><td>id, no, type(客户/驻场/内部/外包), receive_id, dispatch_id, contract_id, contract_item_id, service_object_id, project, status, priority, sla_deadline, progress, current_cycle_no</td></tr>
+    <tr><td><code>work_order_assignee</code> 执行人</td><td>id, work_order_id, user_id, workload_ratio(比例), actual_hours, started_at, ended_at, is_active</td></tr>
+    <tr><td><code>service_cycle</code> 服务周期</td><td>id, contract_item_id, cycle_no, service_start, service_end, status, auto_generated</td></tr>
+    <tr><td><code>service_reminder</code> 服务提醒</td><td>id, cycle_id, type(启动/预警), level(黄/橙/红), content, to_user_id, channel, sent_at</td></tr>
+    <tr><td><code>onsite_service</code> 驻场服务</td><td>id, contract_id, customer_id, headcount, period_start/end, work_items</td></tr>
+    <tr><td><code>onsite_assignment</code> 驻场人员</td><td>id, onsite_id, user_id, start/end, status</td></tr>
+    <tr><td><code>onsite_daily_report</code> 驻场日报</td><td>id, onsite_id, user_id, report_date, work_type(巡检/日志/补丁/资产/故障), content, issue_ref</td></tr>
+    <tr><td><code>outsourcing</code> 外包</td><td>id, work_order_id, type(能力/时间/资质), outsource_user_id, price, nda, status</td></tr>
+    <tr><td><code>outsource_user</code> 外包人员</td><td>id, name, org, qualification, settle_type, permissions</td></tr>
+    <tr><td><code>outsourcing_report</code> 外包汇报</td><td>id, outsourcing_id, report_date, progress, attachments, acceptance</td></tr>
+    <tr><td><code>issue</code> 问题</td><td>id, work_order_id, type, level, description, attachments, similar_ids</td></tr>
+    <tr><td><code>rectification</code> 整改</td><td>id, issue_id, plan, deadline, assignee, status</td></tr>
+    <tr><td><code>rectification_record</code> 整改记录</td><td>id, rectification_id, round_no, action, executor, effect</td></tr>
+    <tr><td><code>delivery</code> 交付</td><td>id, work_order_id, contract_id, contract_item_id, report_type, report_id, sign</td></tr>
+    <tr><td><code>performance</code> 绩效</td><td>id, user_id, work_order_id, contract_item_id, workload, dispatch_price, ratio, quality_score, customer_score, perf_score</td></tr>
+    <tr><td><code>sla_policy</code> SLA 契约</td><td>id, name, customer_level, response_limit, resolve_limit, work_calendar_id, escalation_chain</td></tr>
+    <tr><td><code>escalation</code> 升级记录</td><td>id, work_order_id, level, from_user, to_user, triggered_at, reason</td></tr>
+    <tr><td><code>workflow_rule</code> / <code>action_log</code></td><td>工作流规则 / 自动化动作日志</td></tr>
+    <tr><td><code>kb_article</code> / <code>engineer_skill</code></td><td>知识库 / 技能矩阵</td></tr>
+    <tr><td><code>sys_user</code> 用户</td><td>id, username, name, phone, dept, status, pwd_hash</td></tr>
+    <tr><td><code>sys_role</code> 角色</td><td>id, code(系统管理员/系统运维/工单管理/客服/客户管理员/客户服务管理/安服), name, scope(平台/客户)</td></tr>
+    <tr><td><code>sys_permission</code> 权限</td><td>id, code, name, type(菜单/按钮/接口/字段)</td></tr>
+    <tr><td><code>sys_user_role</code> 用户-角色</td><td>user_id, role_id, customer_id(客户侧角色关联客户，行级隔离)</td></tr>
+    <tr><td><code>sys_role_permission</code> 角色-权限</td><td>role_id, permission_id</td></tr>
+    <tr><td><code>sys_audit_log</code> 审计日志</td><td>id, user_id, action, resource, before/after, ip, operated_at</td></tr>
+  </table>
+</div>
+
+
+<div class="diagram">
+<p class="diagram-title">图3 · 数据模型 ER 图</p>
+<p class="diagram-sub">客户→合同→子项→工单 为核心实体关系</p>
+<svg viewBox="0 0 960 760" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="数据模型ER图">
+    <!-- 实体框：顶部为实体名，下方为关键字段 -->
+    <defs>
+      <marker id="a2" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#64748b"/></marker>
+    </defs>
+
+    <!-- customer 客户 -->
+    <rect class="node neutral" x="40" y="40" width="160" height="120" rx="8"/>
+    <rect class="node process" x="40" y="40" width="160" height="30" rx="8"/>
+    <text class="lbl" x="52" y="60">customer 客户</text>
+    <text class="sml" x="52" y="92">PK id</text>
+    <text class="sml" x="52" y="108">name</text>
+    <text class="sml" x="52" y="124">level(金牌/银牌)</text>
+    <text class="sml" x="52" y="140">industry · contact</text>
+
+    <!-- contract 合同 -->
+    <rect class="node neutral" x="280" y="40" width="180" height="140" rx="8"/>
+    <rect class="node process" x="280" y="40" width="180" height="30" rx="8"/>
+    <text class="lbl" x="292" y="60">contract 合同</text>
+    <text class="sml" x="292" y="92">PK id</text>
+    <text class="sml" x="292" y="108">FK customer_id</text>
+    <text class="sml" x="292" y="124">type(安全/运维/升级)</text>
+    <text class="sml" x="292" y="140">amount · start/end</text>
+    <text class="sml" x="292" y="156">has_onsite · status</text>
+
+    <!-- service_object 服务对象 -->
+    <rect class="node neutral" x="540" y="40" width="180" height="120" rx="8"/>
+    <rect class="node process" x="540" y="40" width="180" height="30" rx="8"/>
+    <text class="lbl" x="552" y="60">service_object 服务对象</text>
+    <text class="sml" x="552" y="92">PK id</text>
+    <text class="sml" x="552" y="108">FK customer_id</text>
+    <text class="sml" x="552" y="124">name(OA/XX/YY)</text>
+    <text class="sml" x="552" y="140">type · ip · deps</text>
+
+    <!-- contract_item 合同子项 -->
+    <rect class="node neutral" x="280" y="260" width="200" height="150" rx="8"/>
+    <rect class="node process" x="280" y="260" width="200" height="30" rx="8"/>
+    <text class="lbl" x="292" y="280">contract_item 合同子项</text>
+    <text class="sml" x="292" y="312">PK id</text>
+    <text class="sml" x="292" y="328">FK contract_id</text>
+    <text class="sml" x="292" y="344">FK service_object_id</text>
+    <text class="sml" x="292" y="360">project · frequency</text>
+    <text class="sml" x="292" y="376">unit · sla · price</text>
+
+    <!-- work_order 工单 -->
+    <rect class="node neutral" x="40" y="320" width="180" height="150" rx="8"/>
+    <rect class="node storage" x="40" y="320" width="180" height="30" rx="8"/>
+    <text class="lbl" x="52" y="340">work_order 工单</text>
+    <text class="sml" x="52" y="372">PK id · no</text>
+    <text class="sml" x="52" y="388">FK contract_id</text>
+    <text class="sml" x="52" y="404">FK contract_item_id</text>
+    <text class="sml" x="52" y="420">type(客户/驻场/内部/外包)</text>
+    <text class="sml" x="52" y="436">status · priority · sla_deadline</text>
+
+    <!-- service_cycle 服务周期 -->
+    <rect class="node neutral" x="560" y="300" width="180" height="100" rx="8"/>
+    <rect class="node process" x="560" y="300" width="180" height="30" rx="8"/>
+    <text class="lbl" x="572" y="320">service_cycle 服务周期</text>
+    <text class="sml" x="572" y="352">PK id</text>
+    <text class="sml" x="572" y="368">FK contract_item_id</text>
+    <text class="sml" x="572" y="384">cycle_no · start/end · status</text>
+
+    <!-- dispatch 派单 -->
+    <rect class="node neutral" x="40" y="540" width="180" height="110" rx="8"/>
+    <rect class="node process" x="40" y="540" width="180" height="30" rx="8"/>
+    <text class="lbl" x="52" y="560">dispatch 派单</text>
+    <text class="sml" x="52" y="592">PK id</text>
+    <text class="sml" x="52" y="608">FK work_order_id</text>
+    <text class="sml" x="52" y="624">price · assignee</text>
+
+    <!-- assignee 执行人 -->
+    <rect class="node neutral" x="300" y="540" width="200" height="110" rx="8"/>
+    <rect class="node process" x="300" y="540" width="200" height="30" rx="8"/>
+    <text class="lbl" x="312" y="560">work_order_assignee 执行人</text>
+    <text class="sml" x="312" y="592">PK id</text>
+    <text class="sml" x="312" y="608">FK work_order_id / user_id</text>
+    <text class="sml" x="312" y="624">ratio · hours · active</text>
+
+    <!-- issue 问题 -->
+    <rect class="node neutral" x="580" y="470" width="180" height="100" rx="8"/>
+    <rect class="node process" x="580" y="470" width="180" height="30" rx="8"/>
+    <text class="lbl" x="592" y="490">issue 问题</text>
+    <text class="sml" x="592" y="522">PK id</text>
+    <text class="sml" x="592" y="538">FK work_order_id</text>
+    <text class="sml" x="592" y="554">type · level · desc</text>
+
+    <!-- rectification 整改 -->
+    <rect class="node neutral" x="580" y="620" width="180" height="100" rx="8"/>
+    <rect class="node process" x="580" y="620" width="180" height="30" rx="8"/>
+    <text class="lbl" x="592" y="640">rectification 整改</text>
+    <text class="sml" x="592" y="672">PK id</text>
+    <text class="sml" x="592" y="688">FK issue_id</text>
+    <text class="sml" x="592" y="704">plan · deadline · status</text>
+
+    <!-- sys_user / sys_role 权限侧 -->
+    <rect class="node neutral" x="820" y="300" width="120" height="120" rx="8"/>
+    <rect class="node risk" x="820" y="300" width="120" height="30" rx="8"/>
+    <text class="lbl" x="832" y="320">sys_user 用户</text>
+    <text class="sml" x="832" y="352">PK id</text>
+    <text class="sml" x="832" y="368">username</text>
+    <text class="sml" x="832" y="384">pwd_hash</text>
+    <text class="sml" x="832" y="400">dept · status</text>
+
+    <rect class="node neutral" x="820" y="470" width="120" height="120" rx="8"/>
+    <rect class="node risk" x="820" y="470" width="120" height="30" rx="8"/>
+    <text class="lbl" x="832" y="490">sys_role 角色</text>
+    <text class="sml" x="832" y="522">PK id</text>
+    <text class="sml" x="832" y="538">code(7级)</text>
+    <text class="sml" x="832" y="554">scope(平台/客户)</text>
+
+    <!-- 关系连线 -->
+    <!-- customer -> contract -->
+    <path class="edge" d="M200 100 L276 100" marker-end="url(#a2)"/>
+    <text class="sml" x="208" y="92">1:N</text>
+    <!-- customer -> service_object -->
+    <path class="edge" d="M200 120 L536 120" marker-end="url(#a2)"/>
+    <text class="sml" x="280" y="112">1:N</text>
+    <!-- contract -> contract_item -->
+    <path class="edge" d="M370 180 L380 256" marker-end="url(#a2)"/>
+    <text class="sml" x="384" y="224">1:N</text>
+    <!-- service_object -> contract_item -->
+    <path class="edge" d="M630 160 L480 296" marker-end="url(#a2)"/>
+    <text class="sml" x="560" y="236">1:N</text>
+    <!-- contract_item -> work_order -->
+    <path class="edge" d="M280 340 L224 340" marker-end="url(#a2)"/>
+    <text class="sml" x="240" y="332">1:N</text>
+    <!-- contract_item -> service_cycle -->
+    <path class="edge" d="M480 340 L556 340" marker-end="url(#a2)"/>
+    <text class="sml" x="498" y="332">1:N</text>
+    <!-- service_cycle -> work_order (定期生成) -->
+    <path class="edge" d="M560 360 L224 380" marker-end="url(#a2)" stroke-dasharray="4 4"/>
+    <text class="sml" x="380" y="372">自动生成(1:N)</text>
+    <!-- work_order -> dispatch -->
+    <path class="edge" d="M130 470 L130 536" marker-end="url(#a2)"/>
+    <text class="sml" x="140" y="510">1:1</text>
+    <!-- work_order -> assignee -->
+    <path class="edge" d="M220 420 L400 540" marker-end="url(#a2)"/>
+    <text class="sml" x="300" y="480">1:N</text>
+    <!-- work_order -> issue -->
+    <path class="edge" d="M220 450 L576 500" marker-end="url(#a2)"/>
+    <text class="sml" x="380" y="478">1:N</text>
+    <!-- issue -> rectification -->
+    <path class="edge" d="M670 570 L670 616" marker-end="url(#a2)"/>
+    <text class="sml" x="680" y="600">1:N</text>
+    <!-- sys_user -> sys_role -->
+    <path class="edge" d="M880 420 L880 466" marker-end="url(#a2)"/>
+    <text class="sml" x="890" y="450">N:M</text>
+    <!-- sys_user -> assignee -->
+    <path class="edge" d="M820 390 L504 560" marker-end="url(#a2)" stroke-dasharray="4 4"/>
+    <text class="sml" x="650" y="470">指派</text>
+  </svg>
+</div>
+
+<!-- 19 权限/安全/技术 -->
+<div class="section" id="s19">
+  <h2><span class="num">19</span>权限、安全与基础技术选型</h2>
+  <h3>19.1 权限模型概述</h3>
+  <div class="highlight">系统采用<strong>七级 RBAC（基于角色的访问控制）</strong>，由系统管理员统一分配各级权限；客户角色基于<strong>数据权限（客户级隔离）</strong>只能访问本客户数据。详细定义见第 20 章。</div>
+  <h3>19.2 安全要求</h3>
+  <ul>
+    <li>数据脱敏（联系方式、IP、密码）；HTTPS + 加密存储</li>
+    <li>屏幕 + 打印水印；操作审计全留痕</li>
+    <li>外包数据隔离：外包账号仅见指派工单，跨合同/跨客户数据强隔离</li>
+    <li>AI 数据本地化/脱敏，禁止敏感数据外流</li>
+    <li>数据加密传输与静态加密（详见第 22 章）</li>
+  </ul>
+  <h3>19.3 技术选型</h3>
+  <table>
+    <tr><th>层次</th><th>推荐</th></tr>
+    <tr><td>前端</td><td>Vue3 + Ant Design / Element Plus</td></tr>
+    <tr><td>移动端</td><td>uni-app / 微信小程序（GPS+拍照+推送）</td></tr>
+    <tr><td>后端</td><td>Java Spring Boot / Go / Python FastAPI</td></tr>
+    <tr><td>数据库</td><td><strong>PostgreSQL</strong>（阿里云 RDS PG）</td></tr>
+    <tr><td>缓存/检索</td><td>Redis + Elasticsearch（知识库/全文检索）</td></tr>
+    <tr><td>工作流引擎</td><td>Flowable / Temporal / Camunda（轻量可选自研规则引擎）</td></tr>
+    <tr><td>AI</td><td>本地 LLM（Qwen/DeepSeek 私有化）或云 API + RAG</td></tr>
+    <tr><td>消息提醒</td><td>站内 + 移动推送 + 企微/飞书/钉钉/短信</td></tr>
+    <tr><td>定时调度</td><td>Quartz / APScheduler / Cron（周期拆分 + 定期工单 + 提醒扫描）</td></tr>
+    <tr><td>对象存储</td><td>阿里云 OSS（加密 / 服务端加密 SSE）</td></tr>
+  </table>
+</div>
+
+<!-- 20 七级权限模型 -->
+<div class="section" id="s20">
+  <h2><span class="num">20</span>七级权限模型（RBAC）<span class="badge teal">新增</span></h2>
+  <p>账号分级设置，由<strong>系统管理员</strong>统一分配各级权限。角色分为「平台侧」与「客户侧」两大类，客户侧角色受<strong>数据权限</strong>约束（仅见本客户合同与工单）。</p>
+  <h3>20.1 七级角色定义</h3>
+  <table>
+    <tr><th>序号</th><th>角色</th><th>权限范围</th></tr>
+    <tr><td>1</td><td><strong>系统管理员</strong></td><td>最高管理权限：用户与角色管理、权限分配、系统配置、字典、审计、数据管理、全部数据可见</td></tr>
+    <tr><td>2</td><td><strong>系统运维人员</strong></td><td>系统日常运维：监控、备份/恢复、日志、服务启停、性能调优（不参与业务数据修改）</td></tr>
+    <tr><td>3</td><td><strong>工单管理人员</strong></td><td>接单、派单、催单、变更工单时限与服务人员、变更工单价格</td></tr>
+    <tr><td>4</td><td><strong>客服人员</strong></td><td>只读：查看仪表盘、工单进度、查看并联系服务人员；<strong>无权修改工单</strong></td></tr>
+    <tr><td>5</td><td><strong>客户系统管理员</strong></td><td>查看/管理己方各合同下的工单进度；<strong>不可修改履约中的合同内容与合同价格</strong></td></tr>
+    <tr><td>6</td><td><strong>客户服务管理人员</strong></td><td>查看己方工单；追加合同、追加系统、追加工单、安排临时工单、调整工单时限、服务质量评价、投诉/反馈问题</td></tr>
+    <tr><td>7</td><td><strong>安服人员</strong></td><td>查看自己的工单；接收任务与催单提醒；按要求填写表单和工作日志</td></tr>
+  </table>
+  <h3>20.2 权限矩阵（简化）</h3>
+  <table>
+    <tr><th>操作</th><th>系统管理员</th><th>系统运维</th><th>工单管理</th><th>客服</th><th>客户管理员</th><th>客户服务管理</th><th>安服人员</th></tr>
+    <tr><td>分配权限</td><td>✅</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+    <tr><td>接单/派单/变更价格/时限</td><td>✅</td><td>—</td><td>✅</td><td>—</td><td>—</td><td>（追加/调整时限）部分</td><td>—</td></tr>
+    <tr><td>查看仪表盘/进度</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td><td>✅（本客户）</td><td>✅（本客户）</td><td>✅（本人）</td></tr>
+    <tr><td>修改工单内容</td><td>✅</td><td>—</td><td>✅</td><td>❌</td><td>❌</td><td>部分</td><td>❌</td></tr>
+    <tr><td>执行工单 / 填单 / 日志</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>✅</td></tr>
+    <tr><td>评价 / 投诉 / 反馈</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>✅</td><td>—</td></tr>
+  </table>
+  <h3>20.3 实现要点</h3>
+  <ul>
+    <li><strong>RBAC 模型</strong>：用户 → 角色 → 权限；支持一个用户多角色</li>
+    <li><strong>数据权限（行级）</strong>：客户侧角色通过 <code>customer_id</code> 行级过滤，只能访问本客户数据</li>
+    <li><strong>字段级权限</strong>：合同价格、联系方式等敏感字段按角色控制可读/可写/脱敏</li>
+    <li><strong>价格限定</strong>：客户侧角色不可修改「履约中」合同的合同价格</li>
+    <li>权限变更全审计留痕</li>
+  </ul>
+</div>
+
+
+<div class="diagram">
+<p class="diagram-title">图2 · 七级权限矩阵图</p>
+<p class="diagram-sub">7 角色 × 6 操作 · RBAC 权限模型</p>
+<svg viewBox="0 0 960 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="七级权限矩阵图">
+    <!-- 表头 -->
+    <rect class="node neutral" x="30" y="40" width="180" height="48" rx="0"/>
+    <text class="lbl" x="42" y="62" font-weight="700">角色 \ 操作</text>
+    <text class="sml" x="42" y="78">（行级数据隔离）</text>
+
+    <rect class="node neutral" x="210" y="40" width="118" height="48" rx="0"/>
+    <text class="lbl" x="222" y="58">分配权限</text>
+    <text class="sml" x="222" y="74">用户/角色</text>
+
+    <rect class="node neutral" x="328" y="40" width="118" height="48" rx="0"/>
+    <text class="lbl" x="340" y="58">接单/派单</text>
+    <text class="sml" x="340" y="74">改价格/时限</text>
+
+    <rect class="node neutral" x="446" y="40" width="118" height="48" rx="0"/>
+    <text class="lbl" x="458" y="58">查看进度</text>
+    <text class="sml" x="458" y="74">仪表盘/工单</text>
+
+    <rect class="node neutral" x="564" y="40" width="118" height="48" rx="0"/>
+    <text class="lbl" x="576" y="58">修改工单</text>
+    <text class="sml" x="576" y="74">内容/追加</text>
+
+    <rect class="node neutral" x="682" y="40" width="118" height="48" rx="0"/>
+    <text class="lbl" x="694" y="58">执行/填单</text>
+    <text class="sml" x="694" y="74">表单/日志</text>
+
+    <rect class="node neutral" x="800" y="40" width="130" height="48" rx="0"/>
+    <text class="lbl" x="812" y="58">评价/投诉</text>
+    <text class="sml" x="812" y="74">质量反馈</text>
+
+    <!-- 角色行 -->
+    <!-- 1 系统管理员 -->
+    <rect class="node neutral" x="30" y="88" width="180" height="64" rx="0"/>
+    <text class="lbl" x="42" y="110">1 系统管理员</text>
+    <text class="sml" x="42" y="126">最高权限</text>
+    <text class="sml" x="42" y="140">平台侧</text>
+
+    <!-- 2 系统运维 -->
+    <rect class="node neutral" x="30" y="152" width="180" height="64" rx="0"/>
+    <text class="lbl" x="42" y="174">2 系统运维人员</text>
+    <text class="sml" x="42" y="190">日常运维</text>
+    <text class="sml" x="42" y="204">平台侧</text>
+
+    <!-- 3 工单管理 -->
+    <rect class="node neutral" x="30" y="216" width="180" height="64" rx="0"/>
+    <text class="lbl" x="42" y="238">3 工单管理人员</text>
+    <text class="sml" x="42" y="254">接单/派单/催单</text>
+    <text class="sml" x="42" y="268">平台侧</text>
+
+    <!-- 4 客服 -->
+    <rect class="node neutral" x="30" y="280" width="180" height="64" rx="0"/>
+    <text class="lbl" x="42" y="302">4 客服人员</text>
+    <text class="sml" x="42" y="318">只读</text>
+    <text class="sml" x="42" y="332">平台侧</text>
+
+    <!-- 5 客户管理员 -->
+    <rect class="node input" x="30" y="344" width="180" height="64" rx="0"/>
+    <text class="lbl" x="42" y="366">5 客户系统管理员</text>
+    <text class="sml" x="42" y="382">看/管己方工单</text>
+    <text class="sml" x="42" y="396">客户侧</text>
+
+    <!-- 6 客户服务管理 -->
+    <rect class="node input" x="30" y="408" width="180" height="64" rx="0"/>
+    <text class="lbl" x="42" y="430">6 客户服务管理人员</text>
+    <text class="sml" x="42" y="446">追加/临时/评价</text>
+    <text class="sml" x="42" y="460">客户侧</text>
+
+    <!-- 7 安服人员 -->
+    <rect class="node process" x="30" y="472" width="180" height="64" rx="0"/>
+    <text class="lbl" x="42" y="494">7 安服人员</text>
+    <text class="sml" x="42" y="510">自己的工单</text>
+    <text class="sml" x="42" y="524">平台侧</text>
+
+    <!-- 单元格 -->
+    <!-- row1 系统管理员: 全✅ -->
+    <text class="check" x="269" y="124">✅</text><text class="check" x="387" y="124">✅</text><text class="check" x="505" y="124">✅</text><text class="check" x="623" y="124">✅</text><text class="dash" x="741" y="124">—</text><text class="dash" x="865" y="124">—</text>
+    <!-- row2 系统运维: 全部— 除查看进度✅ -->
+    <text class="dash" x="269" y="188">—</text><text class="dash" x="387" y="188">—</text><text class="check" x="505" y="188">✅</text><text class="dash" x="623" y="188">—</text><text class="dash" x="741" y="188">—</text><text class="dash" x="865" y="188">—</text>
+    <!-- row3 工单管理 -->
+    <text class="dash" x="269" y="252">—</text><text class="check" x="387" y="252">✅</text><text class="check" x="505" y="252">✅</text><text class="check" x="623" y="252">✅</text><text class="dash" x="741" y="252">—</text><text class="dash" x="865" y="252">—</text>
+    <!-- row4 客服 -->
+    <text class="dash" x="269" y="316">—</text><text class="dash" x="387" y="316">—</text><text class="check" x="505" y="316">✅</text><text class="check" x="623" y="316" fill="#dc2626">✗</text><text class="dash" x="741" y="316">—</text><text class="dash" x="865" y="316">—</text>
+    <!-- row5 客户管理员 -->
+    <text class="dash" x="269" y="380">—</text><text class="dash" x="387" y="380">—</text><text class="check" x="505" y="380">✅</text><text class="check" x="623" y="380" fill="#dc2626">✗</text><text class="dash" x="741" y="380">—</text><text class="dash" x="865" y="380">—</text>
+    <!-- row6 客户服务管理 -->
+    <text class="dash" x="269" y="444">—</text><text class="check" x="387" y="444">部分</text><text class="check" x="505" y="444">✅</text><text class="check" x="623" y="444">部分</text><text class="dash" x="741" y="444">—</text><text class="check" x="865" y="444">✅</text>
+    <!-- row7 安服人员 -->
+    <text class="dash" x="269" y="508">—</text><text class="dash" x="387" y="508">—</text><text class="check" x="505" y="508">✅(本人)</text><text class="dash" x="623" y="508">—</text><text class="check" x="741" y="508">✅</text><text class="dash" x="865" y="508">—</text>
+
+    <!-- 图例 -->
+    <rect class="node neutral" x="30" y="556" width="24" height="20" rx="4"/>
+    <text class="sml" x="62" y="571">✅ = 有权限</text>
+    <rect class="node risk" x="200" y="556" width="24" height="20" rx="4"/>
+    <text class="sml" x="232" y="571">✗ = 明确禁止</text>
+    <rect class="node process" x="340" y="556" width="24" height="20" rx="4"/>
+    <text class="sml" x="372" y="571">部分 = 受限</text>
+    <text class="sml" x="470" y="571">行级隔离：客户侧角色仅见本客户（customer_id）数据 · 字段级：合同价格/联系方式脱敏</text>
+  </svg>
+</div>
+
+<!-- 21 部署架构 -->
+<div class="section" id="s21">
+  <h2><span class="num">21</span>部署架构（阿里云）<span class="badge teal">新增</span></h2>
+  <p>系统整体部署在<strong>阿里云</strong>，采用经典的三层架构 + 云原生服务。结合安服业务对数据安全的高要求，核心数据全部落在国内 Region。</p>
+  <h3>21.1 架构分层</h3>
+  <table>
+    <tr><th>层</th><th>阿里云服务</th><th>说明</th></tr>
+    <tr><td>接入层</td><td>SLB + WAF + CDN</td><td>负载均衡、Web 应用防火墙、静态加速</td></tr>
+    <tr><td>应用层</td><td>ECS（云服务器）</td><td>后端应用部署（可配合容器服务 ACK）</td></tr>
+    <tr><td>数据层</td><td>RDS PostgreSQL（高可用）</td><td>主备实例，自动备份 + 跨可用区</td></tr>
+    <tr><td>缓存</td><td>Redis（云数据库 Redis 版）</td><td>会话、缓存、队列</td></tr>
+    <tr><td>检索</td><td>Elasticsearch</td><td>全文检索（知识库）</td></tr>
+    <tr><td>对象存储</td><td>OSS + CDN</td><td>报告、附件、图片（SSE 加密）</td></tr>
+    <tr><td>安全</td><td>安全组 + 云防火墙 + 等保</td><td>网络隔离、入侵防护、合规</td></tr>
+  </table>
+  <h3>21.2 网络与高可用</h3>
+  <ul>
+    <li><strong>VPC 专有网络</strong>：应用与数据库置于同一 VPC，数据库不暴露公网</li>
+    <li>安全组最小开放：仅 80/443 对外，数据库端口仅内网可达</li>
+    <li><strong>高可用</strong>：RDS PG 主备 + ECS 多可用区 + SLB 健康检查</li>
+    <li><strong>证书</strong>：SSL/TLS 证书（阿里云证书服务）全链路 HTTPS</li>
+  </ul>
+</div>
+
+
+<div class="diagram">
+<p class="diagram-title">图1 · 部署架构图（阿里云）</p>
+<p class="diagram-sub">三层架构 + 云原生服务 + 数据安全</p>
+<svg viewBox="0 0 960 640" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="阿里云部署架构图">
+    <!-- 接入层 -->
+    <rect class="zone" x="30" y="40" width="900" height="110" rx="10"/>
+    <text class="zhead" x="48" y="66">接入层（公网）</text>
+
+    <rect class="node external" x="60" y="84" width="140" height="48" rx="8"/>
+    <text class="lbl" x="72" y="104">互联网用户 / 客户</text>
+    <text class="sml" x="72" y="120">浏览器 · 小程序 · App</text>
+
+    <rect class="node input" x="300" y="84" width="120" height="48" rx="8"/>
+    <text class="lbl" x="312" y="104">WAF</text>
+    <text class="sml" x="312" y="120">Web 应用防火墙</text>
+
+    <rect class="node input" x="480" y="84" width="120" height="48" rx="8"/>
+    <text class="lbl" x="492" y="104">SLB</text>
+    <text class="sml" x="492" y="120">负载均衡</text>
+
+    <rect class="node input" x="660" y="84" width="120" height="48" rx="8"/>
+    <text class="lbl" x="672" y="104">CDN</text>
+    <text class="sml" x="672" y="120">静态加速</text>
+
+    <!-- 边：用户 -> WAF -> SLB -->
+    <path class="edge" d="M200 108 L296 108" marker-end="url(#a)"/>
+    <path class="edge" d="M420 108 L476 108" marker-end="url(#a)"/>
+    <path class="edge" d="M600 108 L656 108" marker-end="url(#a)"/>
+
+    <!-- 应用层 -->
+    <rect class="zone" x="30" y="180" width="900" height="150" rx="10"/>
+    <text class="zhead" x="48" y="206">应用层（VPC 内的 ECS / 容器）</text>
+
+    <rect class="node process" x="60" y="224" width="180" height="80" rx="8"/>
+    <text class="lbl" x="72" y="246">后端应用</text>
+    <text class="sml" x="72" y="262">Spring Boot / Go / FastAPI</text>
+    <text class="sml" x="72" y="278">REST API · 认证 · 业务逻辑</text>
+
+    <rect class="node process" x="280" y="224" width="180" height="80" rx="8"/>
+    <text class="lbl" x="292" y="246">工作流引擎</text>
+    <text class="sml" x="292" y="262">Flowable / Temporal</text>
+    <text class="sml" x="292" y="278">审批 · 流转 · 自动化</text>
+
+    <rect class="node process" x="500" y="224" width="180" height="80" rx="8"/>
+    <text class="lbl" x="512" y="246">AI 服务</text>
+    <text class="sml" x="512" y="262">本地 LLM + RAG</text>
+    <text class="sml" x="512" y="278">分类 · 摘要 · 问答</text>
+
+    <rect class="node process" x="720" y="224" width="180" height="80" rx="8"/>
+    <text class="lbl" x="732" y="246">定时调度</text>
+    <text class="sml" x="732" y="262">Quartz / APScheduler</text>
+    <text class="sml" x="732" y="278">定期工单 · 提醒扫描</text>
+
+    <!-- SLB -> 应用 -->
+    <path class="edge" d="M540 170 L300 220" marker-end="url(#a)"/>
+    <path class="edge" d="M540 170 L760 220" marker-end="url(#a)"/>
+
+    <!-- 数据层 -->
+    <rect class="zone" x="30" y="360" width="900" height="150" rx="10"/>
+    <text class="zhead" x="48" y="386">数据层（VPC 内网 · 不暴露公网）</text>
+
+    <rect class="node storage" x="60" y="404" width="200" height="80" rx="8"/>
+    <text class="lbl" x="72" y="426">RDS PostgreSQL</text>
+    <text class="sml" x="72" y="442">主备高可用 · 自动备份</text>
+    <text class="sml" x="72" y="458">脱敏 · TDE 加密</text>
+    <text class="sml" x="72" y="474">SSL 强制连接</text>
+
+    <rect class="node storage" x="300" y="404" width="160" height="80" rx="8"/>
+    <text class="lbl" x="312" y="426">Redis</text>
+    <text class="sml" x="312" y="442">会话 · 缓存</text>
+    <text class="sml" x="312" y="458">消息队列</text>
+
+    <rect class="node storage" x="500" y="404" width="160" height="80" rx="8"/>
+    <text class="lbl" x="512" y="426">Elasticsearch</text>
+    <text class="sml" x="512" y="442">全文检索</text>
+    <text class="sml" x="512" y="458">知识库</text>
+
+    <rect class="node storage" x="700" y="404" width="200" height="80" rx="8"/>
+    <text class="lbl" x="712" y="426">OSS 对象存储</text>
+    <text class="sml" x="712" y="442">报告 · 附件 · 图片</text>
+    <text class="sml" x="712" y="458">SSE 服务端加密</text>
+
+    <!-- 应用 -> 数据 -->
+    <path class="edge" d="M150 304 L160 400" marker-end="url(#a)"/>
+    <path class="edge" d="M370 304 L380 400" marker-end="url(#a)"/>
+    <path class="edge" d="M590 304 L580 400" marker-end="url(#a)"/>
+    <path class="edge" d="M810 304 L800 400" marker-end="url(#a)"/>
+
+    <!-- 安全侧 -->
+    <rect class="zone" x="640" y="180" width="290" height="330" rx="10"/>
+    <text class="zhead" x="658" y="206">安全与合规</text>
+    <rect class="node risk" x="658" y="222" width="250" height="40" rx="8"/>
+    <text class="lbl" x="670" y="238">KMS 密钥管理</text>
+    <text class="sml" x="670" y="254">加密密钥 · 信封加密</text>
+    <rect class="node risk" x="658" y="274" width="250" height="40" rx="8"/>
+    <text class="lbl" x="670" y="290">云防火墙 + 安全组</text>
+    <text class="sml" x="670" y="306">网络隔离 · 最小开放</text>
+    <rect class="node risk" x="658" y="326" width="250" height="40" rx="8"/>
+    <text class="lbl" x="670" y="342">审计 + 等保</text>
+    <text class="sml" x="670" y="358">操作留痕 · 合规</text>
+    <rect class="node risk" x="658" y="378" width="250" height="40" rx="8"/>
+    <text class="lbl" x="670" y="394">数据脱敏 / 水印</text>
+    <text class="sml" x="670" y="410">字段遮蔽 · 防拍照</text>
+
+    <!-- 消息提醒 -->
+    <rect class="node neutral" x="60" y="540" width="840" height="60" rx="8"/>
+    <text class="lbl" x="72" y="562">消息提醒（站内 / 移动推送 / 企微·飞书·钉钉·短信）</text>
+    <text class="sml" x="72" y="580">SLA 预警 · 超时升级链 · 服务启动提醒</text>
+    <path class="edge" d="M240 540 L400 540" marker-end="url(#a)"/>
+
+    <defs>
+      <marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+        <path d="M0,0 L8,3 L0,6 Z" fill="#64748b"/>
+      </marker>
+    </defs>
+  </svg>
+</div>
+
+<!-- 22 数据安全 -->
+<div class="section" id="s22">
+  <h2><span class="num">22</span>数据安全（脱敏 + 加密）<span class="badge teal">新增</span></h2>
+  <p>依托 PostgreSQL 原生能力 + 应用层双重保障，实现数据脱敏与加密传输。</p>
+  <h3>22.1 加密传输</h3>
+  <ul>
+    <li><strong>传输加密</strong>：全链路 TLS 1.2+（客户端 ↔ SLB ↔ 应用 ↔ RDS PG）</li>
+    <li><strong>PG 连接加密</strong>：RDS PG 启用 SSL 强制连接（<code>ssl=require</code>）</li>
+    <li>密钥托管：阿里云 KMS 统一管理加密密钥</li>
+  </ul>
+  <h3>22.2 数据脱敏方案</h3>
+  <table>
+    <tr><th>类型</th><th>字段示例</th><th>脱敏方式</th></tr>
+    <tr><td>联系方式</td><td>甲方电话、联系人手机</td><td>遮蔽中间位：138****1234</td></tr>
+    <tr><td>IP 地址</td><td>资产 IP</td><td>部分遮蔽：10.1.*.*</td></tr>
+    <tr><td>凭证/密码</td><td>系统口令</td><td>不可逆哈希存储，永不展示</td></tr>
+    <tr><td>金额</td><td>合同/派单价</td><td>低权限角色遮蔽或“0.0”占位</td></tr>
+  </table>
+  <h3>22.3 脱敏实现层级</h3>
+  <ul>
+    <li><strong>数据库层</strong>：<code>postgresql_anonymizer</code>（动态脱敏 DDM / 静态脱敏）或视图 + 掩码函数</li>
+    <li><strong>应用层</strong>：角色/字段级脱敏，按 RBAC 控制（如客服、外包人员看到脱敏后的联系方式）</li>
+    <li><strong>导出控制</strong>：导出报表、下载附件自动脱敏；屏幕/打印水印防拍照</li>
+  </ul>
+  <h3>22.4 静态加密</h3>
+  <ul>
+    <li>敏感列加密：<code>pgcrypto</code> 或 KMS 信封加密（合同金额、联系方式可加密存储）</li>
+    <li>存储加密：RDS PG 透明数据加密（TDE）+ OSS SSE 服务端加密</li>
+    <li>备份加密：RDS 自动备份加密</li>
+  </ul>
+</div>
+
+<!-- 23 实施 -->
+<div class="section" id="s23">
+  <h2><span class="num">23</span>实施路线</h2>
+  <table>
+    <tr><th>阶段</th><th>内容</th><th>周期（估）</th></tr>
+    <tr><td>一期</td><td>客户/合同/合同子项/服务对象 + 接单 + 派单 + 工单跟踪 + 服务频率定期工单 + 提醒/SLA + <strong>PostgreSQL 建模</strong></td><td>12-15 周</td></tr>
+    <tr><td>二期</td><td>问题发现 + 多轮整改 + 效果 + 相似推荐 + 换岗比例分摊</td><td>4-6 周</td></tr>
+    <tr><td>三期</td><td>驻场服务 + 内部任务 + 交付（四类报告）+ 报告中心 + 客户评价 + 知识库/自助</td><td>5-7 周</td></tr>
+    <tr><td>四期</td><td>外包管理 + 绩效考核加权 + 移动端 + AI 增强 + 工作流编排 + <strong>七级 RBAC + 脱敏加密 + 水印</strong> + 数据看板</td><td>6-8 周</td></tr>
+  </table>
+  <div class="highlight"><strong>MVP 建议：</strong>一期先跑通「客户→合同→子项→接单→派单→工单→定期工单→提醒」主干，验证多合同多子项的排期与履约闭环；七级权限、脱敏加密、阿里云高可用可作为贯穿全周期的安全与应用基线。</div>
+</div>
+
+<p style="text-align:center;color:#9aa5b1;margin-top:40px;font-size:13px;">—— 安全运维集中管控平台 · 系统开发设计方案 V7.0（完整交付 · 含界面设计）· 完 ——</p>
+</div>
+
+<!-- 24 界面设计 -->
+<div class="section" id="s24">
+  <h2><span class="num">24</span>界面设计（UI 原型）</h2>
+  <p>系统含 <strong>11 套界面</strong>（6 套 PC 全屏 + 5 套手机 APP），采用双品牌命名：内部平台「信息服务AI管控平台V1.0」、客户侧「运维服务AI管控平台」，与七级 RBAC 角色一一对应。</p>
+  <h3>24.1 十一套界面对照</h3>
+  <table>
+    <tr><th>界面</th><th>标题</th><th>角色</th><th>顶部菜单</th><th>左侧列表</th><th>横向标签</th></tr>
+    <tr><td>① 系统管理</td><td rowspan="4">信息服务AI管控平台V1.0</td><td>系统管理员</td><td>系统/接单/派单/修改工单/催单/进度/结单/帮助</td><td>汇总、X单位…</td><td>仪表盘/工单/安全问题/整改/报告/验收/结款/评价</td></tr>
+    <tr><td>② 系统运维</td><td>系统运维人员</td><td>系统(权限仅服务人员)/帮助</td><td>汇总、X单位…</td><td>同上 8 项</td></tr>
+    <tr><td>③ 工单管理</td><td>工单管理人员</td><td>系统/接单/派单/修改工单/催单/进度/结单/帮助</td><td>汇总、X单位…</td><td>同上 8 项</td></tr>
+    <tr><td>④ 服务人员</td><td>安服人员</td><td>系统/帮助</td><td>工单汇总/今日工作/催单/问题反馈</td><td>含"工作排期"9 项</td></tr>
+    <tr><td>⑤ 客户系统管理</td><td rowspan="2">运维服务AI管控平台</td><td>客户系统管理员</td><td>系统/帮助</td><td>汇总、X系统…</td><td>仪表盘/运维工作/安全问题/整改/报告/验收</td></tr>
+    <tr><td>⑥ 客户服务管理</td><td>客户服务管理人员</td><td>系统/派单/修改工单/催单/进度/结单/帮助</td><td>汇总、X系统…</td><td>同上 + 评价与投诉</td></tr>
+    <tr><td>⑦ 服务人员APP</td><td>信息服务AI管控平台V1.0</td><td>安服人员(移动)</td><td>系统/帮助</td><td>底部：工单汇总/今日工作/催单/反馈</td><td>仪表盘/工单/排期/安全/整改/填写报告</td></tr>
+    <tr><td>⑧ 系统管理员APP</td><td>信息服务AI管控平台V1.0</td><td>系统管理员(移动)</td><td>系统/帮助</td><td>底部：权限管理/接单/派单/修改工单/催单/进度/结单</td><td>工单汇总/安全问题/整改/报告/验收/结款/评价</td></tr>
+    <tr><td>⑨ 工单管理员APP</td><td>信息服务AI管控平台V1.0</td><td>工单管理员(移动)</td><td>系统/帮助</td><td>底部：权限(仅服务人员)/接单/派单/修改/催单/进度/结单</td><td>工单汇总/安全问题/整改/报告/验收/结款/评价</td></tr>
+    <tr><td>⑩ 客户系统管理APP</td><td>运维服务AI管控平台</td><td>客户系统管理员(移动)</td><td>系统/帮助</td><td>底部：仪表盘/运维工作/安全问题/整改/报告/验收/评价</td><td>同左（底部菜单即导航）</td></tr>
+    <tr><td>⑪ 客户服务管理APP</td><td>运维服务AI管控平台</td><td>客户服务管理员(移动)</td><td>系统/帮助</td><td>底部：派单/修改工单/催单/进度/结单/评价</td><td>仪表盘/运维工作/安全问题/整改/报告/验收/评价</td></tr>
+  </table>
+  <h3>24.2 服务人员 APP 特性</h3>
+  <ul><li>人脸识别登录与身份核验</li><li>GPS 定位（外勤签到与位置追踪）</li><li>拍照打卡（现场工作留证）</li></ul>
+  <h3>24.3 交互原型（点击按钮切换 11 套界面）</h3>
+  <div class="ui-switchbar" id="uiSwitchbar"></div>
+  <div class="ui-view" id="uiView"></div>
+</div>
+
+<script>
+
+const P_INT = '信息服务AI管控平台V1.0';
+const P_CLI = '运维服务AI管控平台';
+
+const VIEWS = {
+  admin:{
+    product:P_INT, role:'系统管理',
+    menu:['系统','接单','派单','修改工单','催单','进度','结单','帮助'],
+    sidebar:{title:'单位列表',groups:[
+      {name:'汇总',items:[]},
+      {name:'XX单位',items:['OA系统','XX系统','YY系统']},
+      {name:'YY单位',items:['OA系统','XX系统']},
+      {name:'ZZ单位',items:['OA系统','XX系统','YY系统']},
+    ]},
+    tabs:['仪表盘','工单','安全问题','整改情况','运维报告','验收','结款','评价与投诉'],
+    kpis:[['工单总数',208],['进行中',46],['即将超时',12,'red'],['待验收',8],['待结款',15],['本月安全事件',3]],
+    note:'最高权限 · 权限管理 · 全平台数据可见',
+    extra:''
+  },
+  ops:{
+    product:P_INT, role:'系统运维',
+    menu:['系统','帮助'],
+    sidebar:{title:'单位列表',groups:[
+      {name:'汇总',items:[]},
+      {name:'XX单位',items:['OA系统','XX系统','YY系统']},
+      {name:'YY单位',items:['OA系统','XX系统']},
+    ]},
+    tabs:['仪表盘','工单','安全问题','整改情况','运维报告','验收','结款','评价与投诉'],
+    kpis:[['系统在线','99.98%'],['今日告警',3,'red'],['备份状态','正常'],['服务可用性','99.9%'],['存储用量','62%']],
+    note:'日常运维 · 监控/备份/日志 · 权限管理仅限服务人员权限调整',
+    extra: opsTable
+  },
+  ticket:{
+    product:P_INT, role:'工单管理',
+    menu:['系统','接单','派单','修改工单','催单','进度','结单','帮助'],
+    sidebar:{title:'单位列表',groups:[
+      {name:'汇总',items:[]},
+      {name:'XX单位',items:['OA系统','XX系统','YY系统']},
+      {name:'YY单位',items:['OA系统','XX系统']},
+    ]},
+    tabs:['仪表盘','工单','安全问题','整改情况','运维报告','验收','结款','评价与投诉'],
+    kpis:[['待派单',5],['已派单',42],['催单中',9,'amber'],['待结单',13],['今日变更',7]],
+    note:'接单·派单·催单 · 变更工单时限与服务人员 · 变更工单价格',
+    extra: ticketTable
+  },
+  service:{
+    product:P_INT, role:'服务人员',
+    menu:['系统','帮助'],
+    sidebar:{title:'我的工作',groups:[
+      {name:'工单汇总',items:[]},
+      {name:'今日工作',items:['设备巡检','日志分析','漏洞扫描']},
+      {name:'催单信息',items:[]},
+      {name:'问题反馈',items:[]},
+    ]},
+    tabs:['仪表盘','工单','工作排期','安全问题','整改情况','报告','验收','结款','评价与投诉'],
+    kpis:[['我的工单',18],['今日待办',4],['即将超时',2,'red'],['待整改',3],['我的绩效',96.5]],
+    note:'仅查看本人工单 · 接收任务与催单提醒 · 填写表单与工作日志',
+    extra:''
+  },
+  custadmin:{
+    product:P_CLI, role:'客户系统管理',
+    menu:['系统','帮助'],
+    sidebar:{title:'系统列表',groups:[
+      {name:'汇总',items:[]},
+      {name:'XX系统',items:['漏洞扫描','渗透测试','安全培训','设备巡检']},
+      {name:'YY系统',items:['漏洞扫描','安全评估','等保测评']},
+    ]},
+    tabs:['仪表盘','运维工作','安全问题','整改情况','运维报告','验收'],
+    kpis:[['运行系统',4],['进行中工单',12],['待验收',2],['安全问题',6],['完成率','94%']],
+    note:'查看/管理本客户各合同工单进度 · 不可修改履约中合同内容与合同价格',
+    extra: customerNote
+  },
+  custservice:{
+    product:P_CLI, role:'客户服务管理',
+    menu:['系统','派单','修改工单','催单','进度','结单','帮助'],
+    sidebar:{title:'系统列表',groups:[
+      {name:'汇总',items:[]},
+      {name:'XX系统',items:['漏洞扫描','渗透测试','安全培训']},
+      {name:'YY系统',items:['漏洞扫描','等保测评']},
+    ]},
+    tabs:['仪表盘','运维工作','安全问题','整改情况','运维报告','验收','评价与投诉'],
+    kpis:[['运行系统',4],['进行中工单',12],['待验收',2],['待评价',3],['投诉/反馈',1,'amber']],
+    note:'查看本客户工单 · 追加合同/系统/工单 · 安排临时工单 · 调整时限 · 评价/投诉/反馈',
+    extra: customerNote
+  },
+};
+
+function opsTable(){
+  return `<div class="card"><h3>系统运行监控</h3><table>
+  <tr><th>服务</th><th>状态</th><th>备注</th></tr>
+  <tr><td>RDS PostgreSQL</td><td><span class="badge b-green">正常</span></td><td>主备同步 · 脱敏加密</td></tr>
+  <tr><td>Redis</td><td><span class="badge b-green">正常</span></td><td>—</td></tr>
+  <tr><td>Elasticsearch</td><td><span class="badge b-amber">降级</span></td><td>磁盘 78%</td></tr>
+  <tr><td>对象存储 OSS</td><td><span class="badge b-green">正常</span></td><td>SSE 加密</td></tr></table></div>`;
+}
+function ticketTable(){
+  return `<div class="card"><h3>工单列表（示例）</h3><table>
+  <tr><th>工单号</th><th>客户/系统</th><th>服务项目</th><th>状态</th><th>截止</th><th>服务人员</th></tr>
+  <tr><td>WO-2026-0101</td><td>XX单位/OA系统</td><td>漏洞扫描</td><td><span class="badge b-blue">进行中</span></td><td>2026-09-12</td><td>张三</td></tr>
+  <tr><td>WO-2026-0102</td><td>YY单位/XX系统</td><td>渗透测试</td><td><span class="badge b-amber">催单</span></td><td>2026-09-10</td><td>李四</td></tr>
+  <tr><td>WO-2026-0103</td><td>XX单位/YY系统</td><td>等保测评</td><td><span class="badge b-green">待验收</span></td><td>2026-09-15</td><td>王五</td></tr>
+  <tr><td>WO-2026-0104</td><td>ZZ单位/OA系统</td><td>安全培训</td><td><span class="badge b-red">已逾期</span></td><td>2026-09-08</td><td>赵六</td></tr></table></div>`;
+}
+function customerNote(){
+  return `<div class="card"><h3>客户侧权限说明</h3><ul style="padding-left:20px;font-size:13px;color:#5b6470">
+  <li>仅可见本客户数据（行级隔离 customer_id）</li>
+  <li>客户系统管理员：不可修改履约中合同内容与合同价格</li>
+  <li>客户服务管理人员：可追加合同/系统/工单、安排临时工单、调整时限、评价/投诉</li></ul></div>`;
+}
+
+function render(v){
+  if(v && v.startsWith('app')){ document.getElementById('uiView').innerHTML = renderApp(v); syncBtn(v); return; }
+  const c = VIEWS[v];
+  const topbar = `<div class="topbar">
+    <div class="logo">AI</div>
+    <div class="tbox"><div class="title">${c.product}</div><div class="copyright">© 2026 信息服务科技有限公司 · 版权所有</div></div>
+    <div class="spacer"></div>
+    <div class="topmenu">${c.menu.map(m=>`<div class="mi">${m}</div>`).join('')}</div>
+  </div>`;
+  const sidebar = `<div class="sidebar"><div class="side-title">${c.sidebar.title}</div>
+    ${c.sidebar.groups.map((g,gi)=>`<div class="grp"><div class="item ${gi===0?'on':''}"><span class="ic">▤</span>${g.name}</div>
+      ${g.items.map(it=>`<div class="item sub"><span class="ic"></span>${it}</div>`).join('')}</div>`).join('')}
+  </div>`;
+  const tabs = `<div class="tabs">${c.tabs.map((t,i)=>`<div class="tab ${i===0?'on':''}">${t}</div>`).join('')}</div>`;
+  const kpi = `<div class="kpi">${c.kpis.map(k=>`<div class="bx"><div class="n ${k[2]||''}">${k[1]}</div><div class="t">${k[0]}</div></div>`).join('')}</div>`;
+  const content = `<div class="content">
+    <div class="note">🔒 ${c.note}</div>
+    ${kpi}
+    <div class="card"><h3>${c.role} · 内容区（当前标签：${c.tabs[0]}）</h3>
+      <p style="color:var(--muted);font-size:13px">点击上方标签可切换到「${c.tabs.slice(1).join(' / ')}」等模块。左侧可展开各单位/各系统。</p></div>
+    ${c.extra||''}
+  </div>`;
+  document.getElementById('uiView').innerHTML = topbar + `<div class="layout">${sidebar}<div class="main">${tabs}${content}</div></div>`;
+  syncBtn(v);
+}
+function syncBtn(v){ document.querySelectorAll('#uiSwitchbar .btn').forEach(b=>b.classList.toggle('on', b.dataset.v===v)); }
+
+const APPS = {
+  app:{ product:'信息服务AI管控平台V1.0', role:'服务人员APP',
+    btns:['工单汇总','今日工作','催单信息','问题反馈'],
+    modules:['仪表盘','工单','工作排期','安全问题','整改情况','填写报告'],
+    note:'📱 人脸识别 · GPS定位 · 拍照打卡',
+    kpis:[['18','我的工单'],['4','今日待办'],['2','催单'],['96.5','绩效']] },
+  app_admin:{ product:'信息服务AI管控平台V1.0', role:'系统管理员APP',
+    btns:['权限管理','接单','派单','修改工单','催单','进度','结单'],
+    modules:['工单汇总','安全问题','整改情况','运维报告','验收','结款','评价与投诉'],
+    note:'📱 系统管理员移动端 · 最高权限',
+    kpis:[['208','工单总数'],['46','进行中'],['12','即将超时'],['8','待验收']] },
+  app_ticket:{ product:'信息服务AI管控平台V1.0', role:'工单管理员APP',
+    btns:['权限管理','接单','派单','修改工单','催单','进度','结单'],
+    modules:['工单汇总','安全问题','整改情况','运维报告','验收','结款','评价与投诉'],
+    note:'📱 工单管理员移动端 · 权限管理仅限服务人员',
+    kpis:[['5','待派单'],['42','已派单'],['9','催单中'],['13','待结单']] },
+  app_custadmin:{ product:'运维服务AI管控平台', role:'客户系统管理APP',
+    btns:['仪表盘','运维工作','安全问题','整改情况','运维报告','验收','评价与投诉'],
+    modules:[],
+    note:'📱 客户系统管理移动端 · 查看本客户工单进度',
+    kpis:[['4','运行系统'],['12','进行中'],['2','待验收'],['94%','完成率']] },
+  app_custservice:{ product:'运维服务AI管控平台', role:'客户服务管理APP',
+    btns:['派单','修改工单','催单','进度','结单','评价与投诉'],
+    modules:['仪表盘','运维工作','安全问题','整改情况','运维报告','验收','评价与投诉'],
+    note:'📱 客户服务管理移动端 · 追加/临时/评价',
+    kpis:[['4','运行系统'],['12','进行中'],['3','待评价'],['1','投诉']] },
+};
+
+function renderApp(v){
+  const a = APPS[v] || APPS.app;
+  const ics=['▤','☰','📋','✏️','🔔','⏱','✅','📊','🛠','⚠️','🔧','📄','🧾','💬'];
+  const kpiHtml = a.kpis.map((k,idx)=>`<div class="bx"><div class="n ${([2,3].includes(idx)&&/超|催|投诉|待/.test(k[1]))?'red':''}" style="font-size:20px">${k[0]}</div><div class="t">${k[1]}</div></div>`).join('');
+  const moduleHtml = a.modules.length ? `<div style="margin-top:12px;background:#fff;border:1px solid #e3e8ef;border-radius:10px;padding:12px">
+        <div style="font-size:13px;font-weight:700;color:#0a4fc0;margin-bottom:8px">模块</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">${a.modules.map(m=>`<span class="badge b-blue">${m}</span>`).join('')}</div>
+      </div>` : '';
+  return `<div class="phone">
+    <div class="ptop"><div class="plogo">AI</div><div><div class="pt">${a.product}</div><div class="pc">© 2026 信息服务科技 · 版权所有</div></div></div>
+    <div class="pbody">
+      <div class="note" style="font-size:11px;margin-bottom:10px">${a.note}</div>
+      <div class="kpi" style="grid-template-columns:1fr 1fr;gap:10px">${kpiHtml}</div>
+      ${moduleHtml}
+    </div>
+    <div class="pmenu">${a.btns.map((t,i)=>`<div class="pm ${i===0?'on':''}"><span class="pi">${ics[i%ics.length]}</span>${t}</div>`).join('')}</div>
+  </div>`;
+}
+
+// 生成切换按钮
+(function(){
+  var bar = document.getElementById('uiSwitchbar');
+  var names = {admin:'① 系统管理',ops:'② 系统运维',ticket:'③ 工单管理',service:'④ 服务人员',custadmin:'⑤ 客户系统管理',custservice:'⑥ 客户服务管理',app:'⑦ 服务人员APP',app_admin:'⑧ 系统管理员APP',app_ticket:'⑨ 工单管理员APP',app_custadmin:'⑩ 客户系统管理APP',app_custservice:'⑪ 客户服务管理APP'};
+  bar.innerHTML = '<span class="lbl" style="font-size:13px;color:#7c8694;font-weight:600;margin-right:4px">界面切换：</span>' + Object.keys(names).map(function(k){return '<button class="btn" data-v="'+k+'">'+names[k]+'</button>';}).join('');
+  bar.querySelectorAll('.btn').forEach(function(b){ b.addEventListener('click', function(){ render(b.dataset.v); syncBtn(b.dataset.v); }); });
+  render('admin');
+})();
+
+</script>
+</body>
+</html>

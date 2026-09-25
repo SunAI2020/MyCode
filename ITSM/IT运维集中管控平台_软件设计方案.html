@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IT运维集中管控平台 · 软件设计方案 V1.0（定稿）</title>
+<style>
+  :root{--primary:#0f6bff;--primary-dark:#0a4fc0;--accent:#ff7a00;--bg:#f5f7fa;--card:#fff;--text:#1f2733;--text-light:#5b6470;--border:#e3e8ef;--green:#16a34a;--red:#dc2626;--amber:#d97706;--orange:#ea580c;--purple:#7c3aed;--teal:#0d9488;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);line-height:1.75;font-size:15px;}
+  .wrap{max-width:1140px;margin:0 auto;padding:0 20px 80px;}
+  .cover{background:linear-gradient(135deg,#0a3d91,#0f6bff 55%,#2b8cff);color:#fff;padding:70px 50px 55px;border-radius:0 0 28px 28px;position:relative;overflow:hidden;}
+  .cover::after{content:"";position:absolute;right:-60px;top:-60px;width:260px;height:260px;background:rgba(255,255,255,.08);border-radius:50%;}
+  .cover .tag{display:inline-block;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);padding:5px 14px;border-radius:20px;font-size:13px;letter-spacing:1px;margin-bottom:22px;}
+  .cover h1{font-size:33px;line-height:1.35;font-weight:700;margin-bottom:14px;}
+  .cover .sub{font-size:16px;opacity:.92;}
+  .cover .meta{margin-top:34px;font-size:13px;opacity:.8;display:flex;gap:24px;flex-wrap:wrap;}
+  .toc{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:26px 30px;margin:28px 0;}
+  .toc h2{font-size:18px;margin-bottom:14px;color:var(--primary-dark);}
+  .toc ol{padding-left:22px;}.toc li{margin:6px 0;color:var(--text-light);}.toc a{color:var(--text);text-decoration:none;}.toc a:hover{color:var(--primary);}
+  .section{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:32px 34px;margin:24px 0;}
+  .section h2{font-size:22px;color:var(--primary-dark);margin-bottom:8px;padding-bottom:12px;border-bottom:2px solid var(--primary);display:flex;align-items:center;gap:10px;}
+  .section h2 .num{background:var(--primary);color:#fff;width:30px;height:30px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;}
+  .section h3{font-size:17px;color:var(--text);margin:22px 0 10px;padding-left:12px;border-left:4px solid var(--accent);}
+  .section h4{font-size:15px;margin:16px 0 8px;color:var(--primary-dark);}
+  .section p{margin:8px 0;}.section ul,.section ol{padding-left:24px;margin:8px 0;}.section li{margin:5px 0;}
+  .highlight{background:#eef4ff;border-left:4px solid var(--primary);padding:14px 18px;border-radius:0 8px 8px 0;margin:14px 0;color:#233b66;}
+  .warn{background:#fff7e6;border-left:4px solid var(--amber);padding:14px 18px;border-radius:0 8px 8px 0;margin:14px 0;}
+  .danger{background:#fee2e2;border-left:4px solid var(--red);padding:14px 18px;border-radius:0 8px 8px 0;margin:14px 0;color:#7f1d1d;}
+  .purple{background:#f5f3ff;border-left:4px solid var(--purple);padding:14px 18px;border-radius:0 8px 8px 0;margin:14px 0;color:#4c1d95;}
+  .teal{background:#f0fdfa;border-left:4px solid var(--teal);padding:14px 18px;border-radius:0 8px 8px 0;margin:14px 0;color:#115e59;}
+  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;}
+  th,td{border:1px solid var(--border);padding:10px 12px;text-align:left;vertical-align:top;}
+  th{background:#f0f5ff;color:var(--primary-dark);font-weight:600;}tr:nth-child(even) td{background:#fafbfd;}
+  pre{background:#1e293b;color:#e2e8f0;padding:18px 20px;border-radius:10px;overflow-x:auto;font-family:"SF Mono",Consolas,Menlo,monospace;font-size:13px;line-height:1.6;margin:14px 0;}
+  code{font-family:"SF Mono",Consolas,Menlo,monospace;background:#eef2f7;color:#c2410c;padding:1px 6px;border-radius:4px;font-size:13px;}
+  .badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600;}
+  .badge.red{background:#fee2e2;color:var(--red);}.badge.green{background:#dcfce7;color:var(--green);}.badge.blue{background:#dbeafe;color:var(--primary-dark);}.badge.amber{background:#fef3c7;color:#b45309;}.badge.orange{background:#ffedd5;color:var(--orange);}.badge.purple{background:#ede9fe;color:var(--purple);}.badge.teal{background:#ccfbf1;color:var(--teal);}
+  .flow{background:#f8fafc;border:1px dashed var(--border);border-radius:10px;padding:16px;text-align:center;margin:14px 0;}
+  .flow span{display:inline-block;background:#fff;border:1px solid var(--primary);color:var(--primary-dark);padding:6px 12px;border-radius:8px;margin:4px;font-size:13px;}
+  .flow .arr{background:none;border:none;color:#9aa5b1;font-size:18px;}
+  .diagram { background:#fbfcfe; border:1px solid var(--border); border-radius:10px; padding:16px; margin:18px 0; overflow-x:auto; }
+  .diagram svg { width:100%; height:auto; display:block; }
+  .diagram-title { font-size:16px; font-weight:700; color:var(--primary-dark); margin:0 0 2px; }
+  .diagram-sub { font-size:12px; color:var(--text-light); margin:0 0 12px; }
+  .diagram .node { stroke:#64748b; stroke-width:1; }
+  .diagram .neutral { fill:#e2e8f0; } .diagram .input { fill:#bfdbfe; }
+  .diagram .process { fill:#c7d2fe; } .diagram .storage { fill:#99f6e4; }
+  .diagram .external { fill:#fde68a; } .diagram .risk { fill:#fecaca; }
+  .diagram .edge { stroke:#64748b; stroke-width:1.5; fill:none; }
+  .diagram .zone { fill:none; stroke:#64748b; stroke-width:1; stroke-dasharray:6 5; opacity:.8; }
+  .diagram .lbl { font-size:13px; font-weight:600; fill:#172033; }
+  .diagram .sml { font-size:11px; fill:#5b6475; }
+  .diagram .zhead { font-size:13px; font-weight:700; fill:#0a4fc0; }
+  @media print{body{background:#fff}.section{page-break-inside:avoid}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="cover">
+  <span class="tag">软件设计方案 · V1.0（定稿）</span>
+  <h1>IT运维集中管控平台<br>软件设计方案</h1>
+  <div class="sub">合同 → 子项 → 工单 全链路 · 驻场 · 外包 · 内部任务 · 七级权限 · 数据安全</div>
+  <div class="meta">
+    <span>📅 编制日期：2026-09-10</span>
+    <span>👥 适用对象：安服团队 / MSSP</span>
+    <span>🎯 核心：客户多合同 · 合同多子项 · 以工单贯通履约</span>
+    <span>🆕 V1.0：PostgreSQL / 开源 Linux / Go·FastAPI / 可配置 AI 大模型 / 七级 RBAC / 多租户 / 脱敏加密</span>
+  </div>
+</div>
+
+<div class="toc">
+  <h2>目录</h2>
+  <ol>
+    <li><a href="#s1">方案概述（背景 / 设计理念 / 对标差异化）</a></li>
+    <li><a href="#s2">需求分析（用户 / 场景 / FR / NFR）</a></li>
+    <li><a href="#s3">总体架构设计（业务 / 应用 / 技术 / 部署）</a></li>
+    <li><a href="#s4">核心业务模块详细设计（二十大模块）</a></li>
+    <li><a href="#s5">权限与安全设计（七级 RBAC / 多租户 / 脱敏加密）</a></li>
+    <li><a href="#s6">界面设计（十一套界面 / 各级布局）</a></li>
+    <li><a href="#s7">数据模型设计（ER / 核心表 / DDL）</a></li>
+    <li><a href="#s8">接口设计（RESTful / 关键接口）</a></li>
+    <li><a href="#s9">开发实施步骤（六阶段 / 里程碑）</a></li>
+    <li><a href="#s10">测试与质量保障</a></li>
+    <li><a href="#s11">上线部署与验收</a></li>
+    <li><a href="#s12">风险与应对</a></li>
+    <li><a href="#s13">附录（枚举 / 命名）</a></li>
+  </ol>
+</div>
+
+<!-- 1 概述 -->
+<div class="section" id="s1">
+  <h2><span class="num">1</span>方案概述</h2>
+  <h3>1.1 项目背景与定位</h3>
+  <p>安全服务团队 / MSSP 的核心痛点：<strong>一份合同包含多个服务对象、多个服务项、多个服务频率</strong>，履约义务零散分布在合同文本、Excel、邮件与人的记忆里，导致漏做、重做、超期无人知、绩效算不清、换岗交接混乱、外包不可控。</p>
+  <p>本平台定位为<strong>面向安服团队 / MSSP 的「合同履约 + 工单 + 服务」一体化集中管控平台</strong>，以「合同 → 子项 → 工单」为主轴，统一承载客户合同履约、内部任务、外包协作、问题整改、交付、绩效、SLA 提醒、AI 增强与知识沉淀。</p>
+  <div class="highlight">目标：<strong>可追溯、可量化、可考核、可自动化</strong>的完整交付闭环。</div>
+
+  <h3>1.2 核心设计理念（融合前沿方法论）</h3>
+  <table>
+    <tr><th>理念</th><th>来源</th><th>在本平台的落地</th></tr>
+    <tr><td><strong>CMDB 为核心</strong></td><td>ServiceNow / 嘉为蓝鲸</td><td>服务对象升级为完整 CMDB（配置项 + 依赖拓扑 + 影响分析），工单/变更/问题均挂接 CI</td></tr>
+    <tr><td><strong>SLO / 错误预算</strong></td><td>Google SRE</td><td>SLA 契约引擎升级为 SLO 管理，分级预警 + 升级链 + 超时统计</td></tr>
+    <tr><td><strong>感知—决策—执行闭环</strong></td><td>AIOps</td><td>AI 分类/派单/摘要/相似推荐 + 告警降噪 + 履约缺口洞察</td></tr>
+    <tr><td><strong>低代码流程引擎</strong></td><td>优云 / 嘉为蓝鲸</td><td>表单/流程/决策/视图/报表五大引擎，状态流转可配置、留痕</td></tr>
+    <tr><td><strong>多租户数据隔离</strong></td><td>FortiSOAR / Sekoia</td><td>客户侧角色按 customer_id 行级隔离，外包按工单隔离</td></tr>
+    <tr><td><strong>知识管理 ROI 最高</strong></td><td>ServiceNow 最佳实践</td><td>知识库 + 工单转知识闭环 + RAG 问答</td></tr>
+    <tr><td><strong>human-in-the-loop</strong></td><td>AIOps 治理</td><td>AI 只做「建议 + 人工确认」，不替代关键决策</td></tr>
+  </table>
+
+  <h3>1.3 同类产品对标与差异化</h3>
+  <table>
+    <tr><th>能力</th><th>ServiceNow</th><th>Jira SM</th><th>蓝鲸/优云</th><th><strong>本平台</strong></th></tr>
+    <tr><td>CMDB / 依赖拓扑</td><td>✅ 行业标杆</td><td>⚠️ 依赖 Insight</td><td>✅ 深度联动</td><td>✅ 服务对象+依赖+影响分析</td></tr>
+    <tr><td>变更管理</td><td>✅ CAB/风险评分</td><td>✅ 快速</td><td>✅ 冲突检测</td><td>✅ 变更+冲突检测</td></tr>
+    <tr><td>多合同多子项履约</td><td>❌</td><td>❌</td><td>❌</td><td>✅ <strong>核心差异化</strong></td></tr>
+    <tr><td>驻场/外包/内部任务</td><td>❌</td><td>❌</td><td>❌</td><td>✅ 三类工单来源</td></tr>
+    <tr><td>换岗比例分摊绩效</td><td>❌</td><td>❌</td><td>❌</td><td>✅ <strong>核心差异化</strong></td></tr>
+    <tr><td>七级 RBAC（客户侧）</td><td>部分</td><td>部分</td><td>部分</td><td>✅ 平台+客户双域七级</td></tr>
+    <tr><td>信创适配</td><td>❌</td><td>❌</td><td>✅</td><td>✅ 可选（达梦/金仓/麒麟/统信）</td></tr>
+  </table>
+  <div class="purple"><strong>差异化结论：</strong>ServiceNow/蓝鲸解决「通用 IT 服务管理」，本平台解决「安全运维服务合同的精细化履约管理」——多合同多子项排期、驻场日报、外包结算、换岗绩效分摊，是本平台独有的业务纵深。</div>
+</div>
+
+<!-- 2 需求 -->
+<div class="section" id="s2">
+  <h2><span class="num">2</span>需求分析</h2>
+  <h3>2.1 目标用户与角色</h3>
+  <p>平台分「平台侧」与「客户侧」两大域，共七级角色：<strong>平台侧</strong>（系统管理员、系统运维人员、工单管理人员、客服人员、安服人员）；<strong>客户侧</strong>（客户系统管理员、客户服务管理人员）。</p>
+  <h3>2.2 核心业务场景</h3>
+  <ul>
+    <li><strong>多合同多子项履约</strong>：一个客户同时有安全服务合同 + 设备升级合同，各自拆解多个子项，独立排期、提醒、验收。</li>
+    <li><strong>定期工单自动生成</strong>：OA 系统「漏洞扫描 1 次/季度」→ 每季度自动生成工单 → 派单 → 执行 → 交付。</li>
+    <li><strong>驻场服务</strong>：派驻 X 人，驻场人员每日填报日报，汇总月报，异常转整改。</li>
+    <li><strong>外包协作</strong>：能力/时间不足时外包，外包人员接单、汇报、验收、结算，数据强隔离。</li>
+    <li><strong>换岗分摊</strong>：执行到一半换人，按「各人实际承担工作量」自动重算绩效。</li>
+    <li><strong>整改闭环</strong>：发现安全问题（漏洞、配置缺陷、基线不合规、风险隐患等）→ 多轮整改 → 效果验证通过 → 归档交付。</li>
+  </ul>
+  <h3>2.3 功能需求清单（FR）</h3>
+  <table>
+    <tr><th>编号</th><th>需求</th><th>优先级</th><th>编号</th><th>需求</th><th>优先级</th></tr>
+    <tr><td>FR-01</td><td>客户档案管理</td><td>P0</td><td>FR-12</td><td>绩效考核（加权+换岗分摊）</td><td>P1</td></tr>
+    <tr><td>FR-02</td><td>多合同登记</td><td>P0</td><td>FR-13</td><td>CMDB 与资产依赖</td><td>P1</td></tr>
+    <tr><td>FR-03</td><td>合同子项管理</td><td>P0</td><td>FR-14</td><td>变更管理</td><td>P2</td></tr>
+    <tr><td>FR-04</td><td>接单（多来源）</td><td>P0</td><td>FR-15</td><td>服务频率与定期工单</td><td>P0</td></tr>
+    <tr><td>FR-05</td><td>派单（智能+比例+换岗）</td><td>P0</td><td>FR-16</td><td>服务提醒 + SLA 契约引擎</td><td>P0</td></tr>
+    <tr><td>FR-06</td><td>工单生命周期管理</td><td>P0</td><td>FR-17</td><td>AI 智能增强</td><td>P2</td></tr>
+    <tr><td>FR-07</td><td>驻场服务</td><td>P1</td><td>FR-18</td><td>工作流编排与审批</td><td>P1</td></tr>
+    <tr><td>FR-08</td><td>内部任务</td><td>P1</td><td>FR-19</td><td>知识库与自助门户</td><td>P2</td></tr>
+    <tr><td>FR-09</td><td>外包管理</td><td>P1</td><td>FR-20</td><td>报告中心与数据看板</td><td>P1</td></tr>
+    <tr><td>FR-10</td><td>问题与多轮整改</td><td>P1</td><td>FR-21</td><td>七级 RBAC + 多租户隔离</td><td>P0</td></tr>
+    <tr><td>FR-11</td><td>项目交付</td><td>P1</td><td>FR-22</td><td>数据脱敏/加密/水印/审计</td><td>P0</td></tr>
+  </table>
+  <h3>2.4 非功能需求（NFR）</h3>
+  <table>
+    <tr><th>类别</th><th>指标</th></tr>
+    <tr><td>性能</td><td>常规查询 P95 &lt; 500ms；工单列表万级分页 &lt; 1s</td></tr>
+    <tr><td>可用性</td><td>全年 ≥ 99.9%（RTO ≤ 1h，RPO ≤ 5min）</td></tr>
+    <tr><td>并发</td><td>500 并发在线，200 并发工单操作</td></tr>
+    <tr><td>安全</td><td>等保 2.0 三级；TLS 1.2+；敏感字段脱敏；操作全审计</td></tr>
+    <tr><td>数据</td><td>客户数据隔离；备份加密；多租户行级隔离</td></tr>
+    <tr><td>兼容</td><td>开源 Linux + PostgreSQL 为主；信创可选适配（麒麟/统信 + 达梦/金仓）</td></tr>
+  </table>
+</div>
+
+<!-- 3 架构 -->
+<div class="section" id="s3">
+  <h2><span class="num">3</span>总体架构设计</h2>
+  <h3>3.1 业务架构（合同 → 子项 → 工单 主轴）</h3>
+  <pre>客户(customer) 1—N 合同(contract) 1—N 合同子项(contract_item)
+                    ├── 服务对象(CI)  ├── 服务周期(cycle)  └── SLA契约
+                    └──────────► 工单(work_order) ◄──────────┘
+                        接单 → 派单 → 执行(换岗分摊) → 问题 → 整改 → 交付 → 绩效</pre>
+  <h3>3.2 应用架构（二十大模块 · 五子系统）</h3>
+  <table>
+    <tr><th>子系统</th><th>模块</th></tr>
+    <tr><td><strong>合同域</strong></td><td>① 客户与合同管理 ② 合同子项与服务对象</td></tr>
+    <tr><td><strong>工单域</strong></td><td>③ 接单 ④ 派单 ⑤ 工单管理 ⑥ 驻场 ⑦ 内部任务 ⑧ 外包</td></tr>
+    <tr><td><strong>服务域</strong></td><td>⑨ 问题与整改 ⑩ 项目交付 ⑪ 绩效 ⑫ 服务频率 ⑬ 提醒与SLA</td></tr>
+    <tr><td><strong>平台域</strong></td><td>⑭ CMDB/资产 ⑮ 变更管理 ⑯ 报告中心 ⑰ 工作流 ⑱ 知识库/门户 ⑲ AI增强</td></tr>
+    <tr><td><strong>基础域</strong></td><td>⑳ 系统管理（七级RBAC/字典/审计/水印/脱敏）+ 部署与数据安全</td></tr>
+  </table>
+  <h3>3.3 技术选型</h3>
+  <table>
+    <tr><th>层次</th><th>主推</th><th>备选</th></tr>
+    <tr><td>操作系统</td><td>开源 Linux（Ubuntu / CentOS / Debian）</td><td>麒麟/统信（信创可选）</td></tr>
+    <tr><td>后端</td><td>Go（Gin）/ Python FastAPI</td><td>Java Spring Boot</td></tr>
+    <tr><td>前端</td><td>Vue 3 + Vite + Element Plus + Pinia + ECharts</td><td>同左</td></tr>
+    <tr><td>移动端</td><td>uni-app（小程序/App/H5，GPS+拍照+推送）</td><td>同左</td></tr>
+    <tr><td>数据库</td><td>PostgreSQL 16</td><td>达梦 / 金仓（信创可选）</td></tr>
+    <tr><td>缓存/队列</td><td>Redis + RabbitMQ/RocketMQ</td><td>Redis 兼容版</td></tr>
+    <tr><td>检索</td><td>Elasticsearch（知识库全文检索）</td><td>OpenSearch</td></tr>
+    <tr><td>工作流</td><td>自研规则引擎 / Temporal（Go）</td><td>Flowable 7</td></tr>
+    <tr><td>AI</td><td>可配置大模型：DeepSeek / Qwen / GLM / Kimi / MiniMax（系统设置可切换）+ RAG</td><td>本地私有化 LLM</td></tr>
+    <tr><td>定时调度</td><td>APScheduler（Python）/ Quartz</td><td>XXL-Job</td></tr>
+    <tr><td>对象存储</td><td>本地磁盘 / MinIO（本机部署）</td><td>OSS / 国产云存储</td></tr>
+    <tr><td>认证</td><td>JWT + 多因子</td><td>同左</td></tr>
+  </table>
+  <h3>3.4 部署架构（本地服务器部署 · 开发阶段本机）</h3>
+  <div class="diagram">
+    <p class="diagram-title">图1 · 部署架构图（本地服务器部署）</p>
+    <p class="diagram-sub">开发阶段本机部署 · 数据安全</p>
+    <svg viewBox="0 0 960 560" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="本地服务器部署架构图">
+      <defs><marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#64748b"/></marker></defs>
+      <rect class="zone" x="30" y="30" width="900" height="90" rx="10"/><text class="zhead" x="48" y="56">访问层（本机 / 局域网）</text>
+      <rect class="node external" x="60" y="66" width="170" height="42" rx="8"/><text class="lbl" x="72" y="84">浏览器 / 用户</text><text class="sml" x="72" y="98">本机 localhost · 局域网</text>
+      <rect class="node input" x="300" y="66" width="150" height="42" rx="8"/><text class="lbl" x="312" y="84">前端</text><text class="sml" x="312" y="98">Vue3 静态资源 / Nginx</text>
+      <rect class="node input" x="520" y="66" width="180" height="42" rx="8"/><text class="lbl" x="532" y="84">反向代理</text><text class="sml" x="532" y="98">Nginx / 网关</text>
+      <rect class="node input" x="760" y="66" width="140" height="42" rx="8"/><text class="lbl" x="772" y="84">大模型 API</text><text class="sml" x="772" y="98">DeepSeek/Qwen/GLM…</text>
+      <path class="edge" d="M230 87 L296 87" marker-end="url(#a)"/><path class="edge" d="M450 87 L516 87" marker-end="url(#a)"/><path class="edge" d="M700 87 L756 87" marker-end="url(#a)"/>
+      <rect class="zone" x="30" y="150" width="900" height="140" rx="10"/><text class="zhead" x="48" y="176">应用层（本机 · 开源 Linux）</text>
+      <rect class="node process" x="60" y="196" width="180" height="72" rx="8"/><text class="lbl" x="72" y="218">后端应用</text><text class="sml" x="72" y="234">Go / FastAPI</text><text class="sml" x="72" y="250">REST API·认证·业务</text>
+      <rect class="node process" x="270" y="196" width="180" height="72" rx="8"/><text class="lbl" x="282" y="218">工作流/规则引擎</text><text class="sml" x="282" y="234">自研规则引擎</text><text class="sml" x="282" y="250">审批·流转·自动化</text>
+      <rect class="node process" x="480" y="196" width="180" height="72" rx="8"/><text class="lbl" x="492" y="218">AI 服务</text><text class="sml" x="492" y="234">可配置大模型</text><text class="sml" x="492" y="250">分类·摘要·问答</text>
+      <rect class="node process" x="690" y="196" width="180" height="72" rx="8"/><text class="lbl" x="702" y="218">定时调度</text><text class="sml" x="702" y="234">APScheduler/Quartz</text><text class="sml" x="702" y="250">定期工单·提醒</text>
+      <path class="edge" d="M505 146 L300 192" marker-end="url(#a)"/><path class="edge" d="M505 146 L760 192" marker-end="url(#a)"/>
+      <rect class="zone" x="30" y="320" width="900" height="130" rx="10"/><text class="zhead" x="48" y="346">数据层（本机同机运行）</text>
+      <rect class="node storage" x="60" y="364" width="190" height="66" rx="8"/><text class="lbl" x="72" y="386">PostgreSQL</text><text class="sml" x="72" y="402">主库 · 数据存储</text><text class="sml" x="72" y="416">脱敏·SSL 连接</text>
+      <rect class="node storage" x="280" y="364" width="150" height="66" rx="8"/><text class="lbl" x="292" y="386">Redis</text><text class="sml" x="292" y="402">会话·缓存</text><text class="sml" x="292" y="416">消息队列</text>
+      <rect class="node storage" x="460" y="364" width="150" height="66" rx="8"/><text class="lbl" x="472" y="386">Elasticsearch</text><text class="sml" x="472" y="402">全文检索</text><text class="sml" x="472" y="416">知识库</text>
+      <rect class="node storage" x="640" y="364" width="170" height="66" rx="8"/><text class="lbl" x="652" y="386">本地存储 / MinIO</text><text class="sml" x="652" y="402">报告·附件</text><text class="sml" x="652" y="416">SSE 加密</text>
+      <path class="edge" d="M150 268 L155 360" marker-end="url(#a)"/><path class="edge" d="M360 268 L355 360" marker-end="url(#a)"/><path class="edge" d="M570 268 L535 360" marker-end="url(#a)"/><path class="edge" d="M780 268 L725 360" marker-end="url(#a)"/>
+      <rect class="zone" x="30" y="470" width="900" height="70" rx="10"/><text class="zhead" x="48" y="496">安全与合规</text>
+      <rect class="node risk" x="60" y="500" width="180" height="30" rx="8"/><text class="sml" x="72" y="519">密钥管理 KMS · 信封加密</text>
+      <rect class="node risk" x="260" y="500" width="200" height="30" rx="8"/><text class="sml" x="272" y="519">权限 + 数据隔离 · 最小开放</text>
+      <rect class="node risk" x="480" y="500" width="180" height="30" rx="8"/><text class="sml" x="492" y="519">审计 + 等保三级</text>
+      <rect class="node risk" x="680" y="500" width="200" height="30" rx="8"/><text class="sml" x="692" y="519">数据脱敏 / 水印 · 防拍照</text>
+    </svg>
+  </div>
+  <h3>3.5 架构演进路线</h3>
+  <div class="flow"><span>人工运维</span><span class="arr">→</span><span>自动化运维(定时工单/工作流)</span><span class="arr">→</span><span>智能运维 AIOps</span><span class="arr">→</span><span>AI 原生自治(受控+审批)</span></div>
+</div>
+
+<!-- 4 模块 -->
+<div class="section" id="s4">
+  <h2><span class="num">4</span>核心业务模块详细设计</h2>
+
+  <h3>4.1 客户与合同管理</h3>
+  <p><strong>客户档案</strong>：名称/简称、行业/规模、客户等级（金牌/银牌/普通，关联 SLA）、联系人/电话（脱敏）、服务对象清单。</p>
+  <p><strong>合同登记</strong>：合同类型、名称/编号、金额、周期、服务对象、合同子项、是否含驻场、状态（草稿/执行中/已到期/已续约）。</p>
+  <div class="highlight"><strong>多合同模型：</strong>一个客户可同时有多个并行合同，系统按合同独立管理履约、结算与绩效。</div>
+
+  <h3>4.2 合同子项与服务对象</h3>
+  <p><strong>服务对象（= CMDB 配置项 CI）</strong>：名称、类型（业务系统/网络设备/服务器/机房/数据库）、IP/位置、<strong>依赖关系</strong>（影响分析）。</p>
+  <p><strong>合同子项</strong>：服务对象、运维项目、服务频率（数值+单位）、SLA、验收标准、子项价格。</p>
+  <div class="purple"><strong>关键：</strong>服务频率从「工单级」下放到「子项级」，同合同不同系统、不同服务项各自独立排期、提醒、验收。</div>
+
+  <h3>4.3 接单模块</h3>
+  <p><strong>来源</strong>：客户报障 / 商务拓展 / 巡检发现 / 安全事件 / 续约 / <strong>临时新增</strong>。</p>
+  <div class="warn"><strong>临时工作快速开单：</strong>外出检查、应付抽检、处置舆情等，支持快速模板一键开单，可不挂合同/子项。</div>
+
+  <h3>4.4 派单模块（智能派单 + 换岗分摊）</h3>
+  <p><strong>智能派单建议（AI）</strong>：基于 <code>技能矩阵 + 当前负载 + 历史绩效与评价</code> 推荐执行人并给出理由。</p>
+  <pre>个人绩效 = Σ ( 工作量 × 派单价格 × 分摊比例 × 质量系数 × 评价系数 )
+分摊比例 = 个人实际承担工作量 / 工单总工作量</pre>
+  <div class="teal"><strong>换岗机制：</strong>中途换岗时按「各人实际承担时长 × 派单价」自动重算，结算与绩效精确到人。</div>
+
+  <h3>4.5 工单管理（核心）</h3>
+  <p><strong>工单类型</strong>：客户工单 / 驻场工单 / 内部任务 / 外包工单（统一工单池）。</p>
+  <p><strong>状态机</strong>：</p>
+  <pre>待派单 → 已派单/进行中 → 计划中 ↔ 进行中 → 待验收 → 已完成
+                ↓
+          (SLA 预警 / 催办 / 升级)</pre>
+  <p>状态流转由工作流引擎驱动：整改通过 → 自动「待验收」；客户签字 → 自动「已关闭」+ 计绩效；外包验收通过 → 自动结算。</p>
+
+  <h3>4.6 驻场服务模块</h3>
+  <p>驻场配置（客户/人数/人员/周期/工作项）+ 驻场日报（逐项记录 → 汇总周/月报），异常一键转「问题」进入整改闭环。</p>
+
+  <h3>4.7 内部任务模块</h3>
+  <div class="highlight"><strong>统一工单池：</strong>内部任务与客户工单共用状态机、SLA、提醒机制，员工一个视图处理所有待办。</div>
+
+  <h3>4.8 外包管理模块</h3>
+  <div class="flow"><span>内部工单</span><span class="arr">→</span><span>发起外包</span><span class="arr">→</span><span>外包派单</span><span class="arr">→</span><span>外包接单</span><span class="arr">→</span><span>工作汇报</span><span class="arr">→</span><span>验收</span><span class="arr">→</span><span>结算</span></div>
+  <div class="danger"><strong>权限隔离（安全）：</strong>外包账号仅见被指派的外包工单，数据脱敏，禁止访问其他合同/工单/内部数据，全程审计。</div>
+
+  <h3>4.9 问题发现与整改闭环</h3>
+  <p>发现问题（安全问题：安全漏洞、配置缺陷、基线不合规、风险隐患等，记录类型/等级/描述/截图，支持相似推荐）→ 多轮整改（第 N 轮 → 整改完成待验证 / 不通过自动下一轮）→ 效果验证（通过/不通过/部分完成）。</p>
+
+  <h3>4.10 项目交付</h3>
+  <p><strong>四类核心报告</strong>：运维报告 / 发现问题报告 / 整改报告 / 验收报告。另生成漏洞扫描/渗透测试/应急演练/等保测评/驻场月报等专项报告。</p>
+
+  <h3>4.11 绩效考核（换岗分摊）</h3>
+  <p>构成：工作量、派单价格、工作质量（0.6~1.2）、用户评价（0.8~1.2）。维度：人员/客户/合同/子项/项目/时间，外包成本纳入毛利核算。</p>
+
+  <h3>4.12 CMDB 与资产管理（增强）</h3>
+  <table>
+    <tr><th>能力</th><th>说明</th></tr>
+    <tr><td>配置项（CI）建模</td><td>服务对象/设备/服务器/数据库/机房等 CI 类型</td></tr>
+    <tr><td>依赖拓扑</td><td>CI 间依赖关系（影响分析）</td></tr>
+    <tr><td>变更联动</td><td>工单/变更自动更新 CI 属性</td></tr>
+    <tr><td>冲突检测</td><td>多变更涉及同一 CI 或同一窗口实时预警</td></tr>
+    <tr><td>资产生命周期</td><td>新增 → 在用 → 变更 → 下线</td></tr>
+  </table>
+
+  <h3>4.13 变更管理（增强）</h3>
+  <p>借鉴 ServiceNow / 蓝鲸：变更风险评估（问卷+分值→高/中/低）+ 变更日历 + CAB 审批 + 回滚跟踪 + 审计留痕，与 CMDB 联动全程可追溯。</p>
+
+  <h3>4.14 服务频率与定期工单</h3>
+  <table>
+    <tr><th>频率</th><th>示例</th><th>逻辑</th></tr>
+    <tr><td>X 次/天</td><td>1 次/天</td><td>每日 1 次</td></tr>
+    <tr><td>X 次/周</td><td>2 次/周</td><td>每周均匀分布</td></tr>
+    <tr><td>X 次/月</td><td>4 次/月</td><td>每月均匀分布</td></tr>
+    <tr><td>X 次/季度</td><td>1 次/季度</td><td>每季度 1 次</td></tr>
+    <tr><td>X 次/半年</td><td>1 次/半年</td><td>每半年 1 次</td></tr>
+    <tr><td>X 次/年</td><td>2 次/年</td><td>每半年 1 次</td></tr>
+    <tr><td>不定期</td><td>应急处置</td><td>不自动生成，按需手动派单</td></tr>
+  </table>
+
+  <h3>4.15 服务提醒与 SLA 契约引擎</h3>
+  <p><strong>服务启动提醒</strong>：「第 X 次服务已启动，请及时处理！」</p>
+  <table>
+    <tr><th>等级</th><th>触发</th><th>颜色</th></tr>
+    <tr><td>黄色预警</td><td>距结束 ≤ 7 天</td><td><span class="badge amber">黄色</span></td></tr>
+    <tr><td>橙色预警</td><td>距结束 ≤ 3 天</td><td><span class="badge orange">橙色</span></td></tr>
+    <tr><td>红色紧急</td><td>距结束 ≤ 1 天</td><td><span class="badge red">红色</span></td></tr>
+  </table>
+  <p><strong>SLA 契约引擎</strong>：多级 SLA + 工作日历（跳过非工作时段）+ 升级链（执行人 → 项目经理 → 部门负责人）。渠道：站内/移动推送/企微/飞书/钉钉/短信。</p>
+
+  <h3>4.16 AI 智能增强（AIOps）</h3>
+  <table>
+    <tr><th>能力</th><th>应用场景</th><th>原则</th></tr>
+    <tr><td>智能分类</td><td>报障 → 推荐项目/对象/优先级</td><td>建议+确认</td></tr>
+    <tr><td>智能派单</td><td>技能+负载+绩效 → 推荐执行人</td><td>建议+确认</td></tr>
+    <tr><td>工单摘要</td><td>自动生成执行摘要</td><td>自动</td></tr>
+    <tr><td>问题相似推荐</td><td>相似问题与整改方案匹配</td><td>建议</td></tr>
+    <tr><td>合同履约洞察</td><td>识别履约缺口、临近到期项</td><td>自动+提醒</td></tr>
+    <tr><td>工单转知识</td><td>高频工单 → 知识草稿 → 审核入库</td><td>建议+人工</td></tr>
+  </table>
+  <div class="purple"><strong>落地原则：</strong>AI 均为「建议 + 人工确认」；涉敏数据走本地化/脱敏 LLM；决策可解释、证据可追溯。</div>
+  <p><strong>AI 大模型可配置</strong>：系统提供统一 LLM 抽象层，在「系统设置」中配置并切换大模型服务商，无需改代码：</p>
+  <table>
+    <tr><th>模型</th><th>厂商</th><th>接入方式</th></tr>
+    <tr><td>DeepSeek</td><td>深度求索</td><td>OpenAI 兼容 API</td></tr>
+    <tr><td>Qwen（通义千问）</td><td>阿里云</td><td>OpenAI 兼容 / DashScope</td></tr>
+    <tr><td>GLM</td><td>智谱 AI</td><td>OpenAI 兼容 API</td></tr>
+    <tr><td>Kimi</td><td>月之暗面</td><td>OpenAI 兼容 API</td></tr>
+    <tr><td>MiniMax</td><td>MiniMax</td><td>OpenAI 兼容 API</td></tr>
+  </table>
+  <ul>
+    <li><strong>统一配置项</strong>：api_base / api_key / model_name，按场景路由（分类/摘要/问答可配不同模型）</li>
+    <li><strong>本地私有化 LLM</strong> 作为可选（数据不出域，涉敏场景）</li>
+    <li><strong>降级策略</strong>：主模型不可用时自动切换备用模型</li>
+  </ul>
+
+  <h3>4.17 工作流编排与审批（低代码）</h3>
+  <p>借鉴优云/蓝鲸「低代码五大引擎」：<strong>表单 / 流程 / 决策 / 视图 / 报表</strong>。典型流程：审批流、状态自动流转、自动化动作，全量留痕。</p>
+
+  <h3>4.18 知识库与自助门户（服务目录）</h3>
+  <p>知识库（漏洞库/整改方案库/故障手册/SOP）+ 全文检索 + RAG 问答 + <strong>高频问题 → 知识条目 → 自助解决</strong>闭环；自助门户支持客户报障/查进度/看履约，员工查知识，外包提交汇报。</p>
+
+  <h3>4.19 报告中心与数据看板</h3>
+  <p>报告归档 + 数据看板（工单总数/进行中/即将超时/待验收/待结款/安全事件）+ 成本毛利 + 履约率 + SLA 达成率 + 绩效排名。</p>
+</div>
+
+<!-- 5 权限安全 -->
+<div class="section" id="s5">
+  <h2><span class="num">5</span>权限与安全设计</h2>
+  <h3>5.1 七级 RBAC 模型</h3>
+  <table>
+    <tr><th>序号</th><th>角色</th><th>域</th><th>权限范围</th></tr>
+    <tr><td>1</td><td><strong>系统管理员</strong></td><td>平台</td><td>最高权限：用户/角色/权限/配置/字典/审计/全数据</td></tr>
+    <tr><td>2</td><td><strong>系统运维人员</strong></td><td>平台</td><td>监控、备份/恢复、日志、服务启停（不碰业务数据）</td></tr>
+    <tr><td>3</td><td><strong>工单管理人员</strong></td><td>平台</td><td>接单、派单、催单、变更时限/服务人员/价格</td></tr>
+    <tr><td>4</td><td><strong>客服人员</strong></td><td>平台</td><td>只读：仪表盘、工单进度、联系服务人员</td></tr>
+    <tr><td>5</td><td><strong>客户系统管理员</strong></td><td>客户</td><td>查看/管理己方合同工单进度；不可改履约中价格</td></tr>
+    <tr><td>6</td><td><strong>客户服务管理人员</strong></td><td>客户</td><td>追加合同/系统/工单、临时工单、调时限、评价/投诉</td></tr>
+    <tr><td>7</td><td><strong>安服人员</strong></td><td>平台</td><td>查看本人工单、接收任务与催单、填表单/日志</td></tr>
+  </table>
+  <h3>5.2 多租户与数据隔离</h3>
+  <table>
+    <tr><th>隔离层级</th><th>机制</th></tr>
+    <tr><td>行级隔离</td><td>客户侧角色 customer_id 过滤（应用层 + PG RLS 双重保障）</td></tr>
+    <tr><td>字段级权限</td><td>合同价格/联系方式按角色控制可读/可写/脱敏</td></tr>
+    <tr><td>外包隔离</td><td>外包账号仅见指派工单，跨合同/客户强隔离</td></tr>
+    <tr><td>可选物理隔离</td><td>高合规客户独立 Schema / 独立实例</td></tr>
+  </table>
+  <h3>5.3 数据安全（脱敏 + 加密 + 水印 + 审计）</h3>
+  <table>
+    <tr><th>类型</th><th>字段</th><th>脱敏方式</th></tr>
+    <tr><td>联系方式</td><td>电话/手机</td><td>138****1234</td></tr>
+    <tr><td>IP 地址</td><td>资产 IP</td><td>10.1.*.*</td></tr>
+    <tr><td>凭证/密码</td><td>系统口令</td><td>不可逆哈希，永不展示</td></tr>
+    <tr><td>金额</td><td>合同/派单价</td><td>低权限遮蔽或占位</td></tr>
+  </table>
+  <p><strong>加密</strong>：TLS 1.2+ 全链路；PostgreSQL 强制 SSL 连接；密钥管理系统（KMS）信封加密；<code>pgcrypto</code> 敏感列加密；TDE + 对象存储 SSE；备份加密。</p>
+  <p><strong>水印与审计</strong>：屏幕/打印水印防拍照；操作审计全留痕（before/after + IP + 时间）。</p>
+</div>
+
+<!-- 6 数据模型 -->
+<div class="section" id="s6">
+  <h2><span class="num">6</span>界面设计</h2>
+  <p>系统含 <strong>11 套界面</strong>（6 套 PC 端 + 5 套移动 APP），与七级 RBAC 角色一一对应，采用双品牌命名：平台侧「信息服务AI管控平台 V1.0」、客户侧「运维服务AI管控平台」。</p>
+  <h3>6.1 界面体系总览</h3>
+  <table>
+    <tr><th>端</th><th>套数</th><th>界面</th></tr>
+    <tr><td>PC 端</td><td>6 套</td><td>① 系统管理 ② 系统运维 ③ 工单管理 ④ 服务人员 ⑤ 客户系统管理 ⑥ 客户服务管理</td></tr>
+    <tr><td>移动 APP</td><td>5 套</td><td>⑦ 服务人员APP ⑧ 系统管理员APP ⑨ 工单管理员APP ⑩ 客户系统管理APP ⑪ 客户服务管理APP</td></tr>
+  </table>
+  <h3>6.2 PC 端各级界面设计</h3>
+  <table>
+    <tr><th>界面</th><th>角色</th><th>顶部菜单</th><th>左侧导航</th><th>标签页</th></tr>
+    <tr><td>① 系统管理</td><td>系统管理员</td><td>系统/接单/派单/修改工单/催单/进度/结单/帮助</td><td>汇总、各单位、各系统</td><td>仪表盘/工单/安全问题/整改/报告/验收/结款/评价</td></tr>
+    <tr><td>② 系统运维</td><td>系统运维人员</td><td>系统(仅服务人员)/帮助</td><td>汇总、各单位、各系统</td><td>同上 8 项</td></tr>
+    <tr><td>③ 工单管理</td><td>工单管理人员</td><td>系统/接单/派单/修改工单/催单/进度/结单/帮助</td><td>汇总、各单位、各系统</td><td>同上 8 项</td></tr>
+    <tr><td>④ 服务人员</td><td>安服人员</td><td>系统/帮助</td><td>工单汇总/今日工作/催单/问题反馈</td><td>含「工作排期」9 项</td></tr>
+    <tr><td>⑤ 客户系统管理</td><td>客户系统管理员</td><td>系统/帮助</td><td>汇总、各系统</td><td>仪表盘/运维工作/安全问题/整改/报告/验收</td></tr>
+    <tr><td>⑥ 客户服务管理</td><td>客户服务管理人员</td><td>系统/派单/修改工单/催单/进度/结单/帮助</td><td>汇总、各系统</td><td>同上 + 评价与投诉</td></tr>
+  </table>
+  <h3>6.3 移动端 APP 界面设计</h3>
+  <table>
+    <tr><th>界面</th><th>角色</th><th>底部导航</th></tr>
+    <tr><td>⑦ 服务人员APP</td><td>安服人员(移动)</td><td>工单汇总/今日工作/催单/反馈</td></tr>
+    <tr><td>⑧ 系统管理员APP</td><td>系统管理员(移动)</td><td>权限/接单/派单/修改工单/催单/进度/结单</td></tr>
+    <tr><td>⑨ 工单管理员APP</td><td>工单管理员(移动)</td><td>接单/派单/修改/催单/进度/结单</td></tr>
+    <tr><td>⑩ 客户系统管理APP</td><td>客户系统管理员(移动)</td><td>仪表盘/运维工作/安全问题/整改/报告/验收</td></tr>
+    <tr><td>⑪ 客户服务管理APP</td><td>客户服务管理员(移动)</td><td>派单/修改工单/催单/进度/结单/评价</td></tr>
+  </table>
+  <h3>6.4 界面设计原则</h3>
+  <ul>
+    <li><strong>按角色裁剪</strong>：菜单、数据范围、操作按钮严格按七级 RBAC 角色裁剪</li>
+    <li><strong>敏感信息保护</strong>：联系方式/金额等敏感字段脱敏显示，屏幕/打印水印</li>
+    <li><strong>移动端特性</strong>：服务人员 APP 支持人脸识别登录、GPS 定位签到、拍照打卡留证</li>
+    <li><strong>统一布局</strong>：PC 端「顶部菜单 + 左侧导航 + 标签页」三区布局；移动端底部 Tab 导航</li>
+  </ul>
+</div>
+
+<div class="section" id="s7">
+  <h2><span class="num">7</span>数据模型设计</h2>
+  <h3>6.1 ER 关系（合同为中心，工单为纽带）</h3>
+  <pre>customer 1—N contract 1—N contract_item 1—N cmdb_ci(服务对象)
+contract_item 1—N service_cycle → 1—N 定期工单
+work_order 1—1 dispatch N—1 assignee(含比例)
+work_order 类型: 客户/驻场/内部/外包
+work_order 1—N issue → 1—N rectification → 1—N rectification_record
+work_order 1—N delivery
+performance ← 工时×比例分摊
+sla_policy → work_order → escalation
+cmdb_ci + cmdb_relation(依赖) + change_order(变更)</pre>
+  <h3>6.2 核心表清单</h3>
+  <table>
+    <tr><th>表名</th><th>关键字段</th></tr>
+    <tr><td><code>customer</code> 客户</td><td>id, name, industry, level, contact</td></tr>
+    <tr><td><code>contract</code> 合同</td><td>id, customer_id, type, name, no, amount, start/end, has_onsite, status</td></tr>
+    <tr><td><code>cmdb_ci</code> 配置项</td><td>id, customer_id, name, type, ip, status, version, lifecycle</td></tr>
+    <tr><td><code>cmdb_relation</code> 依赖</td><td>id, from_ci_id, to_ci_id, relation_type</td></tr>
+    <tr><td><code>contract_item</code> 合同子项</td><td>id, contract_id, ci_id, project, frequency, unit, sla_policy_id, accept_standard, price</td></tr>
+    <tr><td><code>order_receive</code> 接单</td><td>id, source, customer_id, contract_id, contract_item_id, ci_id, project, contract_price, contact, service_start/end</td></tr>
+    <tr><td><code>order_dispatch</code> 派单</td><td>id, work_order_id, dispatch_type, dispatch_price, service_start/end, suggest_reason</td></tr>
+    <tr><td><code>work_order</code> 工单</td><td>id, no, type, receive_id, dispatch_id, contract_id, contract_item_id, ci_id, project, status, priority, sla_deadline, progress, current_cycle_no</td></tr>
+    <tr><td><code>work_order_assignee</code> 执行人</td><td>id, work_order_id, user_id, workload_ratio, actual_hours, started_at, ended_at, is_active</td></tr>
+    <tr><td><code>service_cycle</code> 服务周期</td><td>id, contract_item_id, cycle_no, service_start, service_end, status, auto_generated</td></tr>
+    <tr><td><code>service_reminder</code> 提醒</td><td>id, cycle_id, type, level, content, to_user_id, channel, sent_at</td></tr>
+    <tr><td><code>onsite_service</code> 驻场</td><td>id, contract_id, customer_id, headcount, period_start/end, work_items</td></tr>
+    <tr><td><code>onsite_daily_report</code> 日报</td><td>id, onsite_id, user_id, report_date, work_type, content, issue_ref</td></tr>
+    <tr><td><code>outsourcing</code> 外包</td><td>id, work_order_id, type, outsource_user_id, price, nda, status</td></tr>
+    <tr><td><code>outsource_user</code> 外包人员</td><td>id, name, org, qualification, settle_type, permissions</td></tr>
+    <tr><td><code>outsourcing_report</code> 汇报</td><td>id, outsourcing_id, report_date, progress, attachments, acceptance</td></tr>
+    <tr><td><code>issue</code> 问题</td><td>id, work_order_id, type, level, description, attachments, similar_ids</td></tr>
+    <tr><td><code>rectification</code> 整改</td><td>id, issue_id, plan, deadline, assignee, status</td></tr>
+    <tr><td><code>rectification_record</code> 整改记录</td><td>id, rectification_id, round_no, action, executor, effect</td></tr>
+    <tr><td><code>change_order</code> 变更</td><td>id, work_order_id, ci_id, risk_level, conflict_flag, rollback_plan, status</td></tr>
+    <tr><td><code>delivery</code> 交付</td><td>id, work_order_id, contract_id, contract_item_id, report_type, report_id, sign</td></tr>
+    <tr><td><code>performance</code> 绩效</td><td>id, user_id, work_order_id, contract_item_id, workload, dispatch_price, ratio, quality_score, customer_score, perf_score</td></tr>
+    <tr><td><code>sla_policy</code> SLA契约</td><td>id, name, customer_level, response_limit, resolve_limit, work_calendar_id, escalation_chain</td></tr>
+    <tr><td><code>escalation</code> 升级</td><td>id, work_order_id, level, from_user, to_user, triggered_at, reason</td></tr>
+    <tr><td><code>kb_article</code> / <code>engineer_skill</code></td><td>知识库 / 技能矩阵</td></tr>
+    <tr><td><code>sys_user</code> / <code>sys_role</code> / <code>sys_permission</code></td><td>用户 / 角色 / 权限</td></tr>
+    <tr><td><code>sys_user_role</code></td><td>user_id, role_id, customer_id（客户侧行级隔离）</td></tr>
+    <tr><td><code>sys_audit_log</code></td><td>id, user_id, action, resource, before, after, ip, operated_at</td></tr>
+  </table>
+  <h3>6.3 关键 DDL 示例（PostgreSQL）</h3>
+  <pre>CREATE TABLE contract_item (
+  id            BIGSERIAL PRIMARY KEY,
+  contract_id   BIGINT NOT NULL REFERENCES contract(id),
+  ci_id         BIGINT REFERENCES cmdb_ci(id),      -- 服务对象
+  project       VARCHAR(64) NOT NULL,               -- 运维项目枚举
+  frequency     INT NOT NULL DEFAULT 1,             -- 频率数值
+  unit          VARCHAR(16) NOT NULL DEFAULT '月',  -- 天/周/月/季度/半年/年/不定期
+  sla_policy_id BIGINT REFERENCES sla_policy(id),
+  accept_standard TEXT,
+  price         NUMERIC(14,2),
+  created_at    TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE service_cycle (
+  id             BIGSERIAL PRIMARY KEY,
+  contract_item_id BIGINT NOT NULL REFERENCES contract_item(id),
+  cycle_no       INT NOT NULL,
+  service_start  DATE NOT NULL,
+  service_end    DATE NOT NULL,
+  status         VARCHAR(16) DEFAULT 'pending',
+  auto_generated BOOLEAN DEFAULT true,
+  UNIQUE(contract_item_id, cycle_no)
+);
+
+CREATE TABLE work_order (
+  id            BIGSERIAL PRIMARY KEY,
+  no            VARCHAR(32) UNIQUE NOT NULL,
+  type          VARCHAR(16) NOT NULL,
+  contract_id   BIGINT REFERENCES contract(id),
+  contract_item_id BIGINT REFERENCES contract_item(id),
+  ci_id         BIGINT REFERENCES cmdb_ci(id),
+  status        VARCHAR(16) DEFAULT '待派单',
+  priority      VARCHAR(8) DEFAULT '中',
+  sla_deadline  TIMESTAMPTZ,
+  current_cycle_no INT
+);
+
+CREATE TABLE work_order_assignee (
+  id            BIGSERIAL PRIMARY KEY,
+  work_order_id BIGINT NOT NULL REFERENCES work_order(id),
+  user_id       BIGINT NOT NULL REFERENCES sys_user(id),
+  workload_ratio NUMERIC(5,2) DEFAULT 100,
+  actual_hours  NUMERIC(8,2),
+  started_at    TIMESTAMPTZ,
+  ended_at      TIMESTAMPTZ,
+  is_active     BOOLEAN DEFAULT true
+);</pre>
+</div>
+
+<!-- 7 接口 -->
+<div class="section" id="s8">
+  <h2><span class="num">8</span>接口设计</h2>
+  <h3>7.1 RESTful API 规范</h3>
+  <ul>
+    <li>统一前缀 <code>/api/v1</code>；资源化 URI：<code>/customers</code>、<code>/contracts</code>、<code>/work-orders</code></li>
+    <li>统一响应：<code>{"code":0,"message":"ok","data":{}}</code></li>
+    <li>统一鉴权：JWT Bearer Token；统一错误码；分页 <code>?page=1&amp;size=20</code></li>
+    <li>OpenAPI 3.0 文档自动生成（Swagger）</li>
+  </ul>
+  <h3>7.2 关键接口示例</h3>
+  <table>
+    <tr><th>方法</th><th>路径</th><th>说明</th></tr>
+    <tr><td>POST</td><td><code>/api/v1/work-orders</code></td><td>创建工单（接单）</td></tr>
+    <tr><td>POST</td><td><code>/api/v1/work-orders/{id}/dispatch</code></td><td>派单（含多人比例）</td></tr>
+    <tr><td>PUT</td><td><code>/api/v1/work-orders/{id}/status</code></td><td>状态流转（工作流校验）</td></tr>
+    <tr><td>POST</td><td><code>/api/v1/work-orders/{id}/assignees/transfer</code></td><td>换岗（触发绩效重算）</td></tr>
+    <tr><td>POST</td><td><code>/api/v1/contract-items/{id}/cycles/generate</code></td><td>生成服务周期</td></tr>
+    <tr><td>GET</td><td><code>/api/v1/work-orders/suggest-dispatch</code></td><td>AI 派单建议</td></tr>
+    <tr><td>POST</td><td><code>/api/v1/work-orders/{id}/issues</code></td><td>记录问题</td></tr>
+    <tr><td>POST</td><td><code>/api/v1/rectifications/{id}/rounds</code></td><td>提交整改轮次</td></tr>
+    <tr><td>GET</td><td><code>/api/v1/performance?user_id=&amp;period=</code></td><td>绩效查询</td></tr>
+  </table>
+</div>
+
+<!-- 8 开发步骤 -->
+<div class="section" id="s9">
+  <h2><span class="num">9</span>开发实施步骤</h2>
+  <h3>8.1 阶段一：工程搭建与基础设施（第 1-2 周）</h3>
+  <ul>
+    <li><strong>初始化工程</strong>：后端 Spring Boot 3 多模块（common/contract/ticket/service/platform/auth）；前端 Vue3+Vite；移动端 uni-app</li>
+    <li><strong>数据库建模</strong>：完整 DDL + Flyway/Liquibase 迁移脚本</li>
+    <li><strong>部署环境</strong>：本机/局域网服务器 + PostgreSQL + Redis + Elasticsearch（Docker Compose 一键拉起）+ Git 仓库</li>
+    <li><strong>认证授权骨架</strong>：Spring Security + JWT + 七级 RBAC 落地</li>
+    <li><strong>统一规范</strong>：统一响应/异常/日志/审计切面</li>
+  </ul>
+  <div class="highlight">交付物：可运行空壳系统 + DB Schema v1 + CI/CD 跑通。</div>
+  <h3>8.2 阶段二：合同履约主干（第 3-8 周，MVP）</h3>
+  <ul>
+    <li>客户与合同管理（FR-01/02）</li>
+    <li>合同子项与服务对象（FR-03）</li>
+    <li>接单（FR-04）</li>
+    <li>派单 + 多人比例 + 换岗重算（FR-05）</li>
+    <li>工单状态机 + 4 类型（FR-06）</li>
+    <li>服务频率 + 定期工单自动生成（FR-15）</li>
+    <li>服务提醒 + SLA（FR-16）</li>
+  </ul>
+  <div class="highlight"><strong>MVP 验收：</strong>跑通「客户→合同→子项→接单→派单→工单→定期工单→提醒」主干。</div>
+  <h3>8.3 阶段三：问题整改与绩效（第 9-13 周）</h3>
+  <ul><li>问题与整改闭环（FR-10）</li><li>绩效考核 + 换岗分摊（FR-12）</li><li>项目交付（FR-11）</li></ul>
+  <h3>8.4 阶段四：驻场/内部/外包 + 交付（第 14-19 周）</h3>
+  <ul><li>驻场服务（FR-07）</li><li>内部任务（FR-08）</li><li>外包管理 + 权限隔离（FR-09）</li><li>报告中心与看板（FR-20）</li></ul>
+  <h3>8.5 阶段五：AI + 工作流 + 知识库 + 变更（第 20-26 周）</h3>
+  <ul><li>工作流编排低代码（FR-18）</li><li>AI 增强（FR-17）</li><li>知识库与自助门户（FR-19）</li><li>变更管理（FR-14）</li><li>CMDB 增强（FR-13）</li></ul>
+  <h3>8.6 阶段六：移动端 + 安全加固 + 上线（第 27-30 周）</h3>
+  <ul><li>移动端 APP（人脸/GPS/拍照/推送）</li><li>数据安全全量落地（FR-22）</li><li>部署演练（本地 → 生产环境迁移上云/容器化）</li><li>性能压测 + 安全测试 + 等保测评</li></ul>
+  <h3>8.7 里程碑与交付物汇总</h3>
+  <table>
+    <tr><th>里程碑</th><th>周</th><th>关键交付物</th></tr>
+    <tr><td>M1 工程搭建</td><td>2</td><td>空壳系统 + DB Schema + CI/CD</td></tr>
+    <tr><td>M2 MVP</td><td>8</td><td>合同履约主干闭环</td></tr>
+    <tr><td>M3 整改绩效</td><td>13</td><td>整改闭环 + 绩效</td></tr>
+    <tr><td>M4 驻场外包</td><td>19</td><td>三类工单 + 交付报告</td></tr>
+    <tr><td>M5 AI/工作流</td><td>26</td><td>AI 增强 + 低代码 + 知识库</td></tr>
+    <tr><td>M6 上线</td><td>30</td><td>移动端 + 安全加固 + 上线验收</td></tr>
+  </table>
+</div>
+
+<!-- 9 测试 -->
+<div class="section" id="s10">
+  <h2><span class="num">10</span>测试与质量保障</h2>
+  <h3>9.1 测试策略</h3>
+  <table>
+    <tr><th>层</th><th>工具</th><th>覆盖目标</th></tr>
+    <tr><td>单元测试</td><td>JUnit 5 / pytest</td><td>核心逻辑 ≥ 80%（派单分摊、周期拆分、状态机）</td></tr>
+    <tr><td>集成测试</td><td>Testcontainers + PG</td><td>关键链路（接单→派单→工单→验收）</td></tr>
+    <tr><td>接口测试</td><td>Postman + REST Assured</td><td>全部 API</td></tr>
+    <tr><td>前端测试</td><td>Vitest + Playwright</td><td>核心页面 + 关键交互</td></tr>
+    <tr><td>性能测试</td><td>JMeter</td><td>并发 500，P95 &lt; 500ms</td></tr>
+    <tr><td>安全测试</td><td>OWASP ZAP + 渗透</td><td>等保三级</td></tr>
+  </table>
+  <h3>9.2 关键测试用例</h3>
+  <ol>
+    <li><strong>周期拆分</strong>：<code>2 次/周</code> 跨月是否均匀、重复/遗漏</li>
+    <li><strong>换岗分摊</strong>：A(60%)→B(40%) 换岗后绩效是否精确归属</li>
+    <li><strong>定期工单</strong>：季度频率到点只生成 1 次（幂等防重）</li>
+    <li><strong>权限隔离</strong>：客户侧角色只能访问本客户数据（行级）</li>
+    <li><strong>SLA 升级链</strong>：超时逐级上报（执行人→经理→负责人）</li>
+    <li><strong>外包隔离</strong>：外包账号不能访问其他客户工单（应禁止）</li>
+  </ol>
+</div>
+
+<!-- 10 部署验收 -->
+<div class="section" id="s11">
+  <h2><span class="num">11</span>上线部署与验收</h2>
+  <h3>10.1 上线部署步骤</h3>
+  <ol>
+    <li>环境准备：本机/局域网服务器环境准备（PostgreSQL/Redis/ES + 应用进程）</li>
+    <li>数据库迁移：迁移脚本（alembic / golang-migrate）+ 备份 + 回滚预案</li>
+    <li>应用发布：灰度发布（负载均衡流量切换）→ 全量</li>
+    <li>监控接入：日志（ELK/本地日志）、监控（Prometheus/Grafana）、告警（短信/钉钉）</li>
+    <li>数据初始化：角色权限、字典、SLA 模板、知识库种子数据</li>
+  </ol>
+  <h3>10.2 验收标准</h3>
+  <table>
+    <tr><th>维度</th><th>标准</th></tr>
+    <tr><td>功能</td><td>FR-01~22 全部通过验收用例</td></tr>
+    <tr><td>性能</td><td>P95 &lt; 500ms；并发 500 稳定</td></tr>
+    <tr><td>安全</td><td>等保三级；脱敏/加密/审计生效</td></tr>
+    <tr><td>权限</td><td>七级 RBAC 矩阵逐项验证通过</td></tr>
+    <tr><td>数据</td><td>多租户隔离验证；备份恢复演练通过</td></tr>
+  </table>
+</div>
+
+<!-- 11 风险 -->
+<div class="section" id="s12">
+  <h2><span class="num">12</span>风险与应对</h2>
+  <table>
+    <tr><th>风险</th><th>影响</th><th>应对</th></tr>
+    <tr><td>多合同多子项排期算法复杂</td><td>漏单/重单</td><td>幂等防重 + 周期表唯一约束 + 充分测试</td></tr>
+    <tr><td>换岗分摊口径争议</td><td>绩效纠纷</td><td>明确「实际承担工作量」口径 + 换岗留痕</td></tr>
+    <tr><td>外包数据泄露</td><td>安全事件</td><td>强隔离 + 脱敏 + NDA + 全审计</td></tr>
+    <tr><td>AI 幻觉误分类</td><td>派单错误</td><td>human-in-the-loop，AI 仅建议</td></tr>
+    <tr><td>AI 大模型服务不可用</td><td>功能降级</td><td>多模型可切换 + 降级策略，主模型故障自动切换备用模型</td></tr>
+    <tr><td>客户侧权限越权</td><td>数据泄露</td><td>行级 RLS + 应用层双重校验 + 定期渗透</td></tr>
+  </table>
+</div>
+
+<!-- 12 附录 -->
+<div class="section" id="s13">
+  <h2><span class="num">13</span>附录</h2>
+  <h3>A. 运维项目枚举</h3>
+  <p>漏洞扫描 / 渗透测试 / 应急演练 / 安全加固 / 安全培训 / 代码审计 / 基线核查 / 安全巡检 / 安全评估 / 应急处置 / 重保值守 / 攻防演练 / 安全防护 / 设备巡检 / 等保测评 / 故障排查</p>
+  <h3>B. 服务频率枚举</h3>
+  <p>次/天 · 次/周 · 次/月 · 次/季度 · 次/半年 · 次/年 · 不定期</p>
+  <h3>C. 工单状态枚举</h3>
+  <p>待派单 / 已派单 / 计划中 / 进行中 / 待验收 / 已完成 / 已关闭 / 已取消</p>
+  <h3>D. 合同类型枚举</h3>
+  <p>安全服务 / 安全运维 / 设备升级 / 购买设备 / 机房改造 / 其他</p>
+  <h3>E. 双品牌命名</h3>
+  <ul>
+    <li>平台侧：<strong>信息服务AI管控平台 V1.0</strong></li>
+    <li>客户侧：<strong>运维服务AI管控平台</strong></li>
+  </ul>
+  <h3>F. 参考来源（同类产品与理念）</h3>
+  <ul>
+    <li><a href="https://www.getint.io/blog/servicenow-vs-jira-service-management-which-itsm-tool-is-better-for-you">ServiceNow vs Jira Service Management: Detailed Comparison</a></li>
+    <li><a href="https://supportbee.com/blog/itsm-ticketing-tools">ITSM Ticketing Tools: 8 Platforms Compared for 2026</a></li>
+    <li><a href="https://www.uyun.cn/solutions-ITSM.shtml">优云 ITSM 解决方案</a></li>
+    <li><a href="https://xie.infoq.cn/article/55b2692872bf5a65885402316">嘉为蓝鲸 IT 服务管理中心 V4.6</a></li>
+    <li><a href="https://cloud.tencent.com.cn/developer/article/2722812">腾讯云 AI 运维云平台深度实践</a></li>
+    <li><a href="https://www.fortinet.com/content/dam/fortinet/assets/solution-guides/sb-fortisoar-mssp.pdf">Fortinet FortiSOAR MSSP 方案</a></li>
+    <li><a href="https://cloud.tencent.com.cn/developer/article/2709322">企业级全链路 SRE 稳定性工程体系建设方案</a></li>
+  </ul>
+</div>
+
+<p style="text-align:center;color:#9aa5b1;margin-top:40px;font-size:13px;">—— IT运维集中管控平台 · 软件设计方案 V1.0（定稿）· 完 ——</p>
+</div>
+</body>
+</html>

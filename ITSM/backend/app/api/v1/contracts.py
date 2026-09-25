@@ -1,0 +1,247 @@
+"""合同 / 服务对象(CI) / 合同子项 CRUD。"""
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.orm import Session
+
+from app.core.deps import (
+    assert_scoped,
+    customer_scope_of,
+    get_current_user,
+    get_db,
+    require_role,
+    scope_filter,
+)
+from app.models import CmdbCi, Contract, ContractItem, SysUser
+from app.schemas.contract import (
+    CmdbCiCreate,
+    CmdbCiOut,
+    CmdbCiUpdate,
+    ContractCreate,
+    ContractItemCreate,
+    ContractItemOut,
+    ContractItemUpdate,
+    ContractOut,
+    ContractUpdate,
+)
+from app.services.audit_service import record
+from app.services.cycle_service import generate_cycles
+from app.utils.pagination import paginate
+from app.utils.response import ok
+
+WRITE_ROLE = ("sys_admin", "sys_ops")
+
+contracts = APIRouter(prefix="/contracts", tags=["合同"])
+items = APIRouter(prefix="/contract-items", tags=["合同子项"])
+cis = APIRouter(prefix="/cmdb-cis", tags=["服务对象"])
+
+
+# ---- 合同 ----
+@contracts.get("")
+def list_contracts(
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    user: SysUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    q = db.query(Contract)
+    q = scope_filter(q, Contract, customer_scope_of(user, db))
+    return ok(paginate(q, page, size, ContractOut))
+
+
+@contracts.post("")
+def create_contract(
+    body: ContractCreate,
+    user: SysUser = Depends(require_role(*WRITE_ROLE)),
+    db: Session = Depends(get_db),
+):
+    obj = Contract(**body.model_dump())
+    db.add(obj)
+    db.flush()
+    record(db, user_id=user.id, action="create", resource=f"contract:{obj.id}", after=str(body.model_dump()))
+    db.commit()
+    return ok(ContractOut.model_validate(obj).model_dump())
+
+
+@contracts.get("/{cid}")
+def get_contract(cid: int, user: SysUser = Depends(get_current_user), db: Session = Depends(get_db)):
+    obj = db.get(Contract, cid)
+    if obj is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "合同不存在")
+    assert_scoped(obj, customer_scope_of(user, db), db)
+    return ok(ContractOut.model_validate(obj).model_dump())
+
+
+@contracts.put("/{cid}")
+def update_contract(
+    cid: int,
+    body: ContractUpdate,
+    user: SysUser = Depends(require_role(*WRITE_ROLE)),
+    db: Session = Depends(get_db),
+):
+    obj = db.get(Contract, cid)
+    if obj is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "合同不存在")
+    before = {k: getattr(obj, k) for k in body.model_dump(exclude_unset=True)}
+    for k, v in body.model_dump(exclude_unset=True).items():
+        setattr(obj, k, v)
+    db.flush()
+    record(db, user_id=user.id, action="update", resource=f"contract:{cid}", before=str(before), after=str(body.model_dump(exclude_unset=True)))
+    db.commit()
+    return ok(ContractOut.model_validate(obj).model_dump())
+
+
+@contracts.delete("/{cid}")
+def delete_contract(cid: int, user: SysUser = Depends(require_role("sys_admin")), db: Session = Depends(get_db)):
+    obj = db.get(Contract, cid)
+    if obj is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "合同不存在")
+    db.delete(obj)
+    record(db, user_id=user.id, action="delete", resource=f"contract:{cid}")
+    db.commit()
+    return ok({"deleted": cid})
+
+
+# ---- 合同子项 ----
+@items.get("")
+def list_items(
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    user: SysUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    q = db.query(ContractItem)
+    q = scope_filter(q, ContractItem, customer_scope_of(user, db))
+    return ok(paginate(q, page, size, ContractItemOut))
+
+
+@items.post("")
+def create_item(
+    body: ContractItemCreate,
+    user: SysUser = Depends(require_role(*WRITE_ROLE)),
+    db: Session = Depends(get_db),
+):
+    obj = ContractItem(**body.model_dump())
+    db.add(obj)
+    db.flush()
+    record(db, user_id=user.id, action="create", resource=f"contract_item:{obj.id}", after=str(body.model_dump()))
+    db.commit()
+    return ok(ContractItemOut.model_validate(obj).model_dump())
+
+
+@items.get("/{iid}")
+def get_item(iid: int, user: SysUser = Depends(get_current_user), db: Session = Depends(get_db)):
+    obj = db.get(ContractItem, iid)
+    if obj is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "子项不存在")
+    assert_scoped(obj, customer_scope_of(user, db), db)
+    return ok(ContractItemOut.model_validate(obj).model_dump())
+
+
+@items.put("/{iid}")
+def update_item(
+    iid: int,
+    body: ContractItemUpdate,
+    user: SysUser = Depends(require_role(*WRITE_ROLE)),
+    db: Session = Depends(get_db),
+):
+    obj = db.get(ContractItem, iid)
+    if obj is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "子项不存在")
+    before = {k: getattr(obj, k) for k in body.model_dump(exclude_unset=True)}
+    for k, v in body.model_dump(exclude_unset=True).items():
+        setattr(obj, k, v)
+    db.flush()
+    record(db, user_id=user.id, action="update", resource=f"contract_item:{iid}", before=str(before), after=str(body.model_dump(exclude_unset=True)))
+    db.commit()
+    return ok(ContractItemOut.model_validate(obj).model_dump())
+
+
+@items.delete("/{iid}")
+def delete_item(iid: int, user: SysUser = Depends(require_role("sys_admin")), db: Session = Depends(get_db)):
+    obj = db.get(ContractItem, iid)
+    if obj is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "子项不存在")
+    db.delete(obj)
+    record(db, user_id=user.id, action="delete", resource=f"contract_item:{iid}")
+    db.commit()
+    return ok({"deleted": iid})
+
+
+@items.post("/{iid}/cycles/generate")
+def generate_item_cycles(
+    iid: int,
+    user: SysUser = Depends(require_role(*WRITE_ROLE)),
+    db: Session = Depends(get_db),
+):
+    try:
+        result = generate_cycles(db, iid)
+    except ValueError as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
+    record(db, user_id=user.id, action="generate_cycles", resource=f"contract_item:{iid}", after=str(result))
+    db.commit()
+    return ok(result)
+
+
+# ---- 服务对象 CI ----
+@cis.get("")
+def list_cis(
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    user: SysUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    q = db.query(CmdbCi)
+    q = scope_filter(q, CmdbCi, customer_scope_of(user, db))
+    return ok(paginate(q, page, size, CmdbCiOut))
+
+
+@cis.post("")
+def create_ci(
+    body: CmdbCiCreate,
+    user: SysUser = Depends(require_role(*WRITE_ROLE)),
+    db: Session = Depends(get_db),
+):
+    obj = CmdbCi(**body.model_dump())
+    db.add(obj)
+    db.flush()
+    record(db, user_id=user.id, action="create", resource=f"cmdb_ci:{obj.id}", after=str(body.model_dump()))
+    db.commit()
+    return ok(CmdbCiOut.model_validate(obj).model_dump())
+
+
+@cis.get("/{iid}")
+def get_ci(iid: int, user: SysUser = Depends(get_current_user), db: Session = Depends(get_db)):
+    obj = db.get(CmdbCi, iid)
+    if obj is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "服务对象不存在")
+    assert_scoped(obj, customer_scope_of(user, db), db)
+    return ok(CmdbCiOut.model_validate(obj).model_dump())
+
+
+@cis.put("/{iid}")
+def update_ci(
+    iid: int,
+    body: CmdbCiUpdate,
+    user: SysUser = Depends(require_role(*WRITE_ROLE)),
+    db: Session = Depends(get_db),
+):
+    obj = db.get(CmdbCi, iid)
+    if obj is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "服务对象不存在")
+    before = {k: getattr(obj, k) for k in body.model_dump(exclude_unset=True)}
+    for k, v in body.model_dump(exclude_unset=True).items():
+        setattr(obj, k, v)
+    db.flush()
+    record(db, user_id=user.id, action="update", resource=f"cmdb_ci:{iid}", before=str(before), after=str(body.model_dump(exclude_unset=True)))
+    db.commit()
+    return ok(CmdbCiOut.model_validate(obj).model_dump())
+
+
+@cis.delete("/{iid}")
+def delete_ci(iid: int, user: SysUser = Depends(require_role("sys_admin")), db: Session = Depends(get_db)):
+    obj = db.get(CmdbCi, iid)
+    if obj is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "服务对象不存在")
+    db.delete(obj)
+    record(db, user_id=user.id, action="delete", resource=f"cmdb_ci:{iid}")
+    db.commit()
+    return ok({"deleted": iid})

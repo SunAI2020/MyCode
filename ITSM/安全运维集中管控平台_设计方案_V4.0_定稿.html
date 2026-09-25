@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>安全运维集中管控平台 · 系统开发设计方案 V4.0（定稿）</title>
+<style>
+  :root{--primary:#0f6bff;--primary-dark:#0a4fc0;--accent:#ff7a00;--bg:#f5f7fa;--card:#fff;--text:#1f2733;--text-light:#5b6470;--border:#e3e8ef;--green:#16a34a;--red:#dc2626;--amber:#d97706;--orange:#ea580c;--purple:#7c3aed;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);line-height:1.75;font-size:15px;}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 20px 80px;}
+  .cover{background:linear-gradient(135deg,#0a3d91,#0f6bff 55%,#2b8cff);color:#fff;padding:70px 50px 55px;border-radius:0 0 28px 28px;position:relative;overflow:hidden;}
+  .cover::after{content:"";position:absolute;right:-60px;top:-60px;width:260px;height:260px;background:rgba(255,255,255,.08);border-radius:50%;}
+  .cover .tag{display:inline-block;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);padding:5px 14px;border-radius:20px;font-size:13px;letter-spacing:1px;margin-bottom:22px;}
+  .cover h1{font-size:33px;line-height:1.35;font-weight:700;margin-bottom:14px;}
+  .cover .sub{font-size:16px;opacity:.92;}
+  .cover .meta{margin-top:34px;font-size:13px;opacity:.8;display:flex;gap:24px;flex-wrap:wrap;}
+  .toc{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:26px 30px;margin:28px 0;}
+  .toc h2{font-size:18px;margin-bottom:14px;color:var(--primary-dark);}
+  .toc ol{padding-left:22px;}.toc li{margin:6px 0;color:var(--text-light);}.toc a{color:var(--text);text-decoration:none;}.toc a:hover{color:var(--primary);}
+  .section{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:32px 34px;margin:24px 0;}
+  .section h2{font-size:22px;color:var(--primary-dark);margin-bottom:8px;padding-bottom:12px;border-bottom:2px solid var(--primary);display:flex;align-items:center;gap:10px;}
+  .section h2 .num{background:var(--primary);color:#fff;width:30px;height:30px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;}
+  .section h3{font-size:17px;color:var(--text);margin:22px 0 10px;padding-left:12px;border-left:4px solid var(--accent);}
+  .section h4{font-size:15px;margin:16px 0 8px;color:var(--primary-dark);}
+  .section p{margin:8px 0;}.section ul,.section ol{padding-left:24px;margin:8px 0;}.section li{margin:5px 0;}
+  .highlight{background:#eef4ff;border-left:4px solid var(--primary);padding:14px 18px;border-radius:0 8px 8px 0;margin:14px 0;color:#233b66;}
+  .warn{background:#fff7e6;border-left:4px solid var(--amber);padding:14px 18px;border-radius:0 8px 8px 0;margin:14px 0;}
+  .danger{background:#fee2e2;border-left:4px solid var(--red);padding:14px 18px;border-radius:0 8px 8px 0;margin:14px 0;color:#7f1d1d;}
+  .purple{background:#f5f3ff;border-left:4px solid var(--purple);padding:14px 18px;border-radius:0 8px 8px 0;margin:14px 0;color:#4c1d95;}
+  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;}
+  th,td{border:1px solid var(--border);padding:10px 12px;text-align:left;vertical-align:top;}
+  th{background:#f0f5ff;color:var(--primary-dark);font-weight:600;}tr:nth-child(even) td{background:#fafbfd;}
+  pre{background:#1e293b;color:#e2e8f0;padding:18px 20px;border-radius:10px;overflow-x:auto;font-family:"SF Mono",Consolas,Menlo,monospace;font-size:13px;line-height:1.6;margin:14px 0;}
+  .badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600;}
+  .badge.red{background:#fee2e2;color:var(--red);}.badge.green{background:#dcfce7;color:var(--green);}.badge.blue{background:#dbeafe;color:var(--primary-dark);}.badge.amber{background:#fef3c7;color:#b45309;}.badge.orange{background:#ffedd5;color:var(--orange);}.badge.purple{background:#ede9fe;color:var(--purple);}
+  .pill{display:inline-block;padding:2px 8px;border-radius:6px;background:#eef4ff;color:#233b66;font-size:13px;margin:1px 2px;}
+  .flow{background:#f8fafc;border:1px dashed var(--border);border-radius:10px;padding:16px;text-align:center;margin:14px 0;}
+  .flow span{display:inline-block;background:#fff;border:1px solid var(--primary);color:var(--primary-dark);padding:6px 12px;border-radius:8px;margin:4px;font-size:13px;}
+  .flow .arr{background:none;border:none;color:#9aa5b1;font-size:18px;}
+  .new{display:inline-block;background:#dcfce7;color:#15803d;border:1px solid #86efac;padding:1px 8px;border-radius:6px;font-size:11px;font-weight:600;margin-left:6px;vertical-align:middle;}
+  .gap{display:inline-block;background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;padding:1px 8px;border-radius:6px;font-size:11px;font-weight:600;margin-left:6px;}
+  .imp{display:inline-block;background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;padding:1px 8px;border-radius:6px;font-size:11px;font-weight:600;margin-left:6px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="cover">
+  <span class="tag">系统开发设计方案 · V4.0（定稿）</span>
+  <h1>安全运维集中管控平台<br>系统开发设计方案（工单为核心）</h1>
+  <div class="sub">接单 → 派单 → 工单跟踪 → 风险整改 → 交付 → 绩效考核 全链路一体化 · AI 增强</div>
+  <div class="meta">
+    <span>📅 编制日期：2026-09-09</span>
+    <span>👥 适用对象：安服团队 / MSSP</span>
+    <span>🎯 核心：以工单为纽带贯通全流程</span>
+    <span>🆕 V4.0：对标先进系统补齐 AI 自动化 / 工作流 / 定期工单 / SLA 契约</span>
+  </div>
+</div>
+
+<div class="toc">
+  <h2>目录</h2>
+  <ol>
+    <li><a href="#s0">对标分析与改进说明</a></li>
+    <li><a href="#s1">项目概述与总体架构</a></li>
+    <li><a href="#s2">接单模块</a></li>
+    <li><a href="#s3">派单模块（含智能派单）</a></li>
+    <li><a href="#s4">工单管理（核心）</a></li>
+    <li><a href="#s5">问题发现与整改闭环</a></li>
+    <li><a href="#s6">项目交付</a></li>
+    <li><a href="#s7">运维人员绩效考核</a></li>
+    <li><a href="#s8">服务频率与定期工单</a></li>
+    <li><a href="#s9">服务提醒与 SLA 契约引擎</a></li>
+    <li><a href="#s10">AI 智能增强</a></li>
+    <li><a href="#s11">工作流编排与审批</a></li>
+    <li><a href="#s12">知识库与自助门户</a></li>
+    <li><a href="#s13">数据模型设计</a></li>
+    <li><a href="#s14">权限、安全、技术选型</a></li>
+    <li><a href="#s15">实施路线</a></li>
+  </ol>
+</div>
+
+<!-- 0 对标分析 -->
+<div class="section" id="s0">
+  <h2><span class="num">0</span>对标分析与 V4.0 改进说明</h2>
+  <p>本版在 V3.1 基础上，对标全球主流工单/ITSM/PSA 系统（ServiceNow、Jira Service Management、Freshservice、ConnectWise Manage、HaloPSA、Autotask），补齐差距后定稿。</p>
+  <h3>0.1 标杆系统能力盘点</h3>
+  <table>
+    <tr><th>系统</th><th>定位</th><th>核心先进能力</th></tr>
+    <tr><td>ServiceNow</td><td>企业级 ITSM + 低代码平台</td><td>Now Assist AI、工作流引擎、CMDB 依赖映射、契约化 SLA、ESM 扩展</td></tr>
+    <tr><td>Jira Service Management</td><td>开发+运维一体化 ITSM</td><td>Virtual Agent、智能分类路由、看板、与研发协同、On-call 管理</td></tr>
+    <tr><td>Freshservice</td><td>AI 原生 ITSM</td><td>Freddy AI Copilot/Agent Studio/Insights、自动化路由、CMDB、UNIFIED 门户</td></tr>
+    <tr><td>ConnectWise Manage</td><td>MSP 专属 PSA</td><td>Recurring Ticket（定期工单）、协议聚合(Agreement)、计费/利用率、SLA 分级</td></tr>
+    <tr><td>HaloPSA</td><td>MSP PSA（后起）</td><td>现代低代码流程、多租户、深度自动化、Dashboard</td></tr>
+    <tr><td>Autotask (Datto)</td><td>IT 服务 PSA</td><td>Recurring Service、合同/SLA、工时与计费、绩效看板</td></tr>
+  </table>
+  <h3>0.2 差距分析与改进对照</h3>
+  <table>
+    <tr><th>能力维度</th><th>标杆水平</th><th>V3.1 基线</th><th>V4.0 改进</th></tr>
+    <tr><td>AI 自动化</td><td>Copilot / Virtual Agent / 智能总结</td><td class="danger">无</td><td class="highlight">新增 AI 智能增强（第 10 章）：智能分类、智能派单建议、工单摘要、问题相似推荐</td></tr>
+    <tr><td>智能路由/派单</td><td>意图识别 + 自动分配</td><td class="danger">人工派单</td><td class="highlight">派单模块新增「智能派单建议」+ 规则引擎兜底</td></tr>
+    <tr><td>工作流/审批</td><td>低代码流程引擎</td><td class="danger">无</td><td class="highlight">新增工作流编排（第 11 章）：审批流、状态流转规则、自动化动作</td></tr>
+    <tr><td>定期/循环工单</td><td>Recurring Ticket 自动生成</td><td class="warn">仅服务频率字段</td><td class="highlight">服务频率升级为「定期工单自动生成」（第 8 章），周期工单自动落地</td></tr>
+    <tr><td>SLA 引擎</td><td>多级 SLA + 升级链 + 工作日历</td><td class="warn">简单超时提醒</td><td class="highlight">升级为 SLA 契约引擎（第 9 章）：多级 SLA、升级链、工作日历</td></tr>
+    <tr><td>知识库/自助</td><td>知识库 + RAG + 自助门户</td><td class="warn">仅客户门户</td><td class="highlight">新增知识库与自助门户（第 12 章）</td></tr>
+    <tr><td>CMDB/依赖</td><td>资产依赖 + 影响分析</td><td class="warn">资产清单无依赖</td><td class="highlight">资产清单扩展「资产依赖关系」字段（第 13 章）</td></tr>
+    <tr><td>绩效考核</td><td>PSA 侧重计费/利用率</td><td class="green">已有加权公式</td><td class="highlight">保留并强化（比通用 ITSM 更贴合安服场景）</td></tr>
+    <tr><td>移动端/现场</td><td>GPS+拍照+打卡</td><td class="green">已具备</td><td class="green">保留</td></tr>
+  </table>
+  <div class="purple"><strong>结论：</strong>本方案在「工单为主线 + 绩效加权 + 整改闭环」这一安全运维特产点上已优于通用 ITSM；V4.0 重点补齐 AI 自动化、工作流引擎、定期工单自动生成、SLA 契约化、知识库五项差距，达到对标杆系统的对齐。</div>
+</div>
+
+<!-- 1 概述 -->
+<div class="section" id="s1">
+  <h2><span class="num">1</span>项目概述与总体架构</h2>
+  <h3>1.1 核心设计理念</h3>
+  <div class="highlight">本版本将系统重心从「风险台账」重构为<strong>「以工单为核心」</strong>——一切业务围绕工单展开，并以 <strong>AI 增强 + 流程自动化</strong> 提效，形成可追溯、可量化、可考核、可自动化的闭环。</div>
+  <h3>1.2 核心业务流程</h3>
+  <div class="flow">
+    <span>接单</span><span class="arr">→</span><span>派单</span><span class="arr">→</span><span>工单执行跟踪</span><span class="arr">→</span><span>发现问题</span><span class="arr">→</span><span>整改（多轮）</span><span class="arr">→</span><span>整改效果</span><span class="arr">→</span><span>项目交付</span><span class="arr">→</span><span>绩效考核</span>
+  </div>
+  <div class="flow" style="border-color:#c4b5fd;">
+    <span style="background:#f5f3ff;border-color:#7c3aed;color:#4c1d95;">定期工单自动生成</span><span class="arr">→</span><span style="background:#f5f3ff;border-color:#7c3aed;color:#4c1d95;">服务启动提醒</span><span class="arr">→</span><span style="background:#f5f3ff;border-color:#7c3aed;color:#4c1d95;">SLA 分级预警</span><span class="arr">→</span><span style="background:#f5f3ff;border-color:#7c3aed;color:#4c1d95;">AI 智能辅助</span><span class="arr">→</span><span style="background:#f5f3ff;border-color:#7c3aed;color:#4c1d95;">自动化流转</span>
+  </div>
+  <h3>1.3 模块划分（十四大核心模块）</h3>
+  <table>
+    <tr><th>模块</th><th>说明</th></tr>
+    <tr><td>① 接单模块</td><td>商务/销售录入客户需求，沉淀合同、验收标准、服务频率</td></tr>
+    <tr><td>② 派单模块</td><td>项目经理指派 + 智能派单建议、定价、服务时间/频率</td></tr>
+    <tr><td>③ 工单管理（核心）</td><td>工单全生命周期、状态机、超时/SLA 跟踪</td></tr>
+    <tr><td>④ 问题发现与整改</td><td>问题录入、多轮整改、效果确认</td></tr>
+    <tr><td>⑤ 项目交付</td><td>四类报告 + 各类专项报告</td></tr>
+    <tr><td>⑥ 绩效考核</td><td>工作量 + 价格 + 质量 + 评价 加权计算</td></tr>
+    <tr><td>⑦ 客户与资产管理</td><td>客户档案、资产清单、资产依赖</td></tr>
+    <tr><td>⑧ 报告中心</td><td>分客户/分项目归档、数据看板</td></tr>
+    <tr><td>⑨ 服务频率与定期工单<span class="new">升级</span></td><td>周期拆分、定期工单自动生成</td></tr>
+    <tr><td>⑩ 服务提醒与 SLA 引擎<span class="new">升级</span></td><td>服务启动提醒、分级预警、SLA 契约 + 升级链</td></tr>
+    <tr><td>⑪ AI 智能增强<span class="new">新增</span></td><td>智能分类、智能派单建议、工单摘要、相似推荐</td></tr>
+    <tr><td>⑫ 工作流编排<span class="new">新增</span></td><td>审批流、状态流转规则、自动化动作</td></tr>
+    <tr><td>⑬ 知识库与自助门户<span class="new">新增</span></td><td>知识库、自助报障、自助查询</td></tr>
+    <tr><td>⑭ 系统管理</td><td>权限、字典、审计、水印、脱敏</td></tr>
+  </table>
+</div>
+
+<!-- 2 接单 -->
+<div class="section" id="s2">
+  <h2><span class="num">2</span>接单模块</h2>
+  <p>接单是业务的起点，由商务/销售人员（或客户门户自助）录入客户需求，生成待派的工单。</p>
+  <h3>2.1 接单表单字段</h3>
+  <table>
+    <tr><th>字段</th><th>类型</th><th>说明</th></tr>
+    <tr><td>来源</td><td>单选</td><td>客户报障 / 商务拓展 / 巡检发现 / 安全事件 / 客户续约</td></tr>
+    <tr><td>用户名称</td><td>文本/关联</td><td>客户名称（关联客户档案）</td></tr>
+    <tr><td>资产名称</td><td>关联</td><td>客户运维系统/资产（关联资产清单）</td></tr>
+    <tr><td>运维项目</td><td>下拉选择</td><td>漏洞扫描/渗透测试/应急演练/安全加固/安全培训/代码审计/基线核查/安全巡检/安全评估/应急处置/重保值守/攻防演练/安全防护/设备巡检/等级保护测评/故障排查</td></tr>
+    <tr><td>服务频率</td><td>数字 + 单位</td><td>如「4 次/月」「1 次/周」「52 次/年」，定义服务频次，作为定期工单生成与提醒基准</td></tr>
+    <tr><td>合同价格</td><td>数字</td><td>合同约定金额（元）</td></tr>
+    <tr><td>甲方联系人</td><td>文本</td><td>客户对接人姓名</td></tr>
+    <tr><td>甲方联系电话</td><td>电话</td><td>客户联系电话（脱敏展示）</td></tr>
+    <tr><td>服务时间</td><td>日期区间</td><td>起止日期</td></tr>
+    <tr><td>验收标准</td><td>富文本</td><td>与客户约定的验收条件</td></tr>
+  </table>
+  <div class="warn"><strong>说明：</strong>接单完成后生成一条「待派单」状态的工单，携带合同价格、验收标准、服务频率等原始信息。接单时 <strong>AI 智能分类</strong> 可依据描述自动推荐运维项目与优先级。</div>
+</div>
+
+<!-- 3 派单 -->
+<div class="section" id="s3">
+  <h2><span class="num">3</span>派单模块（含智能派单）</h2>
+  <p>项目经理在接单基础上，指派具体运维人员并确定派单价格、服务时间与服务频率；系统提供<strong>智能派单建议</strong>。</p>
+  <h3>3.1 派单表单字段</h3>
+  <table>
+    <tr><th>字段</th><th>类型</th><th>说明</th></tr>
+    <tr><td>运维人员</td><td>人员选择</td><td>指派执行人（可单人/多人，支持智能推荐）</td></tr>
+    <tr><td>用户名称</td><td>关联</td><td>客户名称（继承自接单）</td></tr>
+    <tr><td>资产名称</td><td>关联</td><td>运维资产（继承自接单）</td></tr>
+    <tr><td>运维项目</td><td>下拉选择</td><td>同接单的运维项目枚举</td></tr>
+    <tr><td>服务频率</td><td>数字 + 单位</td><td>继承自接单，项目经理可调整</td></tr>
+    <tr><td>派单价格</td><td>数字</td><td>派给运维人员的结算价格（用于绩效）</td></tr>
+    <tr><td>服务时间</td><td>日期区间</td><td>起止日期（含 SLA 时限）</td></tr>
+    <tr><td>验收标准</td><td>富文本</td><td>对该次派单的验收要求</td></tr>
+  </table>
+  <h3>3.2 智能派单建议 <span class="badge purple">AI</span></h3>
+  <p>系统根据运维人员的<strong>技能矩阵</strong>（擅长的运维项目、行业、客户）、<strong>当前负载</strong>（在办工单数、工时）、<strong>历史绩效与客户评价</strong>，自动推荐最合适的执行人并给出理由，项目经理可一键采纳或人工调整。</p>
+  <div class="highlight"><strong>关键点：</strong>「合同价格」与「派单价格」分离（差额即毛利）；智能派单规则作为<strong>辅助建议</strong>，最终派单决策仍由项目经理确认，保证可控。</div>
+</div>
+
+<!-- 4 工单管理 -->
+<div class="section" id="s4">
+  <h2><span class="num">4</span>工单管理（核心）</h2>
+  <p>工单是系统主线，统一承载接单、派单、执行、跟踪、整改、交付、考核。</p>
+  <h3>4.1 工单状态机</h3>
+  <pre>待派单 → 已派单/进行中 → 计划中 ↔ 进行中 → 待验收 → 已完成
+                ↓
+          （SLA 预警 / 催办 / 升级）</pre>
+  <h3>4.2 工单状态定义（含进度细分）</h3>
+  <table>
+    <tr><th>状态</th><th>说明</th></tr>
+    <tr><td>计划中</td><td>已排期未开始</td></tr>
+    <tr><td>正在进行 XX年第X次·漏洞扫描</td><td>执行中的具体服务项（动态拼接服务名 + 当前次数）</td></tr>
+    <tr><td>正在进行 XX年第X次·渗透测试</td><td>同上，按运维项目动态生成</td></tr>
+    <tr><td>…（其余 14 类项目）</td><td>故障排查 等，均显示「正在进行 + 项目名」</td></tr>
+    <tr><td>已完成</td><td>服务执行完毕</td></tr>
+    <tr><td>已交付 / 已验收 / 已关闭</td><td>交付报告、客户验收、结案</td></tr>
+  </table>
+  <h3>4.3 状态流转规则（工作流） <span class="badge purple">自动化</span></h3>
+  <p>状态流转通过工作流引擎（第 11 章）配置：如「整改全部通过 → 自动进入待验收」「客户验收签字 → 自动关闭并计入绩效」，减少人工流转。</p>
+</div>
+
+<!-- 5 问题与整改 -->
+<div class="section" id="s5">
+  <h2><span class="num">5</span>问题发现与整改闭环</h2>
+  <h3>5.1 发现问题</h3>
+  <p>运维人员在执行工单过程中记录发现的问题，挂接在工单之下：问题类型、严重等级、描述、截图/日志附件。系统提供<strong>问题相似度推荐</strong>，自动关联历史同类问题及既往整改方案。</p>
+  <h3>5.2 整改情况（多轮）</h3>
+  <table>
+    <tr><th>整改状态</th><th>说明</th></tr>
+    <tr><td>第 1 轮整改中…</td><td>首轮整改进行中</td></tr>
+    <tr><td>第 N 轮整改中…</td><td>整改不通过后的后续轮次</td></tr>
+    <tr><td>整改完成</td><td>本轮整改完成，待验证效果</td></tr>
+    <tr><td>整改不通过</td><td>效果未达标，自动发起下一轮</td></tr>
+  </table>
+  <h3>5.3 整改效果</h3>
+  <ul>
+    <li>效果描述采用具体成果式：<span class="badge green">XX 漏洞已修复</span> <span class="badge green">XX 问题已修复</span></li>
+    <li>效果验证三态：通过 / 不通过 / 部分完成继续整改</li>
+  </ul>
+</div>
+
+<!-- 6 交付 -->
+<div class="section" id="s6">
+  <h2><span class="num">6</span>项目交付</h2>
+  <p>工单完成后，产出标准化交付物，统一归入报告中心。</p>
+  <h3>6.1 四类核心交付报告</h3>
+  <table>
+    <tr><th>报告类型</th><th>内容</th></tr>
+    <tr><td>运维报告</td><td>本次运维执行过程、服务内容汇总</td></tr>
+    <tr><td>发现问题报告</td><td>执行中发现的全部问题清单</td></tr>
+    <tr><td>整改报告</td><td>多轮整改过程、措施、效果</td></tr>
+    <tr><td>验收报告</td><td>验收标准、验收结论、客户签字</td></tr>
+  </table>
+  <p>另支持：漏洞扫描报告、渗透测试报告、应急演练报告、安全评估报告、基线核查报告、等保测评报告等按项目类型生成。报告可由 <strong>AI 摘要</strong> 辅助撰写草稿。</p>
+</div>
+
+<!-- 7 绩效 -->
+<div class="section" id="s7">
+  <h2><span class="num">7</span>运维人员绩效考核</h2>
+  <p>绩效考核以<strong>加权公式</strong>自动计算每个运维人员的绩效分。</p>
+  <h3>7.1 绩效构成要素</h3>
+  <table>
+    <tr><th>要素</th><th>说明</th></tr>
+    <tr><td>工作量</td><td>完成工单/服务项的数量、投入工时（按服务周期次数累计）</td></tr>
+    <tr><td>派单价格</td><td>该单的派单价格（结算金额）</td></tr>
+    <tr><td>工作质量</td><td>管理者/安全专家打分（如 0.6~1.2 系数）</td></tr>
+    <tr><td>用户评价</td><td>客户满意度评价（如 0.8~1.2 系数）</td></tr>
+  </table>
+  <h3>7.2 绩效计算公式</h3>
+  <pre>绩效分 = Σ ( 工作量 × 派单价格 × 工作质量系数 × 用户评价系数 )</pre>
+  <div class="highlight"><strong>说明：</strong>工作量与派单价格构成「创收基数」；按服务频率拆分后，每次服务周期单独计入工作量。可扩展「客户续约率/回款率」等经营指标。</div>
+  <h3>7.3 统计维度</h3>
+  <ul>
+    <li>按人员、按客户、按运维项目、按时间（日/周/月/季/年）</li>
+    <li>产出：个人绩效报表、团队排名、成本毛利核算依据</li>
+  </ul>
+</div>
+
+<!-- 8 服务频率与定期工单 -->
+<div class="section" id="s8">
+  <h2><span class="num">8</span>服务频率与定期工单 <span class="badge green">升级</span></h2>
+  <p>依据接单/派单中的<strong>服务频率</strong>，将服务时间自动拆分为若干服务周期，并<strong>自动生成定期（循环）工单</strong>，杜绝漏单、忘单。</p>
+  <h3>8.1 周期拆分规则</h3>
+  <table>
+    <tr><th>频率</th><th>示例</th><th>拆分逻辑</th></tr>
+    <tr><td>X 次/周</td><td>2 次/周</td><td>每周均匀生成 2 个服务周期（如周一、周四）</td></tr>
+    <tr><td>X 次/月</td><td>4 次/月</td><td>每月均匀生成 4 个（如每周 1 次）</td></tr>
+    <tr><td>X 次/年</td><td>4 次/年</td><td>每季度 1 次</td></tr>
+    <tr><td>X 次/天</td><td>1 次/天</td><td>每个工作日/自然日 1 次</td></tr>
+  </table>
+  <div class="highlight"><strong>定期工单：</strong>系统按周期自动生成对应工单（带「第 X 次」编号），而非仅靠人工记忆；周期工单继承原工单的客户、资产、项目、派单信息与执行人。</div>
+  <h3>8.2 周期工单生成时机</h3>
+  <ul>
+    <li>进入周期前 N 天（可配，默认 1 天）预生成 <span class="badge blue">计划中</span> 工单</li>
+    <li>周期开始时自动置为 <span class="badge blue">进行中</span> 并触发启动提醒</li>
+  </ul>
+</div>
+
+<!-- 9 服务提醒与SLA -->
+<div class="section" id="s9">
+  <h2><span class="num">9</span>服务提醒与 SLA 契约引擎 <span class="badge green">升级</span></h2>
+  <h3>9.1 服务启动提醒</h3>
+  <table>
+    <tr><th>触发</th><th>内容</th></tr>
+    <tr><td>进入本次服务周期时</td><td>「<strong>第 X 次服务已启动，请及时处理！</strong>」（如「第 3 次服务已启动，请及时处理！·漏洞扫描」）</td></tr>
+  </table>
+  <h3>9.2 服务周期分级预警</h3>
+  <p>预警基准：<strong>本次服务周期结束日</strong>。</p>
+  <table>
+    <tr><th>等级</th><th>触发条件</th><th>颜色</th></tr>
+    <tr><td>黄色预警</td><td>距周期结束日 ≤ 7 天（1 周）</td><td><span class="badge amber">黄色</span></td></tr>
+    <tr><td>橙色预警</td><td>距周期结束日 ≤ 3 天</td><td><span class="badge orange">橙色</span></td></tr>
+    <tr><td>红色紧急</td><td>距周期结束日 ≤ 1 天</td><td><span class="badge red">红色</span></td></tr>
+  </table>
+  <h3>9.3 SLA 契约引擎 <span class="badge purple">升级</span></h3>
+  <p>在简单超时提醒基础上，升级为契约化 SLA：</p>
+  <ul>
+    <li><strong>多级 SLA</strong>：按客户等级（金牌/银牌/普通）或项目紧急度定义不同响应/解决时限</li>
+    <li><strong>工作日历</strong>：支持工作日/节假日历，SLA 计时自动跳过非工作时段</li>
+    <li><strong>升级链（Escalation）</strong>：超时自动逐级上报——执行人 → 项目经理 → 部门负责人，避免无人响应</li>
+  </ul>
+  <h3>9.4 提醒对象与渠道</h3>
+  <ul>
+    <li>提醒对象：<strong>运维人员（执行人）+ 管理员（项目经理）</strong>；超时升级时逐级追加</li>
+    <li>渠道：站内消息 / 移动端推送 / 短信·企微·飞书·钉钉</li>
+  </ul>
+  <div class="warn"><strong>两类提醒区分：</strong>「服务频率提醒」管周期性服务的按次启动与周期截止；「SLA 超时」管工单整体时限，含升级链。二者互补、可同时触发。</div>
+</div>
+
+<!-- 10 AI -->
+<div class="section" id="s10">
+  <h2><span class="num">10</span>AI 智能增强 <span class="badge purple">新增</span></h2>
+  <p>对标 Freshservice Freddy AI / ServiceNow Now Assist，引入轻量 AI 能力（可接本地 LLM 或云 API），提升效率。</p>
+  <h3>10.1 AI 能力清单</h3>
+  <table>
+    <tr><th>能力</th><th>应用场景</th></tr>
+    <tr><td>智能分类</td><td>根据接单/报障描述自动推荐运维项目、优先级、严重等级</td></tr>
+    <tr><td>智能派单建议</td><td>基于技能矩阵 + 负载 + 绩效推荐执行人（见 3.2）</td></tr>
+    <tr><td>工单摘要</td><td>自动生成工单执行过程摘要，辅助交付报告</td></tr>
+    <tr><td>问题相似推荐</td><td>新问题自动匹配历史相似问题与整改方案（见 5.1）</td></tr>
+    <tr><td>知识问答</td><td>运维人员/客户自助问答（依托知识库 RAG）</td></tr>
+  </table>
+  <div class="purple"><strong>落地原则：</strong>AI 均以<strong>「建议 + 人工确认」</strong>方式落地，不替代关键决策；敏感数据（渗透测试细节、漏洞详情）走本地化/脱敏 LLM，满足数据安全要求。</div>
+</div>
+
+<!-- 11 工作流 -->
+<div class="section" id="s11">
+  <h2><span class="num">11</span>工作流编排与审批 <span class="badge purple">新增</span></h2>
+  <p>对标 ServiceNow Flow / ConnectWise 自动化，引入轻量工作流引擎，让状态流转、审批、自动化动作可配置、可追溯。</p>
+  <h3>11.1 典型流程</h3>
+  <table>
+    <tr><th>流程</th><th>说明</th></tr>
+    <tr><td>审批流</td><td>派单价格超阈值需上级审批；报告交付客户验收审批</td></tr>
+    <tr><td>状态自动流转</td><td>整改全部通过 → 自动「待验收」；客户签字 → 自动「已关闭」+ 计绩效</td></tr>
+    <tr><td>自动化动作</td><td>超时自动升级、周期工单自动生成、提醒自动发送</td></tr>
+  </table>
+  <h3>11.2 实现</h3>
+  <ul>
+    <li>规则引擎：定义「事件 + 条件 + 动作」三段式规则，可视化配置</li>
+    <li>全量留痕：每次自动流转记录触发规则、时间、操作人（系统/人员）</li>
+  </ul>
+</div>
+
+<!-- 12 知识库 -->
+<div class="section" id="s12">
+  <h2><span class="num">12</span>知识库与自助门户 <span class="badge purple">新增</span></h2>
+  <p>沉淀运维经验，提供客户与内部员工自助能力，降低重复工单。</p>
+  <h3>12.1 知识库</h3>
+  <ul>
+    <li>沉淀：漏洞库、整改方案库、常见故障排查手册、标准操作流程（SOP）</li>
+    <li>检索：全文检索 + RAG 问答，运维人员与客户可按权限访问</li>
+    <li>闭环：高频问题 → 自动沉淀为知识条目 → 供下次自助解决</li>
+  </ul>
+  <h3>12.2 自助门户</h3>
+  <ul>
+    <li>客户自助报障（自动生成接单工单）、自助查询工单进度、下载报告</li>
+    <li>内部员工自助查知识、自助打卡核对工作量</li>
+  </ul>
+</div>
+
+<!-- 13 数据模型 -->
+<div class="section" id="s13">
+  <h2><span class="num">13</span>数据模型设计</h2>
+  <h3>13.1 实体关系（工单为核心）</h3>
+  <pre>接单(order_receive) 1—1 工单(work_order) 1—1 派单(order_dispatch)
+工单 1—N 服务周期(service_cycle) → 1—N 定期工单 → 1—N 服务提醒(service_reminder)
+工单 1—N 问题(issue) → 1—N 整改(rectification) → 1—N 整改记录(多轮)
+工单 1—N 交付物(delivery)
+SLA 契约(sla_policy) → 工单 → 升级记录(escalation)
+工作流规则(workflow_rule) → 触发自动化动作(action_log)
+知识库(kb_article) → 问题相似推荐
+工单/问题/整改/交付 → 绩效(performance)
+客户 1—N 项目/资产 → 关联工单</pre>
+  <h3>13.2 核心表清单</h3>
+  <table>
+    <tr><th>表名</th><th>关键字段</th></tr>
+    <tr><td><code>order_receive</code> 接单</td><td>id, source, customer_id, asset_id, project, service_frequency, frequency_unit, contract_price, contact_name, contact_phone, service_start/end, accept_standard, ai_category</td></tr>
+    <tr><td><code>order_dispatch</code> 派单</td><td>id, work_order_id, engineer_id, customer_id, asset_id, project, service_frequency, frequency_unit, dispatch_price, service_start/end, accept_standard, suggest_reason</td></tr>
+    <tr><td><code>work_order</code> 工单</td><td>id, no, receive_id, dispatch_id, customer_id, asset_id, project, service_frequency, frequency_unit, current_cycle_no, status, sla_deadline, sla_policy_id, priority, progress</td></tr>
+    <tr><td><code>service_cycle</code> 服务周期</td><td>id, work_order_id, cycle_no, service_start, service_end, status(计划中/进行中/已完成/已逾期), auto_generated</td></tr>
+    <tr><td><code>service_reminder</code> 服务提醒</td><td>id, cycle_id, type(启动/预警), level(黄/橙/红), content, to_user_id, channel, sent_at</td></tr>
+    <tr><td><code>sla_policy</code> SLA 契约</td><td>id, name, customer_level, response_limit, resolve_limit, work_calendar_id, escalation_chain</td></tr>
+    <tr><td><code>escalation</code> 升级记录</td><td>id, work_order_id, level, from_user, to_user, triggered_at, reason</td></tr>
+    <tr><td><code>workflow_rule</code> 工作流规则</td><td>id, name, event, condition, action, enabled</td></tr>
+    <tr><td><code>action_log</code> 自动化动作日志</td><td>id, rule_id, work_order_id, action, operator(系统/人员), executed_at</td></tr>
+    <tr><td><code>kb_article</code> 知识库</td><td>id, title, category, content, tags, permissions, source_issue_id</td></tr>
+    <tr><td><code>engineer_skill</code> 技能矩阵</td><td>id, user_id, project_type, industry, level, customer_ids</td></tr>
+    <tr><td><code>issue</code> 问题</td><td>id, work_order_id, type, level, description, attachments, similar_issue_ids</td></tr>
+    <tr><td><code>rectification</code> 整改</td><td>id, issue_id, plan, deadline, assignee, status</td></tr>
+    <tr><td><code>rectification_record</code> 整改记录</td><td>id, rectification_id, round_no, action, executor, effect</td></tr>
+    <tr><td><code>delivery</code> 交付</td><td>id, work_order_id, customer_id, report_type, report_id, sign</td></tr>
+    <tr><td><code>performance</code> 绩效</td><td>id, user_id, work_order_id, cycle_id, workload, dispatch_price, quality_score, customer_score, perf_score</td></tr>
+    <tr><td><code>asset_system</code> 资产清单</td><td>id, customer_id, name, type, ip, <strong>dependencies(依赖关系)</strong>, owner</td></tr>
+    <tr><td><code>customer</code> 客户</td><td>id, name, level(金牌/银牌/普通), industry, contact</td></tr>
+  </table>
+</div>
+
+<!-- 14 权限/安全/技术 -->
+<div class="section" id="s14">
+  <h2><span class="num">14</span>权限、安全与技术选型</h2>
+  <h3>14.1 角色权限</h3>
+  <table>
+    <tr><th>角色</th><th>权限</th></tr>
+    <tr><td>商务/销售</td><td>接单录入（含服务频率）</td></tr>
+    <tr><td>项目经理/管理员</td><td>派单、工单跟踪、服务周期管理、绩效审核、督办、SLA 配置</td></tr>
+    <tr><td>运维人员</td><td>执行工单、问题录入、整改、打卡、接收服务提醒</td></tr>
+    <tr><td>安全专家</td><td>质量打分、整改审核、验收</td></tr>
+    <tr><td>客户</td><td>自助报障、评价、验收签字、查看本客户报告</td></tr>
+  </table>
+  <h3>14.2 安全要求</h3>
+  <ul>
+    <li>数据脱敏（联系方式、IP、密码等）；全程 HTTPS，敏感数据加密存储</li>
+    <li>屏幕 + 打印隐藏数字水印，防拍照防截屏</li>
+    <li>操作审计日志全留痕（含 AI 建议与自动动作）</li>
+    <li>AI 数据本地化/脱敏，禁止敏感数据外流</li>
+  </ul>
+  <h3>14.3 技术选型</h3>
+  <table>
+    <tr><th>层次</th><th>推荐</th></tr>
+    <tr><td>前端</td><td>Vue3 + Ant Design / Element Plus</td></tr>
+    <tr><td>移动端</td><td>uni-app / 微信小程序（GPS+拍照+推送）</td></tr>
+    <tr><td>后端</td><td>Java Spring Boot / Go / Python FastAPI</td></tr>
+    <tr><td>数据库</td><td>MySQL / PostgreSQL</td></tr>
+    <tr><td>缓存/检索</td><td>Redis + Elasticsearch（知识库/全文检索）</td></tr>
+    <tr><td>工作流引擎</td><td>Flowable / Temporal / Camunda（轻量可选自研规则引擎）</td></tr>
+    <tr><td>AI</td><td>本地 LLM（如 Qwen/DeepSeek 私有化）或云 API + RAG</td></tr>
+    <tr><td>消息提醒</td><td>站内 + 移动推送 + 企微/飞书/钉钉/短信</td></tr>
+    <tr><td>定时调度</td><td>Quartz / APScheduler / Cron（周期拆分 + 定期工单 + 提醒扫描）</td></tr>
+    <tr><td>对象存储</td><td>MinIO / OSS（加密）</td></tr>
+  </table>
+</div>
+
+<!-- 15 实施 -->
+<div class="section" id="s15">
+  <h2><span class="num">15</span>实施路线</h2>
+  <table>
+    <tr><th>阶段</th><th>内容</th><th>周期（估）</th></tr>
+    <tr><td>一期</td><td>客户/资产管理 + 接单 + 派单 + 工单状态跟踪 + 服务频率 + 定期工单 + 提醒/SLA</td><td>10-13 周</td></tr>
+    <tr><td>二期</td><td>问题发现 + 多轮整改 + 整改效果 + 问题相似推荐</td><td>4-6 周</td></tr>
+    <tr><td>三期</td><td>项目交付（四类报告）+ 报告中心 + 客户评价 + 知识库/自助门户</td><td>4-6 周</td></tr>
+    <tr><td>四期</td><td>绩效考核加权 + 移动端 + AI 智能增强 + 工作流编排 + 安全水印/脱敏 + 数据看板</td><td>6-8 周</td></tr>
+  </table>
+  <div class="highlight"><strong>MVP 建议：</strong>一期先跑通「接单 → 派单 → 工单跟踪 → 服务频率定期工单 → 提醒/SLA」主干闭环；AI 与工作流引擎可后置（四期）生效，避免一期过重。定稿版本已对齐主流系统的关键先进能力。</div>
+</div>
+
+<p style="text-align:center;color:#9aa5b1;margin-top:40px;font-size:13px;">—— 安全运维集中管控平台 · 系统开发设计方案 V4.0（定稿）· 完 ——</p>
+</div>
+</body>
+</html>
