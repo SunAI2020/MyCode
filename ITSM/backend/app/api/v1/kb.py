@@ -4,14 +4,16 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import get_db, require_role
 from app.models import KbArticle, SysUser
-from app.schemas.kb import KbArticleCreate, KbArticleOut, KbArticleUpdate
+from app.schemas.kb import KbArticleCreate, KbArticleOut, KbArticleUpdate, KbAskIn
 from app.services.audit_service import record
 from app.services.kb_service import increment_view
+from app.services.rag_service import answer_question
 from app.services.search_service import delete_kb_article, index_kb_article, search_kb
 from app.utils.response import ok
 
 RW_ROLE = ("sys_admin", "sys_ops", "ticket_mgr")
 DEL_ROLE = ("sys_admin", "sys_ops")
+ASK_ROLE = ("sys_admin", "sys_ops", "ticket_mgr", "cust_admin", "cust_service")
 
 router = APIRouter(prefix="/kb-articles", tags=["知识库"])
 
@@ -42,6 +44,12 @@ def create_article(
     db.commit()
     index_kb_article(obj)  # 增量同步 ES 索引（ES 不可用静默跳过）
     return ok(KbArticleOut.model_validate(obj).model_dump())
+
+
+@router.post("/ask")
+def ask(body: KbAskIn, user: SysUser = Depends(require_role(*ASK_ROLE)), db: Session = Depends(get_db)):
+    """RAG 问答：知识库检索 + 可配置大模型摘要（未配置密钥时降级为检索片段）。"""
+    return ok(answer_question(db, body.question))
 
 
 @router.get("/{aid}")

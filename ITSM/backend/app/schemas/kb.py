@@ -33,3 +33,7 @@ class KbArticleOut(BaseModel):
     view_count: int
     created_at: datetime | None = None
     updated_at: datetime | None = None
+
+
+class KbAskIn(BaseModel):
+    question: str

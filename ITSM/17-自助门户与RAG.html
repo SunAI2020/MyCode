@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>步骤十七：客户侧自助门户 + RAG 问答（阶段五 · FR-19 / FR-17）</title>
+<style>body{font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;max-width:860px;margin:40px auto;padding:0 20px;line-height:1.7;color:#24292f}h1{border-bottom:2px solid #e1e4e8;padding-bottom:.3em}h2{margin-top:1.5em;border-bottom:1px solid #eaecef;padding-bottom:.2em}code{background:#f6f8fa;padding:.15em .4em;border-radius:4px;font-family:Consolas,monospace;font-size:.9em}pre{background:#f6f8fa;padding:12px;border-radius:6px;overflow:auto}table{border-collapse:collapse;width:100%}th,td{border:1px solid #d0d7de;padding:6px 10px;text-align:left}th{background:#f6f8fa}blockquote{color:#57606a;border-left:4px solid #d0d7de;margin:0;padding-left:12px}</style>
+</head>
+<body>
+<h1>步骤十七：客户侧自助门户 + RAG 问答（阶段五 · FR-19 / FR-17）</h1>
+<blockquote>依据：《IT运维集中管控平台_软件设计方案.html》V1.0 定稿 · §4.16 / §4.18<br>范围：客户自助报障/概览 + 知识库 RAG 问答（可配置 LLM，无密钥降级检索）。</blockquote>
+
+<h2>1. 目标</h2>
+<ul>
+<li><b>自助门户</b>：客户侧角色自助报障（建接单 + 工单）、一键概览合同履约/工单进度/交付报告；全程按 <code>customer_scope_of</code> 行级隔离。</li>
+<li><b>RAG 问答</b>：知识库检索 + 可配置大模型摘要；未配置密钥时降级为「检索片段」，绝不泄露未发布条目。</li>
+</ul>
+
+<h2>2. 改动</h2>
+<ul>
+<li><b>表</b>：<code>work_order</code> 新增 <code>description</code>（报障描述）——迁移 <code>0010</code>。</li>
+<li><b>配置</b>：<code>LLM_API_BASE</code>/<code>LLM_API_KEY</code>/<code>LLM_MODEL</code>（可选）。</li>
+<li><b>后端</b>：<code>/portal/tickets</code>、<code>/portal/overview</code>、<code>/kb-articles/ask</code>。</li>
+</ul>
+
+<h2>3. 业务规则</h2>
+<ul>
+<li><b>报障</b>：客户侧 <code>customer_id</code> 强制取本人 scope；平台侧须显式传。同时落 <code>order_receive</code> + <code>work_order</code>（待派单）。</li>
+<li><b>概览</b>：返回本人客户合同、工单各状态计数、最近工单、最近交付（均 <code>scope_filter</code>）。</li>
+<li><b>RAG</b>：仅检索 <code>status=已发布</code>；LLM 配置时摘要，否则/异常返回检索片段（<code>mode=retrieval</code>）。</li>
+</ul>
+
+<h2>4. 文件清单</h2>
+<ul>
+<li><code>app/models/work_order.py</code>、<code>alembic/versions/0010_portal.py</code></li>
+<li><code>app/core/config.py</code>、<code>app/schemas/portal.py</code>、<code>app/schemas/kb.py</code></li>
+<li><code>app/services/rag_service.py</code>、<code>app/api/v1/portal.py</code>、<code>app/api/v1/kb.py</code>、<code>app/api/v1/router.py</code></li>
+<li><code>tests/test_rag_service.py</code> / <code>tests/test_portal.py</code></li>
+</ul>
+
+<h2>5. API</h2>
+<ul>
+<li><code>POST /portal/tickets</code> 自助报障</li>
+<li><code>GET /portal/overview</code> 门户概览</li>
+<li><code>POST /kb-articles/ask</code> RAG 问答</li>
+</ul>
+
+<h2>6. 角色</h2>
+<p>报障/概览/RAG：<code>sys_admin / sys_ops / ticket_mgr / cust_admin / cust_service</code>（客户侧行级隔离；RAG 仅返回已发布条目）。</p>
+
+<h2>7. 验证</h2>
+<pre>cd backend &amp;&amp; .venv/Scripts/activate
+alembic upgrade head
+python -m pytest tests -q</pre>
+</body>
+</html>

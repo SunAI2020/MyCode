@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     # 可选中间件（空 = 禁用，未配置时自动降级到进程内缓存 / SQL 检索）
     REDIS_URL: str = ""
     ELASTICSEARCH_URL: str = ""
+    # 可配置大模型（OpenAI 兼容 API；空 = 未启用，RAG 降级为纯检索）
+    LLM_API_BASE: str = ""
+    LLM_API_KEY: str = ""
+    LLM_MODEL: str = ""
 
     @property
     def cors_origins_list(self) -> list[str]:
