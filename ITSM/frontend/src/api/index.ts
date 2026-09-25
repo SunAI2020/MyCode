@@ -45,3 +45,21 @@ export const updateSla = (id: number, data: any) => request.put(`/sla-policies/$
 export const deleteSla = (id: number) => request.delete(`/sla-policies/${id}`)
 export const listCycles = (params: any) => request.get('/cycles', { params })
 export const listReminders = (params: any) => request.get('/reminders', { params })
+
+// ---- 知识库 / RAG ----
+export const listArticles = (params: any) => request.get('/kb-articles', { params })
+export const createArticle = (data: any) => request.post('/kb-articles', data)
+export const deleteArticle = (id: number) => request.delete(`/kb-articles/${id}`)
+export const askKb = (data: any) => request.post('/kb-articles/ask', data)
+export const reindexKb = () => request.post('/kb-articles/reindex')
+
+// ---- 自助门户 ----
+export const portalOverview = () => request.get('/portal/overview')
+export const createTicket = (data: any) => request.post('/portal/tickets', data)
+
+// ---- 工作流规则 ----
+export const listWorkflowRules = (params: any) => request.get('/workflow-rules', { params })
+export const workflowTransitions = () => request.get('/workflow-rules/transitions')
+export const createWorkflowRule = (data: any) => request.post('/workflow-rules', data)
+export const updateWorkflowRule = (id: number, data: any) => request.put(`/workflow-rules/${id}`, data)
+export const deleteWorkflowRule = (id: number) => request.delete(`/workflow-rules/${id}`)

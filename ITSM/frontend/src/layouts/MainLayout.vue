@@ -25,6 +25,9 @@
           <el-menu-item index="/customers">客户管理</el-menu-item>
           <el-menu-item index="/contracts">合同管理</el-menu-item>
           <el-menu-item index="/work-orders">工单管理</el-menu-item>
+          <el-menu-item index="/portal">自助门户</el-menu-item>
+          <el-menu-item index="/knowledge">知识库</el-menu-item>
+          <el-menu-item index="/workflows">工作流</el-menu-item>
           <el-menu-item index="/sla">SLA / 周期</el-menu-item>
         </el-menu>
       </el-aside>
