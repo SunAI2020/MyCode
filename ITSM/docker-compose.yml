@@ -4,7 +4,7 @@ services:
     container_name: itsm-postgres
     environment:
       POSTGRES_USER: itsm
-      POSTGRES_PASSWORD: itsm_password
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-itsm_password}
       POSTGRES_DB: itsm
     ports:
       - "127.0.0.1:5433:5432"

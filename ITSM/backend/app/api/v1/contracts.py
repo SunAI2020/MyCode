@@ -11,6 +11,7 @@ from app.core.deps import (
     scope_filter,
 )
 from app.models import CmdbCi, Contract, ContractItem, SysUser
+from app.core.security import mask_sensitive, masked_page
 from app.schemas.contract import (
     CmdbCiCreate,
     CmdbCiOut,
@@ -42,9 +43,9 @@ def list_contracts(
     user: SysUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    q = db.query(Contract)
-    q = scope_filter(q, Contract, customer_scope_of(user, db))
-    return ok(paginate(q, page, size, ContractOut))
+    scope = customer_scope_of(user, db)
+    q = scope_filter(db.query(Contract), Contract, scope)
+    return ok(masked_page(paginate(q, page, size, ContractOut), scope))
 
 
 @contracts.post("")
@@ -66,8 +67,9 @@ def get_contract(cid: int, user: SysUser = Depends(get_current_user), db: Sessio
     obj = db.get(Contract, cid)
     if obj is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "合同不存在")
-    assert_scoped(obj, customer_scope_of(user, db), db)
-    return ok(ContractOut.model_validate(obj).model_dump())
+    scope = customer_scope_of(user, db)
+    assert_scoped(obj, scope, db)
+    return ok(mask_sensitive(ContractOut.model_validate(obj).model_dump(), scope))
 
 
 @contracts.put("/{cid}")
@@ -109,11 +111,11 @@ def list_items(
     user: SysUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    q = db.query(ContractItem)
-    q = scope_filter(q, ContractItem, customer_scope_of(user, db))
+    scope = customer_scope_of(user, db)
+    q = scope_filter(db.query(ContractItem), ContractItem, scope)
     if contract_id is not None:
         q = q.filter(ContractItem.contract_id == contract_id)
-    return ok(paginate(q, page, size, ContractItemOut))
+    return ok(masked_page(paginate(q, page, size, ContractItemOut), scope))
 
 
 @items.post("")
@@ -135,8 +137,9 @@ def get_item(iid: int, user: SysUser = Depends(get_current_user), db: Session = 
     obj = db.get(ContractItem, iid)
     if obj is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "子项不存在")
-    assert_scoped(obj, customer_scope_of(user, db), db)
-    return ok(ContractItemOut.model_validate(obj).model_dump())
+    scope = customer_scope_of(user, db)
+    assert_scoped(obj, scope, db)
+    return ok(mask_sensitive(ContractItemOut.model_validate(obj).model_dump(), scope))
 
 
 @items.put("/{iid}")
@@ -192,9 +195,9 @@ def list_cis(
     user: SysUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    q = db.query(CmdbCi)
-    q = scope_filter(q, CmdbCi, customer_scope_of(user, db))
-    return ok(paginate(q, page, size, CmdbCiOut))
+    scope = customer_scope_of(user, db)
+    q = scope_filter(db.query(CmdbCi), CmdbCi, scope)
+    return ok(masked_page(paginate(q, page, size, CmdbCiOut), scope))
 
 
 @cis.post("")
@@ -216,8 +219,9 @@ def get_ci(iid: int, user: SysUser = Depends(get_current_user), db: Session = De
     obj = db.get(CmdbCi, iid)
     if obj is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "服务对象不存在")
-    assert_scoped(obj, customer_scope_of(user, db), db)
-    return ok(CmdbCiOut.model_validate(obj).model_dump())
+    scope = customer_scope_of(user, db)
+    assert_scoped(obj, scope, db)
+    return ok(mask_sensitive(CmdbCiOut.model_validate(obj).model_dump(), scope))
 
 
 @cis.put("/{iid}")

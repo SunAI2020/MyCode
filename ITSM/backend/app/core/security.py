@@ -50,3 +50,23 @@ def mask_ip(ip: str | None) -> str:
 
 def mask_amount(_value: float | None) -> str:
     return "***"  # 低权限角色金额遮蔽占位
+
+
+def mask_sensitive(data: dict, scope: int | None) -> dict:
+    """客户侧角色（scope 非 None）对敏感字段脱敏；平台侧返回原文。就地修改并返回。"""
+    if scope is None:
+        return data
+    if data.get("contact"):
+        data["contact"] = mask_phone(data["contact"])
+    if data.get("ip"):
+        data["ip"] = mask_ip(data["ip"])
+    for k in ("amount", "contract_price", "price", "dispatch_price"):
+        if data.get(k) is not None:
+            data[k] = mask_amount(data[k])
+    return data
+
+
+def masked_page(result: dict, scope: int | None) -> dict:
+    """对分页结果 items 逐条脱敏。"""
+    result["items"] = [mask_sensitive(i, scope) for i in result.get("items", [])]
+    return result

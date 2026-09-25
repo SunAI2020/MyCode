@@ -11,6 +11,7 @@ from app.core.deps import (
     scope_filter,
 )
 from app.models import Customer, SysUser
+from app.core.security import mask_sensitive, masked_page
 from app.schemas.customer import CustomerCreate, CustomerOut, CustomerUpdate
 from app.services.audit_service import record
 from app.utils.pagination import paginate
@@ -26,9 +27,9 @@ def list_customers(
     user: SysUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    q = db.query(Customer)
-    q = scope_filter(q, Customer, customer_scope_of(user, db))
-    return ok(paginate(q, page, size, CustomerOut))
+    scope = customer_scope_of(user, db)
+    q = scope_filter(db.query(Customer), Customer, scope)
+    return ok(masked_page(paginate(q, page, size, CustomerOut), scope))
 
 
 @router.post("")
@@ -56,8 +57,9 @@ def get_customer(
     obj = db.get(Customer, cid)
     if obj is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "客户不存在")
-    assert_scoped(obj, customer_scope_of(user, db), db)
-    return ok(CustomerOut.model_validate(obj).model_dump())
+    scope = customer_scope_of(user, db)
+    assert_scoped(obj, scope, db)
+    return ok(mask_sensitive(CustomerOut.model_validate(obj).model_dump(), scope))
 
 
 @router.put("/{cid}")

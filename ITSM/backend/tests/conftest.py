@@ -1,4 +1,9 @@
 """测试夹具：SQLite 内存库 + 会话。"""
+import os
+
+# 测试无需真实 DB；为满足 config.Settings 的必填 DATABASE_URL，注入占位值
+os.environ.setdefault("DATABASE_URL", "sqlite:///")
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker

@@ -1,7 +1,10 @@
 """种子数据：七级角色 / 字典枚举 / 初始管理员
 
 运行：python -m app.db.seed
+管理员初始密码取 ADMIN_INITIAL_PASSWORD（默认 admin123）。
 """
+
+import os
 
 from sqlalchemy.orm import Session
 
@@ -80,7 +83,7 @@ def seed() -> None:
             admin = SysUser(
                 username="admin",
                 name="系统管理员",
-                pwd_hash=hash_password("admin123"),
+                pwd_hash=hash_password(os.environ.get("ADMIN_INITIAL_PASSWORD", "admin123")),
             )
             db.add(admin)
             db.flush()
@@ -88,7 +91,7 @@ def seed() -> None:
             db.add(SysUserRole(user_id=admin.id, role_id=role.id))
 
         db.commit()
-        print("seed 完成：7 角色 / 37 字典项 / 1 管理员(admin/admin123)")
+        print("seed 完成：7 角色 / 37 字典项 / 1 管理员(admin，密码来自 ADMIN_INITIAL_PASSWORD，默认 admin123)")
     finally:
         db.close()
 

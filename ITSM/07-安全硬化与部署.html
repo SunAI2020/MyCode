@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>步骤七：安全硬化与部署收尾</title>
+<style>
+  :root{--primary:#0f6bff;--primary-dark:#0a4fc0;--bg:#f5f7fa;--card:#fff;--text:#1f2733;--text-light:#5b6470;--border:#e3e8ef;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);line-height:1.75;font-size:15px;}
+  .wrap{max-width:980px;margin:0 auto;padding:0 20px 60px;}
+  .cover{background:linear-gradient(135deg,#0a3d91,#0f6bff 55%,#2b8cff);color:#fff;padding:48px 40px 40px;border-radius:0 0 22px 22px;}
+  .cover h1{font-size:26px;font-weight:700;margin-bottom:10px;}
+  .cover .sub{font-size:14px;opacity:.92;}
+  .section{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:26px 30px;margin:22px 0;}
+  .section h2{font-size:19px;color:var(--primary-dark);margin-bottom:12px;padding-bottom:10px;border-bottom:2px solid var(--primary);}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:14px;}
+  th,td{border:1px solid var(--border);padding:8px 11px;text-align:left;vertical-align:top;}
+  th{background:#f0f5ff;color:var(--primary-dark);font-weight:600;}
+  tr:nth-child(even) td{background:#fafbfd;}
+  code{font-family:Consolas,Menlo,monospace;background:#eef2f7;color:#c2410c;padding:1px 5px;border-radius:4px;font-size:13px;}
+  pre{background:#1e293b;color:#e2e8f0;padding:16px 18px;border-radius:10px;overflow-x:auto;font-size:13px;line-height:1.6;margin:12px 0;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="cover">
+    <h1>步骤七：安全硬化与部署收尾</h1>
+    <div class="sub">脱敏接线 · 工单号原子化 · 部署密钥外部化</div>
+  </div>
+
+  <div class="section">
+    <h2>1. 脱敏接线</h2>
+    <p>新增 <code>mask_sensitive(data, scope)</code> 与 <code>masked_page(result, scope)</code>：客户侧角色对 <code>contact/ip/amount/price</code> 脱敏，平台侧返回原文。应用于客户/合同/子项/CI/接单的列表与详情接口。</p>
+  </div>
+
+  <div class="section">
+    <h2>2. 工单号原子化</h2>
+    <p><code>WO-YYYY-NNNN</code> 改为 PostgreSQL 事务级咨询锁 <code>pg_advisory_xact_lock</code> 串行化取号；SQLite（测试）自动跳过。</p>
+  </div>
+
+  <div class="section">
+    <h2>3. 部署密钥外部化</h2>
+    <table>
+      <tr><th>项</th><th>改动</th></tr>
+      <tr><td><code>DATABASE_URL</code></td><td>改为必填（来自 .env/环境变量），移除含密码硬编码默认</td></tr>
+      <tr><td><code>POSTGRES_PASSWORD</code></td><td>docker-compose 改 <code>${POSTGRES_PASSWORD:-itsm_password}</code></td></tr>
+      <tr><td>管理员初始密码</td><td><code>seed.py</code> 读 <code>ADMIN_INITIAL_PASSWORD</code>，默认 admin123</td></tr>
+      <tr><td><code>SECRET_KEY</code></td><td>已改随机默认；生产 .env 固定强随机值</td></tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>4. 验证</h2>
+    <pre>cd backend &amp;&amp; .venv/Scripts/activate
+cp ../.env.example .env            # DATABASE_URL 必填
+python -m pytest tests -q
+uvicorn app.main:app --reload</pre>
+  </div>
+</div>
+</body>
+</html>

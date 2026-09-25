@@ -11,6 +11,7 @@ from app.core.deps import (
     scope_filter,
 )
 from app.models import OrderDispatch, OrderReceive, SysUser, WorkOrder, WorkOrderAssignee
+from app.core.security import mask_sensitive, masked_page
 from app.schemas.work_order import (
     AssigneeOut,
     DispatchCreate,
@@ -54,9 +55,9 @@ def list_receives(
     user: SysUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    q = db.query(OrderReceive)
-    q = scope_filter(q, OrderReceive, customer_scope_of(user, db))
-    return ok(paginate(q, page, size, OrderReceiveOut))
+    scope = customer_scope_of(user, db)
+    q = scope_filter(db.query(OrderReceive), OrderReceive, scope)
+    return ok(masked_page(paginate(q, page, size, OrderReceiveOut), scope))
 
 
 @receives.post("")
@@ -81,8 +82,9 @@ def get_receive(rid: int, user: SysUser = Depends(get_current_user), db: Session
     obj = db.get(OrderReceive, rid)
     if obj is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "接单记录不存在")
-    assert_scoped(obj, customer_scope_of(user, db), db)
-    return ok(OrderReceiveOut.model_validate(obj).model_dump())
+    scope = customer_scope_of(user, db)
+    assert_scoped(obj, scope, db)
+    return ok(mask_sensitive(OrderReceiveOut.model_validate(obj).model_dump(), scope))
 
 
 # ---- 工单 ----
