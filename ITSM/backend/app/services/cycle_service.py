@@ -6,7 +6,22 @@ from sqlalchemy.orm import Session
 
 from app.models import Contract, ContractItem, ServiceCycle
 
-IRREGULAR = {"irregular", "不定期"}
+# 单位别名：中文（前端/模型实际存储）与英文（种子字典 code）统一映射
+UNIT_ALIASES = {
+    "天": "day", "day": "day",
+    "周": "week", "week": "week",
+    "月": "month", "month": "month",
+    "季度": "quarter", "quarter": "quarter",
+    "半年": "half_year", "half_year": "half_year",
+    "年": "year", "year": "year",
+    "不定期": "irregular", "irregular": "irregular",
+}
+
+IRREGULAR = "irregular"
+
+
+def normalize_unit(unit: str) -> str:
+    return UNIT_ALIASES.get(unit, unit)
 
 
 def _add_months(d: date, months: int) -> date:
@@ -33,8 +48,12 @@ def _unit_end(d: date, unit: str) -> date:
 
 
 def split_cycles(start: date, end: date, frequency: int, unit: str) -> list[tuple[int, date, date]]:
-    """把 [start, end) 按 unit 分段、每段按 frequency 等分，返回 (cycle_no, start, end)。"""
-    if unit in IRREGULAR or frequency <= 0 or end <= start:
+    """把 [start, end) 按 unit 分段、每段按 frequency 等分，返回 (cycle_no, start, end)。
+
+    边界去重且严格递增，避免零长/重叠周期（如 day + frequency>1 时退化为 1 个周期）。
+    """
+    unit = normalize_unit(unit)
+    if unit == IRREGULAR or frequency <= 0 or end <= start:
         return []
     cycles: list[tuple[int, date, date]] = []
     cursor = start
@@ -44,12 +63,15 @@ def split_cycles(start: date, end: date, frequency: int, unit: str) -> list[tupl
         span = (u_end - cursor).days
         if span <= 0:
             break
-        step = span / frequency
-        for i in range(frequency):
-            s = cursor + timedelta(days=round(step * i))
-            e = cursor + timedelta(days=round(step * (i + 1)))
+        boundaries: list[date] = []
+        for i in range(frequency + 1):
+            b = cursor + timedelta(days=int(round(span * i / frequency)))
+            if not boundaries or b > boundaries[-1]:
+                boundaries.append(b)
+        for i in range(len(boundaries) - 1):
+            s, e = boundaries[i], boundaries[i + 1]
             if e <= s:
-                e = s + timedelta(days=1)
+                continue
             no += 1
             cycles.append((no, s, e))
         cursor = u_end

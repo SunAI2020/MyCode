@@ -171,6 +171,10 @@ def dispatch(
     if wo is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "工单不存在")
     assert_scoped(wo, customer_scope_of(user, db), db)
+    if wo.status != "待派单":
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, f"当前状态「{wo.status}」不可派单（仅待派单可派单）")
+    for a in db.query(WorkOrderAssignee).filter_by(work_order_id=wid, is_active=True).all():
+        a.is_active = False  # 停用旧活跃执行人，防重复派单累计
     total = sum(a.workload_ratio for a in body.assignees)
     if abs(total - 100) > 0.01:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "执行人工作量比例合计须为 100%")

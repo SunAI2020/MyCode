@@ -14,6 +14,8 @@ def transfer_assignee(
     actual_hours: float | None = None,
 ) -> WorkOrderAssignee:
     """换岗：旧执行人离岗（记 actual_hours/ended_at），新执行人续接（继承原比例）。"""
+    if from_user_id == to_user_id:
+        raise ValueError("原执行人与新执行人不能为同一人")
     old = (
         db.query(WorkOrderAssignee)
         .filter_by(work_order_id=work_order_id, user_id=from_user_id, is_active=True)
@@ -21,6 +23,13 @@ def transfer_assignee(
     )
     if old is None:
         raise ValueError("原执行人不存在或已离岗")
+    dup = (
+        db.query(WorkOrderAssignee)
+        .filter_by(work_order_id=work_order_id, user_id=to_user_id, is_active=True)
+        .first()
+    )
+    if dup is not None:
+        raise ValueError("新执行人已在本工单执行中")
     now = datetime.now(timezone.utc)
     old.is_active = False
     old.ended_at = now

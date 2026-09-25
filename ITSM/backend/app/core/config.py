@@ -1,3 +1,5 @@
+import secrets
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -7,7 +9,8 @@ class Settings(BaseSettings):
     )
 
     DATABASE_URL: str = "postgresql+psycopg://itsm:itsm_password@localhost:5433/itsm"
-    SECRET_KEY: str = "change-me-to-a-random-secret-key"
+    # 未显式配置时生成随机密钥（每次启动变化）；生产必须通过 .env 固定强随机值
+    SECRET_KEY: str = secrets.token_urlsafe(32)
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
     CORS_ORIGINS: str = "http://localhost:5173"
     ENABLE_SCHEDULER: bool = False

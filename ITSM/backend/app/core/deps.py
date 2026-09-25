@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.security import decode_token
 from app.db.session import SessionLocal
-from app.models import Contract, SysRole, SysUser, SysUserRole
+from app.models import Contract, Customer, SysRole, SysUser, SysUserRole
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -83,6 +83,8 @@ def scope_filter(q, model, scope: int | None):
     """
     if scope is None:
         return q
+    if model is Customer:
+        return q.filter(model.id == scope)
     if hasattr(model, "customer_id"):
         return q.filter(model.customer_id == scope)
     return q.join(Contract, model.contract_id == Contract.id).filter(
@@ -92,6 +94,8 @@ def scope_filter(q, model, scope: int | None):
 
 def owning_customer_id(obj, db: Session) -> int | None:
     """解析对象归属的 customer_id；无归属返回 None。"""
+    if isinstance(obj, Customer):
+        return obj.id
     if getattr(obj, "customer_id", None) is not None:
         return obj.customer_id
     if getattr(obj, "contract_id", None) is not None:

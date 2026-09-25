@@ -105,11 +105,14 @@ def delete_contract(cid: int, user: SysUser = Depends(require_role("sys_admin"))
 def list_items(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
+    contract_id: int | None = Query(None),
     user: SysUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     q = db.query(ContractItem)
     q = scope_filter(q, ContractItem, customer_scope_of(user, db))
+    if contract_id is not None:
+        q = q.filter(ContractItem.contract_id == contract_id)
     return ok(paginate(q, page, size, ContractItemOut))
 
 

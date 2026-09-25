@@ -38,3 +38,19 @@ def test_invalid_input_returns_empty():
     assert split_cycles(date(2024, 1, 1), date(2024, 1, 1), 1, "month") == []
     assert split_cycles(date(2024, 2, 1), date(2024, 1, 1), 1, "month") == []
     assert split_cycles(date(2024, 1, 1), date(2024, 2, 1), 0, "month") == []
+
+
+def test_chinese_unit_alias():
+    # 中文单位（前端/模型实际存储）与英文等价
+    zh = split_cycles(date(2024, 1, 1), date(2024, 4, 1), 1, "月")
+    en = split_cycles(date(2024, 1, 1), date(2024, 4, 1), 1, "month")
+    assert len(zh) == len(en) == 3
+    assert [c[0] for c in zh] == [c[0] for c in en]
+
+
+def test_day_high_frequency_no_duplicate():
+    # day + frequency>1 应退化为 1 个周期，不产生重复/零长周期
+    cycles = split_cycles(date(2024, 1, 1), date(2024, 1, 2), 3, "day")
+    assert len(cycles) == 1
+    assert cycles[0][1] == date(2024, 1, 1)
+    assert cycles[0][2] == date(2024, 1, 2)
