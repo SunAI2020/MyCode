@@ -1,21 +1,11 @@
-"""变更单业务逻辑：冲突检测 + 状态机。"""
+"""变更单业务逻辑：冲突检测 + 状态机（接入可配置工作流引擎）。"""
 from sqlalchemy.orm import Session
 
 from app.models import ChangeOrder
+from app.services.workflow_service import assert_transition, log_transition
 
 # 视为「活跃」、参与冲突检测的状态
 ACTIVE_STATUSES = {"待审批", "已批准", "实施中"}
-
-TRANSITIONS = {
-    "草稿": ["待审批", "已取消"],
-    "待审批": ["已批准", "已拒绝"],
-    "已批准": ["实施中", "已取消"],
-    "实施中": ["已完成", "已回滚"],
-    "已完成": [],
-    "已回滚": [],
-    "已拒绝": [],
-    "已取消": [],
-}
 
 
 def detect_conflict(db: Session, ci_id: int, exclude_id: int | None = None) -> list[ChangeOrder]:
@@ -36,13 +26,27 @@ def set_conflict_flag(db: Session, change: ChangeOrder) -> ChangeOrder:
     return change
 
 
-def transition_status(db: Session, change: ChangeOrder, target: str) -> ChangeOrder:
-    """校验并执行变更状态流转。"""
-    allowed = TRANSITIONS.get(change.status, [])
+def transition_status(
+    db: Session,
+    change: ChangeOrder,
+    target: str,
+    operator_id: int | None = None,
+    note: str | None = None,
+) -> ChangeOrder:
+    """校验并执行变更状态流转（接入可配置工作流引擎，全量留痕）。"""
+    assert_transition(db, "change_order", change.status, target)
     if target == change.status:
         return change
-    if target not in allowed:
-        raise ValueError(f"非法状态流转：{change.status} → {target}")
+    before = change.status
     change.status = target
+    log_transition(
+        db,
+        entity="change_order",
+        entity_id=change.id,
+        from_status=before,
+        to_status=target,
+        operator_id=operator_id,
+        note=note,
+    )
     db.flush()
     return change

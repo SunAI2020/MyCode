@@ -87,7 +87,7 @@ def update_change_order_status(
     if obj is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "变更单不存在")
     try:
-        transition_status(db, obj, body.status)
+        transition_status(db, obj, body.status, operator_id=user.id)
     except ValueError as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
     set_conflict_flag(db, obj)

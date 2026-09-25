@@ -134,7 +134,7 @@ def update_outsourcing_status(oid: int, body: OutsourcingStatusUpdate, user: Sys
     if obj is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "外包任务不存在")
     try:
-        transition_status(db, obj, body.status)
+        transition_status(db, obj, body.status, operator_id=user.id)
     except ValueError as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
     record(db, user_id=user.id, action="update_status", resource=f"outsourcing:{oid}", after=body.status)

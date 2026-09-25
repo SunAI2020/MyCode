@@ -20,6 +20,7 @@ from app.models.system import (
     SysUserRole,
 )
 from app.models.work_order import OrderReceive, WorkOrder, WorkOrderAssignee
+from app.models.workflow import ActionLog, WorkflowRule
 
 __all__ = [
     "SysUser",
@@ -52,4 +53,6 @@ __all__ = [
     "ServiceCycle",
     "ServiceReminder",
     "SlaPolicy",
+    "WorkflowRule",
+    "ActionLog",
 ]

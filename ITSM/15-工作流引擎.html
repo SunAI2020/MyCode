@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>步骤十五：可配置工作流引擎（阶段五 · FR-18）</title>
+<style>body{font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;max-width:860px;margin:40px auto;padding:0 20px;line-height:1.7;color:#24292f}h1{border-bottom:2px solid #e1e4e8;padding-bottom:.3em}h2{margin-top:1.5em;border-bottom:1px solid #eaecef;padding-bottom:.2em}code{background:#f6f8fa;padding:.15em .4em;border-radius:4px;font-family:Consolas,monospace;font-size:.9em}pre{background:#f6f8fa;padding:12px;border-radius:6px;overflow:auto}table{border-collapse:collapse;width:100%}th,td{border:1px solid #d0d7de;padding:6px 10px;text-align:left}th{background:#f6f8fa}blockquote{color:#57606a;border-left:4px solid #d0d7de;margin:0;padding-left:12px}</style>
+</head>
+<body>
+<h1>步骤十五：可配置工作流引擎（阶段五 · FR-18）</h1>
+<blockquote>依据：《IT运维集中管控平台_软件设计方案.html》V1.0 定稿 · §4.17 / §6.2<br>范围：状态流转规则可配置（DB 覆盖/扩展内置默认）+ 全量动作留痕；替换工单/变更/外包三处硬编码状态机。</blockquote>
+
+<h2>1. 目标</h2>
+<p>将散落在 <code>work_orders.py</code>（工单）、<code>change_service.py</code>（变更）、<code>outsourcing_service.py</code>（外包）的硬编码 <code>TRANSITIONS</code> 状态机收敛到统一「可配置工作流引擎」：默认流转内置兜底（开箱即用、既有测试不受影响），管理员可在 DB 新增/禁用流转规则覆盖或扩展默认；每次流转写入 <code>action_log</code> 全量留痕（触发规则、时间、操作人），呼应 §4.17「全量留痕」。</p>
+
+<h2>2. 表（2 张，依据 §6.2 <code>workflow_rule</code> / <code>action_log</code>）</h2>
+<ul>
+<li><code>workflow_rule</code> 工作流规则：<code>id, entity, from_status, to_status, name, auto_action, enabled, created_at</code></li>
+<li><code>action_log</code> 动作日志：<code>id, entity, entity_id, rule_id, from_status, to_status, operator_id, note, created_at</code></li>
+</ul>
+
+<h2>3. 业务规则</h2>
+<ul>
+<li><b>实体</b> <code>entity</code>：<code>work_order</code> / <code>change_order</code> / <code>outsourcing</code>（其余实体后置）。</li>
+<li><b>默认流转</b> <code>DEFAULT_TRANSITIONS</code>：内置三套状态机（与现状逐字节一致），作为兜底。</li>
+<li><b>DB 覆盖/扩展</b>：<code>workflow_rule</code>（<code>enabled=true</code>）允许的 <code>from→to</code> 与默认取并集——既新增迁移，也支持扩展自定义边。</li>
+<li><b>非法流转</b>：<code>from→to</code> 不在并集中抛 <code>ValueError("非法状态流转：X → Y")</code>（API 层转 400）。</li>
+<li><b>全量留痕</b>：每次成功流转写 <code>action_log</code>，记录实体、主键、前后态、操作人、备注。</li>
+<li><b>同态幂等</b>：<code>target == from_status</code> 视为合法（不写日志）。</li>
+</ul>
+
+<h2>4. 文件清单</h2>
+<ul>
+<li><code>app/models/workflow.py</code> — <code>WorkflowRule</code> / <code>ActionLog</code></li>
+<li><code>alembic/versions/0009_workflow.py</code> — 迁移</li>
+<li><code>app/schemas/workflow.py</code> — 请求/响应模型</li>
+<li><code>app/services/workflow_service.py</code> — 引擎</li>
+<li><code>app/api/v1/workflows.py</code> — 规则 CRUD + 有效流转查询</li>
+<li><code>app/api/v1/work_orders.py</code> / <code>change_service.py</code> / <code>outsourcing_service.py</code> — 接入引擎</li>
+<li><code>tests/test_workflow_service.py</code> — 单测</li>
+</ul>
+
+<h2>5. API</h2>
+<ul>
+<li><code>GET /workflow-rules?entity=</code> 规则列表</li>
+<li><code>POST /workflow-rules</code> 新增规则（<code>sys_admin</code>）</li>
+<li><code>PUT /workflow-rules/{id}</code> 修改/启停（<code>sys_admin</code>）</li>
+<li><code>DELETE /workflow-rules/{id}</code> 删除（<code>sys_admin</code>）</li>
+<li><code>GET /workflow-rules/transitions</code> 各实体有效流转（默认 ∪ DB）</li>
+</ul>
+
+<h2>6. 角色</h2>
+<p>规则管理属平台域：读写 <code>sys_admin</code>；读 <code>sys_admin / sys_ops / ticket_mgr</code>。流转本身由各业务端点既有角色控制，引擎仅做合法性校验与留痕。</p>
+
+<h2>7. 验证</h2>
+<pre>cd backend &amp;&amp; .venv/Scripts/activate
+alembic upgrade head
+python -m pytest tests -q</pre>
+</body>
+</html>

@@ -26,23 +26,12 @@ from app.schemas.work_order import (
 )
 from app.services.audit_service import record
 from app.services.dispatch_service import record_assignee_hours, transfer_assignee
+from app.services.workflow_service import assert_transition, log_transition
 from app.utils.pagination import paginate
 from app.utils.response import ok
 from app.utils.wo_no import next_work_order_no
 
 WORK_WRITE_ROLE = ("sys_admin", "sys_ops", "ticket_mgr")
-
-# 状态机：合法迁移表（旁路 已取消）
-STATUS_TRANSITIONS = {
-    "待派单": ["已派单", "已取消"],
-    "已派单": ["计划中", "已取消"],
-    "计划中": ["进行中", "已取消"],
-    "进行中": ["待验收", "已关闭"],
-    "待验收": ["已完成", "已关闭"],
-    "已完成": ["已关闭"],
-    "已关闭": [],
-    "已取消": [],
-}
 
 receives = APIRouter(prefix="/receives", tags=["接单"])
 router = APIRouter(prefix="/work-orders", tags=["工单"])
@@ -150,13 +139,23 @@ def update_status(
     if wo is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "工单不存在")
     assert_scoped(wo, customer_scope_of(user, db), db)
-    allowed = STATUS_TRANSITIONS.get(wo.status, [])
-    if body.status != wo.status and body.status not in allowed:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, f"非法状态流转：{wo.status} → {body.status}")
     before = wo.status
+    try:
+        assert_transition(db, "work_order", wo.status, body.status)
+    except ValueError as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
     wo.status = body.status
     if body.progress is not None:
         wo.progress = body.progress
+    if before != body.status:
+        log_transition(
+            db,
+            entity="work_order",
+            entity_id=wid,
+            from_status=before,
+            to_status=body.status,
+            operator_id=user.id,
+        )
     db.flush()
     record(db, user_id=user.id, action="update_status", resource=f"work_order:{wid}", before=before, after=body.status)
     db.commit()
@@ -199,6 +198,14 @@ def dispatch(
     db.add_all(assignees)
     wo.dispatch_id = disp.id
     wo.status = "已派单"
+    log_transition(
+        db,
+        entity="work_order",
+        entity_id=wid,
+        from_status="待派单",
+        to_status="已派单",
+        operator_id=user.id,
+    )
     db.flush()
     record(db, user_id=user.id, action="dispatch", resource=f"work_order:{wid}", after=str(body.model_dump()))
     db.commit()
