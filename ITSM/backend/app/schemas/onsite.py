@@ -1,0 +1,70 @@
+"""驻场服务 schema。"""
+from datetime import date, datetime
+
+from pydantic import BaseModel, ConfigDict
+
+
+# ---- 驻场配置 ----
+class OnsiteServiceCreate(BaseModel):
+    contract_id: int
+    customer_id: int
+    headcount: int = 1
+    period_start: date | None = None
+    period_end: date | None = None
+    work_items: str | None = None
+    status: str = "执行中"
+
+
+class OnsiteServiceUpdate(BaseModel):
+    contract_id: int | None = None
+    customer_id: int | None = None
+    headcount: int | None = None
+    period_start: date | None = None
+    period_end: date | None = None
+    work_items: str | None = None
+    status: str | None = None
+
+
+class OnsiteServiceOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    contract_id: int
+    customer_id: int
+    headcount: int
+    period_start: date | None = None
+    period_end: date | None = None
+    work_items: str | None = None
+    status: str
+    created_at: datetime | None = None
+
+
+# ---- 驻场日报 ----
+class OnsiteDailyReportCreate(BaseModel):
+    onsite_id: int
+    user_id: int
+    report_date: date
+    work_type: str
+    content: str
+    issue_ref: int | None = None
+
+
+class OnsiteDailyReportUpdate(BaseModel):
+    user_id: int | None = None
+    report_date: date | None = None
+    work_type: str | None = None
+    content: str | None = None
+    issue_ref: int | None = None
+
+
+class OnsiteDailyReportOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    onsite_id: int
+    user_id: int
+    report_date: date
+    work_type: str
+    content: str
+    issue_ref: int | None = None
+    created_at: datetime | None = None

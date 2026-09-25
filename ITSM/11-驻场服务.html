@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>步骤十一：驻场服务（阶段四 · FR-07）</title>
+<style>
+body{font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;max-width:860px;margin:40px auto;padding:0 20px;line-height:1.7;color:#24292f;}
+h1{border-bottom:2px solid #e1e4e8;padding-bottom:.3em;}
+h2{margin-top:1.6em;border-bottom:1px solid #eaecef;padding-bottom:.2em;}
+code{background:#f6f8fa;padding:.15em .4em;border-radius:4px;font-family:Consolas,monospace;font-size:.9em;}
+pre{background:#f6f8fa;padding:12px;border-radius:6px;overflow:auto;}
+table{border-collapse:collapse;width:100%;}
+th,td{border:1px solid #d0d7de;padding:6px 10px;text-align:left;}
+th{background:#f6f8fa;}
+blockquote{color:#57606a;border-left:4px solid #d0d7de;margin:0;padding-left:12px;}
+</style>
+</head>
+<body>
+<h1>步骤十一：驻场服务（阶段四 · FR-07）</h1>
+<blockquote>依据：《IT运维集中管控平台_软件设计方案.html》V1.0 定稿 · §4.6 / §6.2<br>范围：驻场配置 + 驻场日报 + 周/月报聚合，异常关联问题整改。</blockquote>
+
+<h2>1. 目标</h2>
+<p>实现驻场服务管理：登记驻场客户/合同/人数/周期/工作项，驻场人员每日填报日报，按日期范围聚合周报/月报；日报发现的异常可关联「问题」进入整改闭环（<code>issue_ref</code> 指向 issue.id）。</p>
+
+<h2>2. 表（2 张，依据 §6.2）</h2>
+<table>
+<tr><th>表</th><th>关键字段</th></tr>
+<tr><td><code>onsite_service</code> 驻场配置</td><td>id, contract_id, customer_id, headcount, period_start, period_end, work_items, status</td></tr>
+<tr><td><code>onsite_daily_report</code> 日报</td><td>id, onsite_id, user_id, report_date, work_type, content, issue_ref</td></tr>
+</table>
+
+<h2>3. 业务规则</h2>
+<ul>
+<li><b>驻场配置</b>：绑定客户/合同（<code>customer_id</code> 行级隔离锚点）、驻场人数、驻场周期、工作项（设备巡检/日志分析/漏洞打补丁/资产梳理/故障处置…）。</li>
+<li><b>驻场日报</b>：逐项记录当日工作（<code>report_date</code> + <code>work_type</code> + <code>content</code>）；发现异常时 <code>issue_ref</code> 关联问题单进入整改闭环。</li>
+<li><b>周/月报聚合</b>：按 <code>onsite_id</code> + 日期范围聚合日报，按 <code>work_type</code> 汇总条数。</li>
+<li><b>行级隔离</b>：<code>onsite_service</code> 有 <code>customer_id</code> 直接隔离；日报经 <code>onsite_id → onsite_service.customer_id</code> 隔离。</li>
+</ul>
+
+<h2>4. 文件清单</h2>
+<ul>
+<li><code>app/models/onsite.py</code> — <code>OnsiteService</code> / <code>OnsiteDailyReport</code></li>
+<li><code>alembic/versions/0005_onsite.py</code> — 迁移</li>
+<li><code>app/schemas/onsite.py</code> — 请求/响应模型</li>
+<li><code>app/services/onsite_service.py</code> — 日报聚合 <code>summarize_reports</code></li>
+<li><code>app/api/v1/onsite.py</code> — 路由</li>
+<li><code>tests/test_onsite_service.py</code> — 单测</li>
+</ul>
+
+<h2>5. API</h2>
+<ul>
+<li><code>GET/POST /onsite-services</code>、<code>GET/PUT/DELETE /onsite-services/{id}</code></li>
+<li><code>GET/POST /onsite-daily-reports?onsite_id=&amp;start=&amp;end=</code>、<code>GET/PUT/DELETE /onsite-daily-reports/{id}</code></li>
+<li><code>GET /onsite-daily-reports/summary?onsite_id=&amp;start=&amp;end=</code> 周/月报聚合</li>
+</ul>
+
+<h2>6. 角色</h2>
+<ul>
+<li>写：<code>sys_admin / sys_ops / ticket_mgr</code></li>
+<li>读：<code>get_current_user</code> + 行级隔离（客户侧可见本客户驻场）</li>
+</ul>
+
+<h2>7. 验证</h2>
+<pre>cd backend &amp;&amp; .venv/Scripts/activate
+alembic upgrade head          # 建 onsite_service / onsite_daily_report
+python -m pytest tests -q</pre>
+</body>
+</html>
