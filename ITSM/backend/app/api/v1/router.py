@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1 import auth, contracts, customers, deliveries, issues, services, work_orders
+from app.api.v1 import auth, contracts, customers, deliveries, issues, performance, services, work_orders
 from app.utils.response import ok
 
 api_router = APIRouter()
@@ -14,6 +14,7 @@ api_router.include_router(work_orders.receives)
 api_router.include_router(work_orders.router)
 api_router.include_router(issues.router)
 api_router.include_router(deliveries.router)
+api_router.include_router(performance.router)
 api_router.include_router(services.sla)
 api_router.include_router(services.cycles)
 api_router.include_router(services.reminders)

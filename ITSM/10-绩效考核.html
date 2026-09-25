@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>步骤十：绩效考核</title>
+<style>
+  :root{--primary:#0f6bff;--primary-dark:#0a4fc0;--bg:#f5f7fa;--card:#fff;--text:#1f2733;--text-light:#5b6470;--border:#e3e8ef;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);line-height:1.75;font-size:15px;}
+  .wrap{max-width:980px;margin:0 auto;padding:0 20px 60px;}
+  .cover{background:linear-gradient(135deg,#0a3d91,#0f6bff 55%,#2b8cff);color:#fff;padding:48px 40px 40px;border-radius:0 0 22px 22px;}
+  .cover h1{font-size:26px;font-weight:700;margin-bottom:10px;}
+  .cover .sub{font-size:14px;opacity:.92;}
+  .section{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:26px 30px;margin:22px 0;}
+  .section h2{font-size:19px;color:var(--primary-dark);margin-bottom:12px;padding-bottom:10px;border-bottom:2px solid var(--primary);}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:14px;}
+  th,td{border:1px solid var(--border);padding:8px 11px;text-align:left;vertical-align:top;}
+  th{background:#f0f5ff;color:var(--primary-dark);font-weight:600;}
+  tr:nth-child(even) td{background:#fafbfd;}
+  code{font-family:Consolas,Menlo,monospace;background:#eef2f7;color:#c2410c;padding:1px 5px;border-radius:4px;font-size:13px;}
+  pre{background:#1e293b;color:#e2e8f0;padding:16px 18px;border-radius:10px;overflow-x:auto;font-size:13px;line-height:1.6;margin:12px 0;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="cover">
+    <h1>步骤十：绩效考核</h1>
+    <div class="sub">加权绩效公式 · 换岗分摊 · 聚合查询（阶段三 · FR-12）</div>
+  </div>
+
+  <div class="section">
+    <h2>1. 表（1 张）</h2>
+    <p><code>performance</code>：user_id, work_order_id, contract_item_id, workload, dispatch_price, ratio, quality_score, customer_score, perf_score</p>
+  </div>
+
+  <div class="section">
+    <h2>2. 绩效公式</h2>
+    <pre>perf_score = workload × dispatch_price × (ratio/100) × quality_score × customer_score</pre>
+    <ul style="margin-left:22px;">
+      <li>质量系数 0.6~1.2（默认 1.0）</li>
+      <li>评价系数 0.8~1.2（默认 1.0）</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>3. 换岗分摊</h2>
+    <p>遍历工单全部执行人（含已离岗），按各自 actual_hours 与 workload_ratio 生成绩效；派单价格取 order_dispatch.dispatch_price 或 contract_item.price。</p>
+  </div>
+
+  <div class="section">
+    <h2>4. API</h2>
+    <pre>POST /work-orders/{id}/performance/generate
+GET /performance?user_id=
+GET /performance/summary?user_id=
+POST /performance · GET/PUT/DELETE /performance/{id}</pre>
+  </div>
+
+  <div class="section">
+    <h2>5. 验证</h2>
+    <pre>cd backend &amp;&amp; .venv/Scripts/activate
+alembic upgrade head
+python -m pytest tests -q</pre>
+  </div>
+</div>
+</body>
+</html>
