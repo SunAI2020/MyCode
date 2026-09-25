@@ -1,6 +1,7 @@
 # 汇总导入所有模型，供 Alembic autogenerate 发现
 from app.models.customer import Customer
 from app.models.contract import CmdbCi, Contract, ContractItem
+from app.models.delivery import Delivery
 from app.models.dispatch import OrderDispatch
 from app.models.issue import Issue, Rectification, RectificationRecord
 from app.models.service import ServiceCycle, ServiceReminder, SlaPolicy
@@ -34,6 +35,7 @@ __all__ = [
     "Issue",
     "Rectification",
     "RectificationRecord",
+    "Delivery",
     "ServiceCycle",
     "ServiceReminder",
     "SlaPolicy",
