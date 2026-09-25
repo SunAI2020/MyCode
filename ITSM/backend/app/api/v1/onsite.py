@@ -12,7 +12,7 @@ from app.core.deps import (
     require_role,
     scope_filter,
 )
-from app.models import OnsiteDailyReport, OnsiteService, SysUser
+from app.models import Contract, OnsiteDailyReport, OnsiteService, SysUser
 from app.schemas.onsite import (
     OnsiteDailyReportCreate,
     OnsiteDailyReportOut,
@@ -63,6 +63,11 @@ def create_service(
     scope = customer_scope_of(user, db)
     if scope is not None and body.customer_id != scope:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "无权为其他客户创建驻场配置")
+    c = db.get(Contract, body.contract_id)
+    if c is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "合同不存在")
+    if c.customer_id != body.customer_id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "合同与客户不匹配")
     obj = OnsiteService(**body.model_dump())
     db.add(obj)
     db.flush()
@@ -94,6 +99,13 @@ def update_service(
     assert_scoped(obj, scope, db)
     if scope is not None and body.customer_id is not None and body.customer_id != scope:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "无权将驻场配置挂到其他客户")
+    if body.contract_id is not None:
+        c = db.get(Contract, body.contract_id)
+        if c is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "合同不存在")
+        target_cid = body.customer_id if body.customer_id is not None else obj.customer_id
+        if c.customer_id != target_cid:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "合同与客户不匹配")
     before = {k: getattr(obj, k) for k in body.model_dump(exclude_unset=True)}
     for k, v in body.model_dump(exclude_unset=True).items():
         setattr(obj, k, v)

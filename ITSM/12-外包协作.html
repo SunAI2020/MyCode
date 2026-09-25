@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>步骤十二：外包协作（阶段四 · FR-09）</title>
+<style>body{font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;max-width:860px;margin:40px auto;padding:0 20px;line-height:1.7;color:#24292f}h1{border-bottom:2px solid #e1e4e8;padding-bottom:.3em}h2{margin-top:1.5em;border-bottom:1px solid #eaecef;padding-bottom:.2em}code{background:#f6f8fa;padding:.15em .4em;border-radius:4px;font-family:Consolas,monospace;font-size:.9em}pre{background:#f6f8fa;padding:12px;border-radius:6px;overflow:auto}table{border-collapse:collapse;width:100%}th,td{border:1px solid #d0d7de;padding:6px 10px;text-align:left}th{background:#f6f8fa}blockquote{color:#57606a;border-left:4px solid #d0d7de;margin:0;padding-left:12px}</style>
+</head>
+<body>
+<h1>步骤十二：外包协作（阶段四 · FR-09）</h1>
+<blockquote>依据：《IT运维集中管控平台_软件设计方案.html》V1.0 定稿 · §4.8 / §6.2<br>范围：外包人员名册 + 外包任务 + 工作汇报 + 状态机（接单/验收/结算）。</blockquote>
+
+<h2>1. 目标</h2>
+<p>实现外包管理：维护外包人员名册，内部工单发起外包、指派外包人员、记录保密协议与价格，外包汇报工作进展，走「接单 → 汇报 → 验收 → 结算」状态机；外包账号登录隔离后置（MVP 阶段外包人员以名册记录存在，不单独开受限账号）。</p>
+
+<h2>2. 表（3 张，依据 §6.2）</h2>
+<table>
+<tr><th>表</th><th>关键字段</th></tr>
+<tr><td><code>outsource_user</code> 外包人员</td><td>id, name, org, qualification, settle_type, permissions</td></tr>
+<tr><td><code>outsourcing</code> 外包任务</td><td>id, work_order_id, type, outsource_user_id, price, nda, status</td></tr>
+<tr><td><code>outsourcing_report</code> 汇报</td><td>id, outsourcing_id, report_date, progress, attachments, acceptance</td></tr>
+</table>
+
+<h2>3. 业务规则</h2>
+<ul>
+<li><b>外包类型</b> <code>type</code>：能力 / 时间 / 资质。</li>
+<li><b>外包人员</b>：单位 <code>org</code>、资质 <code>qualification</code>、结算方式 <code>settle_type</code>（按次/按月/按工时）、权限范围 <code>permissions</code>。</li>
+<li><b>外包任务</b>：挂接 <code>work_order_id</code>，<code>nda</code> 保密协议、<code>price</code> 外包价格。</li>
+<li><b>状态机</b> <code>status</code>：<pre>待接单 → 已接单 / 已拒单
+已接单 → 进行中 / 已拒单
+进行中 → 待验收
+待验收 → 已验收 / 进行中（验收不通过回退）
+已验收 → 已结算</pre></li>
+<li><b>外包汇报</b>：<code>progress</code> 进展、<code>attachments</code> 附件、<code>acceptance</code> 验收结论。</li>
+</ul>
+
+<h2>4. 文件清单</h2>
+<ul>
+<li><code>app/models/outsourcing.py</code></li>
+<li><code>alembic/versions/0006_outsourcing.py</code></li>
+<li><code>app/schemas/outsourcing.py</code></li>
+<li><code>app/services/outsourcing_service.py</code> — 状态机</li>
+<li><code>app/api/v1/outsourcing.py</code></li>
+<li><code>tests/test_outsourcing_service.py</code></li>
+</ul>
+
+<h2>5. API</h2>
+<ul>
+<li><code>GET/POST /outsource-users</code>、<code>GET/PUT/DELETE /outsource-users/{id}</code></li>
+<li><code>GET/POST /outsourcings</code>、<code>GET/PUT/DELETE /outsourcings/{id}</code></li>
+<li><code>PUT /outsourcings/{id}/status</code> 状态流转</li>
+<li><code>GET/POST /outsourcing-reports?outsourcing_id=</code>、<code>GET/PUT/DELETE /outsourcing-reports/{id}</code></li>
+</ul>
+
+<h2>6. 角色</h2>
+<p>外包域属内部流程，全接口平台侧：读/写 <code>sys_admin / sys_ops / ticket_mgr</code>，删除 <code>sys_admin / sys_ops</code>。</p>
+
+<h2>7. 验证</h2>
+<pre>cd backend &amp;&amp; .venv/Scripts/activate
+alembic upgrade head
+python -m pytest tests -q</pre>
+</body>
+</html>

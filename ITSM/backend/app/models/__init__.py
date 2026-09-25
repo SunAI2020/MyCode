@@ -5,6 +5,7 @@ from app.models.delivery import Delivery
 from app.models.dispatch import OrderDispatch
 from app.models.issue import Issue, Rectification, RectificationRecord
 from app.models.onsite import OnsiteDailyReport, OnsiteService
+from app.models.outsourcing import Outsourcing, OutsourcingReport, OutsourceUser
 from app.models.performance import Performance
 from app.models.service import ServiceCycle, ServiceReminder, SlaPolicy
 from app.models.system import (
@@ -41,6 +42,9 @@ __all__ = [
     "Performance",
     "OnsiteService",
     "OnsiteDailyReport",
+    "OutsourceUser",
+    "Outsourcing",
+    "OutsourcingReport",
     "ServiceCycle",
     "ServiceReminder",
     "SlaPolicy",
