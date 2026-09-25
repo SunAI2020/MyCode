@@ -33,6 +33,8 @@ from ssq_database import (
     get_connection, create_database, import_from_json,
     save_predictor_predictions, update_predictor_after_draw,
     get_predictor_rankings, save_draw_result,
+    get_hit_trend, get_hit_summary,
+    RANDOM_RED_EXPECT, RANDOM_BLUE_EXPECT,
 )
 from ssq_data_fetcher import fetch_latest_draw, load_cached_latest, save_cache, format_money
 from ssq_prediction_v2 import (
@@ -169,19 +171,19 @@ class PredictorCard(QFrame):
         lay.addWidget(emoji)
 
         name = QLabel(self.info['name'])
-        name.setFont(QFont("Microsoft YaHei", 13, QFont.Bold))
+        name.setFont(QFont("Microsoft YaHei", 16, QFont.Bold))
         name.setStyleSheet(f"color: {self.info['color']};")
         name.setAlignment(Qt.AlignCenter)
         lay.addWidget(name)
 
         algo = QLabel(self.info['algorithm'])
-        algo.setFont(QFont("Microsoft YaHei", 7))
+        algo.setFont(QFont("Microsoft YaHei", 10))
         algo.setStyleSheet(f"color: {TEXT_MID};")
         algo.setAlignment(Qt.AlignCenter)
         lay.addWidget(algo)
 
         tag = QLabel(self.info['tagline'])
-        tag.setFont(QFont("Microsoft YaHei", 7))
+        tag.setFont(QFont("Microsoft YaHei", 10))
         tag.setStyleSheet(f"color: {TEXT_MID}; font-style: italic;")
         tag.setAlignment(Qt.AlignCenter)
         lay.addWidget(tag)
@@ -197,12 +199,12 @@ class PredictorCard(QFrame):
             rl.setContentsMargins(2, 1, 2, 1)
             rl.setSpacing(1)
             idx = QLabel(f"#{i+1}")
-            idx.setFont(QFont("Arial", 7)); idx.setStyleSheet(f"color: {TEXT_MID};")
+            idx.setFont(QFont("Arial", 10)); idx.setStyleSheet(f"color: {TEXT_MID};")
             idx.setFixedWidth(16); rl.addWidget(idx)
             balls = []
             for j in range(7):
                 bw = QLabel("--")
-                bw.setFont(QFont("Arial", 8, QFont.Bold))
+                bw.setFont(QFont("Arial", 11, QFont.Bold))
                 bw.setAlignment(Qt.AlignCenter)
                 bw.setFixedSize(22, 18)
                 bw.setStyleSheet("color: #DC143C;" if j < 6 else "color: #4169E1;")
@@ -230,27 +232,27 @@ class PkLeaderboard(QFrame):
 
     def _build(self):
         self.setStyleSheet(f"PkLeaderboard {{ background: {CARD_BG}; border: 1px solid {BORDER}; border-radius: 12px; }}")
-        self.setMinimumHeight(180)
+        self.setMinimumHeight(360)
         lay = QVBoxLayout(self)
         lay.setContentsMargins(20, 14, 20, 14); lay.setSpacing(6)
 
         t = QLabel("🏆 预测员累计奖金排行榜")
-        t.setFont(QFont("Microsoft YaHei", 14, QFont.Bold))
+        t.setFont(QFont("Microsoft YaHei", 17, QFont.Bold))
         t.setStyleSheet(f"color: {TEXT_DARK};"); lay.addWidget(t)
 
         self.rows = []
         medals = {0: '🥇', 1: '🥈', 2: '🥉'}
-        for i in range(5):
+        for i in range(10):
             rw = QWidget(); rl = QHBoxLayout(rw)
             rl.setContentsMargins(0, 2, 0, 2); rl.setSpacing(10)
             medal = QLabel(medals.get(i, f"  {i+1}."))
-            medal.setFont(QFont("Segoe UI Emoji", 14)); medal.setFixedWidth(30)
+            medal.setFont(QFont("Segoe UI Emoji", 16)); medal.setFixedWidth(30)
             rl.addWidget(medal)
-            nl = QLabel("---"); nl.setFont(QFont("Microsoft YaHei", 12, QFont.Bold))
+            nl = QLabel("---"); nl.setFont(QFont("Microsoft YaHei", 15, QFont.Bold))
             nl.setFixedWidth(75); rl.addWidget(nl)
-            pl = QLabel("¥ ---"); pl.setFont(QFont("Arial", 12, QFont.Bold))
+            pl = QLabel("¥ ---"); pl.setFont(QFont("Arial", 15, QFont.Bold))
             pl.setStyleSheet(f"color: {GOLD};"); pl.setMinimumWidth(130); rl.addWidget(pl)
-            dl = QLabel(""); dl.setFont(QFont("Microsoft YaHei", 9))
+            dl = QLabel(""); dl.setFont(QFont("Microsoft YaHei", 12))
             dl.setStyleSheet(f"color: {TEXT_MID};"); rl.addWidget(dl)
             rl.addStretch(); lay.addWidget(rw)
             self.rows.append((medal, nl, pl, dl))
@@ -407,6 +409,67 @@ class BlueChartCanvas(FigureCanvas):
         self.fig.tight_layout(); self.draw()
 
 
+class HitTrendChartCanvas(FigureCanvas):
+    """预测命中率走势 - 每期平均红球命中 & 蓝球命中率，对比随机乱猜基线"""
+
+    def __init__(self, parent=None):
+        self.fig = Figure(figsize=(9, 5), dpi=100, facecolor='#FAFAFA')
+        self.ax_red = self.fig.add_subplot(211)
+        self.ax_blue = self.fig.add_subplot(212, sharex=self.ax_red)
+        super().__init__(self.fig)
+        self.setParent(parent)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+    def update_chart(self, window=None):
+        self.ax_red.clear()
+        self.ax_blue.clear()
+        rows = get_hit_trend()
+        if window and window > 0:
+            rows = rows[-window:]
+
+        if not rows:
+            for ax in (self.ax_red, self.ax_blue):
+                ax.text(0.5, 0.5, '暂无命中数据', ha='center', va='center',
+                        transform=ax.transAxes, fontsize=14, color='#999')
+            self.fig.tight_layout(); self.draw()
+            return
+
+        issues = [r['target_issue'] for r in rows]
+        x = list(range(len(rows)))
+        avg_red = [r['avg_red'] for r in rows]
+        blue_rate = [r['blue_rate'] * 100 for r in rows]  # 转百分比
+
+        # 上图：红球平均命中 vs 随机期望 1.09
+        self.ax_red.plot(x, avg_red, marker='o', color='#C41A1A', linewidth=1.5,
+                         label='实际平均命中')
+        self.ax_red.axhline(RANDOM_RED_EXPECT, color='#999', linestyle='--', linewidth=1.0,
+                            label=f'随机期望 {RANDOM_RED_EXPECT:.2f}')
+        self.ax_red.set_ylabel('红球平均命中 (个/注)')
+        self.ax_red.set_title('预测命中率走势 vs 随机乱猜基线', fontsize=12, fontweight='bold')
+        self.ax_red.legend(loc='best', fontsize=8)
+        self.ax_red.grid(True, linestyle='--', alpha=0.3)
+        self.ax_red.set_ylim(bottom=0)
+
+        # 下图：蓝球命中率 vs 随机 6.25%
+        self.ax_blue.plot(x, blue_rate, marker='o', color='#3060E0', linewidth=1.5,
+                          label='实际命中率')
+        self.ax_blue.axhline(RANDOM_BLUE_EXPECT * 100, color='#999', linestyle='--', linewidth=1.0,
+                             label=f'随机 {RANDOM_BLUE_EXPECT * 100:.1f}%')
+        self.ax_blue.set_xlabel('期号')
+        self.ax_blue.set_ylabel('蓝球命中率 (%)')
+        self.ax_blue.legend(loc='best', fontsize=8)
+        self.ax_blue.grid(True, linestyle='--', alpha=0.3)
+        self.ax_blue.set_ylim(bottom=0)
+
+        # x轴期号刻度，稀疏标注避免重叠
+        step = max(1, len(issues) // 8)
+        self.ax_blue.set_xticks(x[::step])
+        self.ax_blue.set_xticklabels([issues[i] for i in range(0, len(issues), step)],
+                                     rotation=45, fontsize=7)
+
+        self.fig.tight_layout(); self.draw()
+
+
 # ============================================================================
 # 主窗口
 # ============================================================================
@@ -429,7 +492,7 @@ class MainWindow(QMainWindow):
         ml.setContentsMargins(16, 10, 16, 10); ml.setSpacing(10)
 
         title = QLabel("🏆 双色球 TOP 5 预测员竞技场")
-        title.setFont(QFont("Microsoft YaHei", 20, QFont.Bold))
+        title.setFont(QFont("Microsoft YaHei", 23, QFont.Bold))
         title.setStyleSheet(f"color: {TEXT_DARK};"); title.setAlignment(Qt.AlignCenter)
         ml.addWidget(title)
 
@@ -441,7 +504,7 @@ class MainWindow(QMainWindow):
         self.tabs = QTabWidget()
         self.tabs.setStyleSheet(f"""
             QTabWidget::pane {{ border: 1px solid {BORDER}; border-radius: 8px; background: {CARD_BG}; }}
-            QTabBar::tab {{ padding: 8px 18px; font-size: 12px; background: #F0F0F0; }}
+            QTabBar::tab {{ padding: 8px 18px; font-size: 15px; background: #F0F0F0; }}
             QTabBar::tab:selected {{ background: white; border-bottom: 3px solid #C41A1A; font-weight: bold; }}
         """)
         self.tabs.addTab(self._mk_arena_tab(), "🎯 预测员竞技场")
@@ -452,7 +515,7 @@ class MainWindow(QMainWindow):
         self.sb = QStatusBar()
         self.sb.setStyleSheet(f"QStatusBar {{ background: #FAFAFA; border-top: 1px solid {BORDER}; }}")
         self.lbl_status = QLabel("就绪")
-        self.lbl_status.setStyleSheet(f"color: {TEXT_MID}; font-size: 11px;")
+        self.lbl_status.setStyleSheet(f"color: {TEXT_MID}; font-size: 14px;")
         self.sb.addWidget(self.lbl_status)
         self.setStatusBar(self.sb)
 
@@ -464,10 +527,10 @@ class MainWindow(QMainWindow):
 
         il = QVBoxLayout(); il.setSpacing(4)
         self.issue_label = QLabel("第 --- 期")
-        self.issue_label.setFont(QFont("Microsoft YaHei", 16, QFont.Bold))
+        self.issue_label.setFont(QFont("Microsoft YaHei", 19, QFont.Bold))
         self.issue_label.setStyleSheet("color: #C41A1A; border: none;"); il.addWidget(self.issue_label)
         self.date_label = QLabel("----年--月--日")
-        self.date_label.setStyleSheet(f"color: {TEXT_MID}; border: none; font-size: 11px;"); il.addWidget(self.date_label)
+        self.date_label.setStyleSheet(f"color: {TEXT_MID}; border: none; font-size: 14px;"); il.addWidget(self.date_label)
         l.addLayout(il)
 
         self.balls_container = QWidget()
@@ -479,7 +542,7 @@ class MainWindow(QMainWindow):
 
         ml2 = QVBoxLayout(); ml2.setSpacing(4)
         self.pool_label = QLabel("💰 奖池: ---")
-        self.pool_label.setStyleSheet("color: #E67E22; font-size: 13px; font-weight: bold; border: none;"); ml2.addWidget(self.pool_label)
+        self.pool_label.setStyleSheet("color: #E67E22; font-size: 16px; font-weight: bold; border: none;"); ml2.addWidget(self.pool_label)
         self.refresh_btn = QPushButton("🔄 刷新数据")
         self.refresh_btn.setStyleSheet("QPushButton { background: #C41A1A; color: white; border-radius: 6px; padding: 8px 14px; font-weight: bold; } QPushButton:hover { background: #E03030; }")
         self.refresh_btn.clicked.connect(self._on_refresh); ml2.addWidget(self.refresh_btn)
@@ -493,14 +556,15 @@ class MainWindow(QMainWindow):
         lay.setContentsMargins(16, 12, 16, 12); lay.setSpacing(12)
 
         hint = QLabel("💡 五位预测员各自使用不同的算法独立预测，每人 5 注号码")
-        hint.setStyleSheet(f"color: {TEXT_MID}; font-size: 11px;"); lay.addWidget(hint)
+        hint.setStyleSheet(f"color: {TEXT_MID}; font-size: 14px;"); lay.addWidget(hint)
 
         cl = QHBoxLayout(); cl.setSpacing(10)
+        self.cards_layout = cl
         self.cards = {}
         for sn, info in PREDICTORS.items():
             card = PredictorCard(sn, info); cl.addWidget(card)
             self.cards[sn] = card
-        cl.addStretch(); lay.addLayout(cl)
+        self.cards_stretch = cl.addStretch(); lay.addLayout(cl)
 
         # 重新预测按钮
         btn_row = QWidget()
@@ -508,14 +572,14 @@ class MainWindow(QMainWindow):
         self.repredict_btn = QPushButton("🔄 重新预测 (全精度)")
         self.repredict_btn.setStyleSheet("""
             QPushButton { background: #1E90FF; color: white; border-radius: 6px;
-                          padding: 10px 20px; font-size: 13px; font-weight: bold; }
+                          padding: 10px 20px; font-size: 16px; font-weight: bold; }
             QPushButton:hover { background: #1E70D0; }
             QPushButton:disabled { background: #ccc; }
         """)
         self.repredict_btn.clicked.connect(self._on_re_predict)
         brl.addWidget(self.repredict_btn)
         self.repredict_status = QLabel("")
-        self.repredict_status.setStyleSheet(f"color: {TEXT_MID}; font-size: 11px;")
+        self.repredict_status.setStyleSheet(f"color: {TEXT_MID}; font-size: 14px;")
         brl.addWidget(self.repredict_status)
         brl.addStretch()
         lay.addWidget(btn_row)
@@ -525,10 +589,10 @@ class MainWindow(QMainWindow):
         self.pk_frame.setVisible(False)
         pkl = QVBoxLayout(self.pk_frame); pkl.setContentsMargins(16, 10, 16, 10)
         self.pk_title = QLabel("📊 本期开奖PK结果")
-        self.pk_title.setFont(QFont("Microsoft YaHei", 14, QFont.Bold))
+        self.pk_title.setFont(QFont("Microsoft YaHei", 17, QFont.Bold))
         self.pk_title.setStyleSheet(f"color: {TEXT_DARK}; border: none;"); pkl.addWidget(self.pk_title)
         self.pk_detail = QLabel("")
-        self.pk_detail.setStyleSheet(f"color: {TEXT_MID}; border: none; font-size: 11px;")
+        self.pk_detail.setStyleSheet(f"color: {TEXT_MID}; border: none; font-size: 14px;")
         self.pk_detail.setWordWrap(True); pkl.addWidget(self.pk_detail)
         lay.addWidget(self.pk_frame)
         lay.addStretch()
@@ -540,8 +604,14 @@ class MainWindow(QMainWindow):
 
         self.leaderboard = PkLeaderboard(); lay.addWidget(self.leaderboard)
 
+        self.hit_summary_label = QLabel("")
+        self.hit_summary_label.setStyleSheet(
+            f"color: {TEXT_MID}; font-size: 14px; padding: 2px 4px;")
+        self.hit_summary_label.setWordWrap(True)
+        lay.addWidget(self.hit_summary_label)
+
         hl = QLabel("📋 近期战绩明细")
-        hl.setFont(QFont("Microsoft YaHei", 13, QFont.Bold))
+        hl.setFont(QFont("Microsoft YaHei", 16, QFont.Bold))
         hl.setStyleSheet(f"color: {TEXT_DARK};"); lay.addWidget(hl)
 
         self.hist_table = QTableWidget()
@@ -581,7 +651,7 @@ class MainWindow(QMainWindow):
             btn = QPushButton(label)
             btn.setStyleSheet("""
                 QPushButton { padding: 4px 10px; border: 1px solid #ccc; border-radius: 4px;
-                              background: white; font-size: 11px; }
+                              background: white; font-size: 14px; }
                 QPushButton:hover { background: #F0F0F0; border-color: #C41A1A; }
             """)
             btn.clicked.connect(lambda checked, w=w: self._set_chart_window(w))
@@ -590,6 +660,7 @@ class MainWindow(QMainWindow):
         lay.addWidget(ctrl)
         self.red_chart = TrendChartCanvas(); lay.addWidget(self.red_chart)
         self.blue_chart = BlueChartCanvas(); lay.addWidget(self.blue_chart)
+        self.hit_chart = HitTrendChartCanvas(); lay.addWidget(self.hit_chart)
         return c
 
     def _set_chart_window(self, window: int):
@@ -599,6 +670,7 @@ class MainWindow(QMainWindow):
             self.chart_period.setCurrentIndex(period_map[window])
         self.red_chart.update_chart(self.history_data, window=window)
         self.blue_chart.update_chart(self.history_data, window=window)
+        self.hit_chart.update_chart(window=window if window else None)
 
     def _on_period_changed(self, idx: int):
         """下拉框切换图表区间"""
@@ -607,6 +679,7 @@ class MainWindow(QMainWindow):
             window = windows[idx]
             self.red_chart.update_chart(self.history_data, window=window)
             self.blue_chart.update_chart(self.history_data, window=window)
+            self.hit_chart.update_chart(window=window if window else None)
 
     # === 数据加载 ===
 
@@ -667,6 +740,41 @@ class MainWindow(QMainWindow):
             if sn in data and data[sn]['predictions']:
                 card.update_predictions(data[sn]['predictions'])
 
+    def _resort_cards(self, rankings=None):
+        """按历史累计奖金从高到低重排预测员卡片。
+
+        rankings 可由调用方传入（调用方往往已查过一次），避免重复全表聚合；
+        未传入时内部自行查询一次。
+        """
+        if not getattr(self, 'cards', None) or not getattr(self, 'cards_layout', None):
+            return
+        stretch = getattr(self, 'cards_stretch', None)
+        if stretch is None:
+            return
+        if rankings is None:
+            try:
+                rankings = get_predictor_rankings()
+            except Exception as e:
+                logger.warning("重排预测员卡片失败，保持原顺序: %s", e)
+                return
+        prize = {r['predictor_name']: (r['total_prize'] or 0) for r in rankings}
+        ordered = sorted(
+            PREDICTORS.keys(),
+            key=lambda sn: prize.get(PREDICTORS[sn]['name'], 0),
+            reverse=True,
+        )
+        if ordered == list(self.cards.keys()):
+            return
+        cl = self.cards_layout
+        # 先摘掉尾部伸缩弹簧，重排后再放回末尾，避免弹簧跑到最前把卡片挤到右侧
+        cl.removeItem(stretch)
+        for sn in ordered:
+            cl.removeWidget(self.cards[sn])
+        for sn in ordered:
+            cl.addWidget(self.cards[sn])
+        cl.addItem(stretch)
+        self.cards = {sn: self.cards[sn] for sn in ordered}
+
     def _auto_load(self):
         create_database()
         conn = get_connection()
@@ -679,8 +787,11 @@ class MainWindow(QMainWindow):
         self.history_data = get_all_results()
         self.red_chart.update_chart(self.history_data)
         self.blue_chart.update_chart(self.history_data)
+        self.hit_chart.update_chart()
         rankings = get_predictor_rankings()
         self.leaderboard.update_rankings(rankings)
+        self._resort_cards(rankings)
+        self._update_hit_summary()
         self._update_hist_table()
 
         # 先尝试加载已保存的预测
@@ -820,7 +931,41 @@ class MainWindow(QMainWindow):
         self.pk_detail.setText('\n'.join(lines))
         rankings = get_predictor_rankings()
         self.leaderboard.update_rankings(rankings)
+        self._resort_cards(rankings)
+        self._update_hit_summary()
         self._update_hist_table()
+
+    def _update_hit_summary(self):
+        """在排行榜页显示全期真实命中水平 vs 随机乱猜基线"""
+        s = get_hit_summary()
+        if not s or s['n'] == 0:
+            self.hit_summary_label.setText("暂无命中数据（开奖后自动回填）")
+            self.hit_summary_label.setStyleSheet(
+                f"color: {TEXT_MID}; font-size: 14px; padding: 2px 4px;")
+            return
+        # 小样本下 avg_red/blue_rate 波动极大，据此下「是否超过随机」会把噪声误当
+        # 信号；低于门槛时只展示数值、不下确定性结论（每期最多 5 预测员 × 5 注）。
+        if s['n'] < 25:
+            self.hit_summary_label.setText(
+                f"📉 全期真实水平：红球 {s['avg_red']:.2f}/6（随机期望 {s['random_red']:.2f}）"
+                f"｜蓝球 {s['blue_rate']*100:.1f}%（随机 {s['random_blue']*100:.1f}%）"
+                f"—— 样本不足（仅 {s['n']} 注），暂不下结论")
+            self.hit_summary_label.setStyleSheet(
+                f"color: {TEXT_MID}; font-size: 14px; padding: 2px 4px; font-weight: bold;")
+            return
+        beat_red = s['avg_red'] > s['random_red']
+        beat_blue = s['blue_rate'] > s['random_blue']
+        if beat_red and beat_blue:
+            color, verdict = "#2E7D32", "已超过随机乱猜"
+        elif not beat_red and not beat_blue:
+            color, verdict = "#C41A1A", "未超过随机乱猜"
+        else:
+            color, verdict = "#B8860B", "红蓝表现分化"
+        self.hit_summary_label.setText(
+            f"📉 全期真实水平：红球 {s['avg_red']:.2f}/6（随机期望 {s['random_red']:.2f}）"
+            f"｜蓝球 {s['blue_rate']*100:.1f}%（随机 {s['random_blue']*100:.1f}%）—— {verdict}")
+        self.hit_summary_label.setStyleSheet(
+            f"color: {color}; font-size: 14px; padding: 2px 4px; font-weight: bold;")
 
     def _update_hist_table(self):
         import sqlite3
@@ -853,9 +998,12 @@ class MainWindow(QMainWindow):
         self.history_data = get_all_results()
         self.red_chart.update_chart(self.history_data)
         self.blue_chart.update_chart(self.history_data)
+        self.hit_chart.update_chart()
         # 刷新PK排行榜和战绩明细
         rankings = get_predictor_rankings()
         self.leaderboard.update_rankings(rankings)
+        self._resort_cards(rankings)
+        self._update_hit_summary()
         self._update_hist_table()
         self._start_fetch()
 
@@ -865,9 +1013,9 @@ class MainWindow(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
-    app.setFont(QFont("Microsoft YaHei", 10))
+    app.setFont(QFont("Microsoft YaHei", 13))
     app.setStyleSheet("QMainWindow { background: #F0F2F5; } QScrollArea { border: none; background: transparent; }")
-    w = MainWindow(); w.show()
+    w = MainWindow(); w.showMaximized()
     if len(sys.argv) == 4:
         pk = update_predictor_after_draw(sys.argv[1],
             [int(x) for x in sys.argv[2].split(',')], int(sys.argv[3]))

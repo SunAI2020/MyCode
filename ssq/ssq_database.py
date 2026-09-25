@@ -8,6 +8,10 @@ from typing import List, Optional, Dict
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ssq_lottery.db')
 
+# 每注随机乱猜的命中期望（用于「随机对照基线」展示，非单号理论概率）
+RANDOM_RED_EXPECT = 6 * 6 / 33   # ≈1.0909，每注随机红球命中期望（6球 × 6/33）
+RANDOM_BLUE_EXPECT = 1 / 16      # = 0.0625，蓝球随机命中率（1/16）
+
 
 def get_connection() -> sqlite3.Connection:
     """获取数据库连接"""
@@ -126,6 +130,7 @@ def create_database():
 
     conn.commit()
     conn.close()
+    _invalidate_hit_cache()
     print(f"[OK] 数据库已创建: {DB_PATH}")
 
 
@@ -202,6 +207,7 @@ def update_predictor_after_draw(issue: str, actual_reds: list, actual_blue: int)
 
     conn.commit()
     conn.close()
+    _invalidate_hit_cache()
     return {
         'issue': issue,
         'actual_reds': actual_reds_sorted,
@@ -231,6 +237,80 @@ def get_predictor_rankings() -> list:
     rankings = [dict(r) for r in cursor.fetchall()]
     conn.close()
     return rankings
+
+
+# 命中走势/汇总缓存：这两个查询只依赖 predictor_records 中已回填（actual_reds
+# 非空）的行，而该数据仅在开奖回填 update_predictor_after_draw() 时变化，因此
+# 结果可缓存，回填时调用 _invalidate_hit_cache() 失效。
+_hit_trend_cache: Optional[List] = None
+_hit_summary_cache: Optional[Dict] = None
+
+
+def _invalidate_hit_cache():
+    """开奖回填后失效命中走势/汇总缓存"""
+    global _hit_trend_cache, _hit_summary_cache
+    _hit_trend_cache = None
+    _hit_summary_cache = None
+
+
+def get_hit_trend() -> List[Dict]:
+    """按开奖期号聚合命中走势。
+
+    仅统计已回填开奖结果（actual_reds 非空）的期，按 target_issue 升序返回：
+    [{target_issue, n, avg_red, blue_rate}]，其中 avg_red 为每注平均红球命中数、
+    blue_rate 为蓝球命中率（blue_match 是 0/1，均值即命中率）。
+    """
+    global _hit_trend_cache
+    if _hit_trend_cache is not None:
+        return _hit_trend_cache
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT target_issue,
+               COUNT(*) as n,
+               AVG(red_match_count) as avg_red,
+               AVG(blue_match) as blue_rate
+        FROM predictor_records
+        WHERE actual_reds IS NOT NULL
+        GROUP BY target_issue
+        ORDER BY target_issue ASC
+    ''')
+    rows = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+    _hit_trend_cache = rows
+    return rows
+
+
+def get_hit_summary() -> Dict:
+    """全期命中汇总，用于与随机基线对照。
+
+    返回 {n, avg_red, blue_rate, random_red, random_blue}，其中 random_* 为
+    每注随机乱猜的期望值（RANDOM_RED_EXPECT / RANDOM_BLUE_EXPECT）。
+    """
+    global _hit_summary_cache
+    if _hit_summary_cache is not None:
+        return _hit_summary_cache
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT AVG(red_match_count) as avg_red,
+               AVG(blue_match) as blue_rate,
+               COUNT(*) as n
+        FROM predictor_records
+        WHERE actual_reds IS NOT NULL
+    ''')
+    avg_red, blue_rate, n = cursor.fetchone()
+    conn.close()
+    summary = {
+        'n': n or 0,
+        'avg_red': avg_red or 0.0,
+        'blue_rate': blue_rate or 0.0,
+        'random_red': RANDOM_RED_EXPECT,
+        'random_blue': RANDOM_BLUE_EXPECT,
+    }
+    _hit_summary_cache = summary
+    return summary
 
 
 def import_from_json(json_path: str = 'ssq_history.json'):
