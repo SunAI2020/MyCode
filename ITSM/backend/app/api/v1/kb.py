@@ -8,7 +8,7 @@ from app.schemas.kb import KbArticleCreate, KbArticleOut, KbArticleUpdate, KbAsk
 from app.services.audit_service import record
 from app.services.kb_service import increment_view
 from app.services.rag_service import answer_question
-from app.services.search_service import delete_kb_article, index_kb_article, search_kb
+from app.services.search_service import delete_kb_article, index_kb_article, reindex_kb, search_kb
 from app.utils.response import ok
 
 RW_ROLE = ("sys_admin", "sys_ops", "ticket_mgr")
@@ -50,6 +50,12 @@ def create_article(
 def ask(body: KbAskIn, user: SysUser = Depends(require_role(*ASK_ROLE)), db: Session = Depends(get_db)):
     """RAG 问答：知识库检索 + 可配置大模型摘要（未配置密钥时降级为检索片段）。"""
     return ok(answer_question(db, body.question))
+
+
+@router.post("/reindex")
+def reindex(user: SysUser = Depends(require_role(*DEL_ROLE)), db: Session = Depends(get_db)):
+    """ES 冷启动全量回填（sys_admin/sys_ops）；ES 不可用返回 0。"""
+    return ok({"indexed": reindex_kb(db)})
 
 
 @router.get("/{aid}")

@@ -1,6 +1,6 @@
 """知识库检索单测：ES 未配置时的 SQL 降级路径。"""
 from app.models import KbArticle
-from app.services.search_service import es_available, search_kb
+from app.services.search_service import es_available, reindex_kb, search_kb
 
 
 def _mk(db, title, category="故障手册", content="", status="已发布"):
@@ -33,3 +33,9 @@ def test_search_kb_category_filter(db):
     res = search_kb(db, category="SOP")
     assert res["total"] == 1
     assert res["items"][0]["category"] == "SOP"
+
+
+def test_reindex_no_es_returns_zero(db):
+    _mk(db, "已发布条目", status="已发布")
+    db.commit()
+    assert reindex_kb(db) == 0  # 无 ES 时回填降级返回 0

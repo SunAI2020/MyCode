@@ -24,8 +24,11 @@ from app.schemas.work_order import (
     WorkOrderOut,
     WorkOrderStatusUpdate,
 )
+from app.schemas.kb import KbArticleOut
 from app.services.audit_service import record
+from app.services.ai_service import summarize_work_order, work_order_to_kb_draft
 from app.services.dispatch_service import record_assignee_hours, transfer_assignee
+from app.services.search_service import index_kb_article
 from app.services.workflow_service import assert_transition, log_transition
 from app.utils.pagination import paginate
 from app.utils.response import ok
@@ -256,3 +259,27 @@ def record_hours(
     record(db, user_id=user.id, action="record_hours", resource=f"work_order:{wid}", after=str(body.model_dump()))
     db.commit()
     return ok(AssigneeOut.model_validate(a).model_dump())
+
+
+@router.post("/{wid}/summary")
+def summarize(wid: int, user: SysUser = Depends(require_role(*WORK_WRITE_ROLE)), db: Session = Depends(get_db)):
+    """工单执行摘要（AI 生成，无 LLM 时降级模板摘要）。"""
+    wo = db.get(WorkOrder, wid)
+    if wo is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "工单不存在")
+    assert_scoped(wo, customer_scope_of(user, db), db)
+    return ok({"summary": summarize_work_order(wo)})
+
+
+@router.post("/{wid}/to-kb")
+def to_kb(wid: int, user: SysUser = Depends(require_role(*WORK_WRITE_ROLE)), db: Session = Depends(get_db)):
+    """工单转知识草稿（status=草稿，审核后入库）。"""
+    wo = db.get(WorkOrder, wid)
+    if wo is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "工单不存在")
+    assert_scoped(wo, customer_scope_of(user, db), db)
+    article = work_order_to_kb_draft(db, wo, user.id)
+    record(db, user_id=user.id, action="to_kb", resource=f"work_order:{wid}", after=f"kb_article:{article.id}")
+    db.commit()
+    index_kb_article(article)  # 增量同步 ES
+    return ok(KbArticleOut.model_validate(article).model_dump())

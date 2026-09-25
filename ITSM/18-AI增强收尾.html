@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>步骤十八：AI 增强收尾（阶段五 · FR-17 收尾）</title>
+<style>body{font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;max-width:860px;margin:40px auto;padding:0 20px;line-height:1.7;color:#24292f}h1{border-bottom:2px solid #e1e4e8;padding-bottom:.3em}h2{margin-top:1.5em;border-bottom:1px solid #eaecef;padding-bottom:.2em}code{background:#f6f8fa;padding:.15em .4em;border-radius:4px;font-family:Consolas,monospace;font-size:.9em}pre{background:#f6f8fa;padding:12px;border-radius:6px;overflow:auto}table{border-collapse:collapse;width:100%}th,td{border:1px solid #d0d7de;padding:6px 10px;text-align:left}th{background:#f6f8fa}blockquote{color:#57606a;border-left:4px solid #d0d7de;margin:0;padding-left:12px}</style>
+</head>
+<body>
+<h1>步骤十八：AI 增强收尾（阶段五 · FR-17 收尾）</h1>
+<blockquote>依据：《IT运维集中管控平台_软件设计方案.html》V1.0 定稿 · §4.16<br>范围：统一 LLM 抽象层复用 + 工单摘要 + 工单转知识草稿 + ES 冷启动索引回填。</blockquote>
+
+<h2>1. 目标</h2>
+<ul>
+<li><b>LLM 抽象层复用</b>：抽取为共享 <code>llm_service</code>。</li>
+<li><b>工单摘要</b>：<code>POST /work-orders/{id}/summary</code>（无密钥降级模板摘要）。</li>
+<li><b>工单转知识</b>：<code>POST /work-orders/{id}/to-kb</code> 沉淀知识草稿（status=草稿）。</li>
+<li><b>ES 回填</b>：<code>POST /kb-articles/reindex</code> 全量索引已发布条目。</li>
+</ul>
+
+<h2>2. 文件清单</h2>
+<ul>
+<li><code>app/services/llm_service.py</code>、<code>app/services/ai_service.py</code></li>
+<li><code>app/services/rag_service.py</code>（改用 <code>llm_service</code>）、<code>app/services/search_service.py</code>（增 <code>reindex_kb</code>）</li>
+<li><code>app/api/v1/work_orders.py</code>、<code>app/api/v1/kb.py</code></li>
+<li><code>tests/test_ai_service.py</code></li>
+</ul>
+
+<h2>3. 业务规则</h2>
+<ul>
+<li><b>摘要</b>：LLM 配置时生成，否则回退确定性模板。</li>
+<li><b>转知识</b>：生成 <code>KbArticle(status=草稿)</code>，作者取当前用户。</li>
+<li><b>回填</b>：仅索引已发布；ES 不可用静默返回 0。</li>
+</ul>
+
+<h2>4. 验证</h2>
+<pre>cd backend &amp;&amp; .venv/Scripts/activate
+python -m pytest tests -q</pre>
+</body>
+</html>

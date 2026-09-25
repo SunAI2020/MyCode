@@ -65,6 +65,31 @@ def delete_kb_article(article_id: int) -> None:
         pass
 
 
+def reindex_kb(db) -> int:
+    """冷启动全量回填 ES：索引全部已发布条目，返回成功条数（ES 不可用返回 0）。"""
+    es = _get_es()
+    if es is None:
+        return 0
+    articles = db.query(KbArticle).filter(KbArticle.status == "已发布").all()
+    indexed = 0
+    for a in articles:
+        try:
+            es.index(
+                index=_ES_INDEX,
+                id=a.id,
+                document={
+                    "title": a.title,
+                    "content": a.content,
+                    "category": a.category,
+                    "status": a.status,
+                },
+            )
+            indexed += 1
+        except Exception:
+            pass
+    return indexed
+
+
 def search_kb(
     db,
     q: str | None = None,
