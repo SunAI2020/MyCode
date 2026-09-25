@@ -4,7 +4,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.deps import customer_scope_of, get_current_user, get_db, require_role, scope_filter
-from app.models import Contract, Delivery, OrderReceive, SysUser, WorkOrder
+from app.models import CmdbCi, Contract, ContractItem, Delivery, OrderReceive, SysUser, WorkOrder
 from app.schemas.portal import PortalTicketCreate
 from app.schemas.work_order import WorkOrderOut
 from app.services.audit_service import record
@@ -30,10 +30,21 @@ def create_ticket(
         if body.customer_id is None:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "平台侧报障须指定 customer_id")
         customer_id = body.customer_id
-    if scope is not None and body.contract_id is not None:
-        c = db.get(Contract, body.contract_id)
-        if c is None or c.customer_id != scope:
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "无权为其他客户报障")
+    # 客户侧行级隔离：合同 / 合同子项 / 配置项均须归属本人客户，防跨租户引用
+    if scope is not None:
+        if body.contract_id is not None:
+            c = db.get(Contract, body.contract_id)
+            if c is None or c.customer_id != scope:
+                raise HTTPException(status.HTTP_403_FORBIDDEN, "无权为其他客户报障")
+        if body.contract_item_id is not None:
+            item = db.get(ContractItem, body.contract_item_id)
+            owner = db.get(Contract, item.contract_id) if item else None
+            if owner is None or owner.customer_id != scope:
+                raise HTTPException(status.HTTP_403_FORBIDDEN, "无权引用其他客户的合同子项")
+        if body.ci_id is not None:
+            ci = db.get(CmdbCi, body.ci_id)
+            if ci is None or ci.customer_id != scope:
+                raise HTTPException(status.HTTP_403_FORBIDDEN, "无权引用其他客户的配置项")
 
     rec = OrderReceive(
         source="客户报障",

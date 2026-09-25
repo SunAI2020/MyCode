@@ -3,7 +3,7 @@ import pytest
 from fastapi import HTTPException
 
 from app.api.v1.portal import create_ticket, overview
-from app.models import Contract, Customer, OrderReceive, SysRole, SysUser, SysUserRole, WorkOrder
+from app.models import CmdbCi, Contract, Customer, OrderReceive, SysRole, SysUser, SysUserRole, WorkOrder
 from app.schemas.portal import PortalTicketCreate
 
 
@@ -43,6 +43,21 @@ def test_create_ticket_platform_requires_customer(db):
     body = PortalTicketCreate(description="x")  # 平台侧未指定 customer_id
     with pytest.raises(HTTPException):
         create_ticket(body, user=u, db=db)
+
+
+def test_create_ticket_rejects_cross_tenant_ci(db):
+    u, ca = _mk_cust_user(db, name="A")
+    cb = Customer(name="B")
+    db.add(cb)
+    db.flush()
+    other_ci = CmdbCi(customer_id=cb.id, name="B系统")
+    db.add(other_ci)
+    db.commit()
+
+    body = PortalTicketCreate(description="x", ci_id=other_ci.id)
+    with pytest.raises(HTTPException) as exc:
+        create_ticket(body, user=u, db=db)
+    assert exc.value.status_code == 403  # 客户侧不得引用他人客户的配置项
 
 
 def test_overview_customer_isolation(db):
