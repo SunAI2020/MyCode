@@ -115,6 +115,9 @@ def create_work_order(
             ci_id=body.ci_id if body.ci_id is not None else (receive.ci_id if receive else None),
             project=body.project if body.project is not None else (receive.project if receive else None),
             priority=body.priority,
+            description=body.description,
+            task_type=body.task_type,
+            deadline=body.deadline,
         )
         db.add(wo)
         db.flush()

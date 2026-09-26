@@ -46,6 +46,9 @@ class WorkOrderCreate(BaseModel):
     ci_id: int | None = None
     project: str | None = None
     priority: str = "中"
+    description: str | None = None
+    task_type: str | None = None  # 内部任务类型
+    deadline: datetime | None = None  # 内部任务截止时间
 
 
 class WorkOrderStatusUpdate(BaseModel):
@@ -66,6 +69,8 @@ class WorkOrderOut(BaseModel):
     ci_id: int | None = None
     project: str | None = None
     description: str | None = None
+    task_type: str | None = None
+    deadline: datetime | None = None
     status: str
     priority: str
     sla_deadline: datetime | None = None
