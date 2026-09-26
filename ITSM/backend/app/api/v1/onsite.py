@@ -286,6 +286,8 @@ def delete_assignment(aid: int, user: SysUser = Depends(require_role("sys_admin"
     obj = db.get(OnsiteAssignment, aid)
     if obj is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "驻场人员不存在")
+    os = db.get(OnsiteService, obj.onsite_id)
+    assert_scoped(os, customer_scope_of(user, db), db)
     db.delete(obj)
     record(db, user_id=user.id, action="delete", resource=f"onsite_assignment:{aid}")
     db.commit()
