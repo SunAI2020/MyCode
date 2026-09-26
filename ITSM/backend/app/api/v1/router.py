@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1 import approvals, auth, change_orders, checkins, contracts, customers, deliveries, issues, kb, onsite, outsourcing, performance, portal, services, uploads, workflows, work_orders
+from app.api.v1 import approvals, auth, change_orders, checkins, contracts, customers, deliveries, escalations, issues, kb, onsite, outsourcing, performance, portal, services, uploads, workflows, work_orders
 from app.utils.response import ok
 
 api_router = APIRouter()
@@ -25,6 +25,7 @@ api_router.include_router(kb.router)
 api_router.include_router(portal.router)
 api_router.include_router(workflows.router)
 api_router.include_router(approvals.router)
+api_router.include_router(escalations.router)
 api_router.include_router(checkins.router)
 api_router.include_router(uploads.router)
 api_router.include_router(services.sla)

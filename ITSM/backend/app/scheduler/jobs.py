@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Contract, ContractItem, ServiceCycle, ServiceReminder, WorkOrder
 from app.services.cycle_service import normalize_unit, split_cycles
-from app.services.sla_service import scan_sla_alerts
+from app.services.sla_service import scan_sla_alerts, scan_sla_escalations
 from app.utils.wo_no import next_work_order_no, work_order_no_scope
 
 
@@ -72,6 +72,7 @@ def start_scheduler():
         try:
             run_daily_work_order_generation(db)
             scan_sla_alerts(db)
+            scan_sla_escalations(db)
         finally:
             db.close()
 
