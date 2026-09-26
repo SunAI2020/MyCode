@@ -22,31 +22,33 @@ def _mk_user(db, username):
 
 
 def test_apply_approve_transitions(db):
-    u = _mk_user(db, "mgr")
+    applicant = _mk_user(db, "mgr1")
+    approver = _mk_user(db, "mgr2")
     co = ChangeOrder(ci_id=1, status="待审批")
     db.add(co)
     db.commit()
 
     data = create_approval(
-        ApprovalCreate(entity="change_order", entity_id=co.id, to_status="已批准"), user=u, db=db
+        ApprovalCreate(entity="change_order", entity_id=co.id, to_status="已批准"), user=applicant, db=db
     )["data"]
     aid = data["id"]
 
-    data2 = approve(aid, ApprovalDecision(note="同意"), user=u, db=db)["data"]
+    data2 = approve(aid, ApprovalDecision(note="同意"), user=approver, db=db)["data"]
     assert data2["status"] == "已通过"
     assert db.get(ChangeOrder, co.id).status == "已批准"  # 审批通过真正流转
 
 
 def test_reject_does_not_transition(db):
-    u = _mk_user(db, "mgr")
+    applicant = _mk_user(db, "mgr1")
+    approver = _mk_user(db, "mgr2")
     co = ChangeOrder(ci_id=1, status="待审批")
     db.add(co)
     db.commit()
 
     data = create_approval(
-        ApprovalCreate(entity="change_order", entity_id=co.id, to_status="已批准"), user=u, db=db
+        ApprovalCreate(entity="change_order", entity_id=co.id, to_status="已批准"), user=applicant, db=db
     )["data"]
-    reject(data["id"], ApprovalDecision(note="驳回"), user=u, db=db)
+    reject(data["id"], ApprovalDecision(note="驳回"), user=approver, db=db)
     assert db.get(ChangeOrder, co.id).status == "待审批"  # 拒绝不流转
 
 
@@ -61,3 +63,18 @@ def test_invalid_target_rejected(db):
             ApprovalCreate(entity="change_order", entity_id=co.id, to_status="已批准"), user=u, db=db
         )
     assert exc.value.status_code == 400  # 草稿 不能直接到 已批准
+
+
+def test_self_approval_rejected(db):
+    u = _mk_user(db, "mgr")
+    co = ChangeOrder(ci_id=1, status="待审批")
+    db.add(co)
+    db.commit()
+
+    data = create_approval(
+        ApprovalCreate(entity="change_order", entity_id=co.id, to_status="已批准"), user=u, db=db
+    )["data"]
+    # 申请人不能审批自己的申请（职责分离）
+    with pytest.raises(HTTPException) as exc:
+        approve(data["id"], ApprovalDecision(note="同意"), user=u, db=db)
+    assert exc.value.status_code == 403

@@ -98,6 +98,8 @@ def approve(
     appr = db.get(Approval, aid)
     if appr is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "审批不存在")
+    if appr.applicant_id == user.id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "不能审批自己发起的申请")
     if appr.status != "待审批":
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "该审批已处理")
     try:
@@ -123,6 +125,8 @@ def reject(
     appr = db.get(Approval, aid)
     if appr is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "审批不存在")
+    if appr.applicant_id == user.id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "不能审批自己发起的申请")
     if appr.status != "待审批":
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "该审批已处理")
     appr.status = "已拒绝"
