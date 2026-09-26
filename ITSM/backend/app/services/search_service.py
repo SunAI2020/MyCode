@@ -123,7 +123,6 @@ def _search_kb_es(db, q, category, status, page, size) -> dict:
     res = es.search(
         index=_ES_INDEX, body=body, from_=(page - 1) * size, size=size
     )
-    total = res["hits"]["total"]["value"]
     ids = [int(h["_id"]) for h in res["hits"]["hits"]]
     if ids:
         rows = db.query(KbArticle).filter(KbArticle.id.in_(ids)).all()
@@ -132,4 +131,7 @@ def _search_kb_es(db, q, category, status, page, size) -> dict:
     else:
         ordered = []
     items = [KbArticleOut.model_validate(r).model_dump() for r in ordered]
+    # total 以 DB 为准（ES 仅作候选排序）：避免 ES 残留已删除条目导致总数虚高/末页空洞，
+    # 与 SQL 降级路径的 search_articles(...).count() 保持一致。
+    total = search_articles(db, q, category, status).count()
     return {"items": items, "total": total, "page": page, "size": size}

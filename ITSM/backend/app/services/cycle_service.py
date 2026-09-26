@@ -87,10 +87,21 @@ def generate_cycles(db: Session, item_id: int) -> dict:
     if contract is None or contract.start_date is None or contract.end_date is None:
         raise ValueError("合同缺少起止日期")
     cycles = split_cycles(contract.start_date, contract.end_date, item.frequency, item.unit)
+    # schedule/起止日期变更后，旧的「pending + auto_generated」周期日期已失效：
+    # 先删除再按最新参数重建，避免残留旧日期周期；已 started/done 的周期保留历史。
+    db.query(ServiceCycle).filter_by(
+        contract_item_id=item_id, auto_generated=True, status="pending"
+    ).delete()
+    existing_nos = {
+        row[0]
+        for row in db.query(ServiceCycle.cycle_no)
+        .filter(ServiceCycle.contract_item_id == item_id)
+        .all()
+    }
     created = 0
     for no, s, e in cycles:
-        if db.query(ServiceCycle).filter_by(contract_item_id=item_id, cycle_no=no).first():
-            continue
+        if no in existing_nos:
+            continue  # 已启动/完成周期占用的序号保留，避免唯一约束冲突
         db.add(
             ServiceCycle(
                 contract_item_id=item_id,

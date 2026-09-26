@@ -43,3 +43,17 @@ def test_set_conflict_flag_symmetric(db):
     set_conflict_flag(db, a)
     assert a.conflict_flag is True
     assert b.conflict_flag is True  # 对称：同 CI 既有活跃变更也一并标记
+
+
+def test_set_conflict_flag_clears_stale_on_ci_change(db):
+    a = _mk(db, ci_id=1, status="已批准")
+    b = _mk(db, ci_id=1, status="实施中")
+    db.commit()
+    set_conflict_flag(db, a)
+    assert b.conflict_flag is True  # 同 CI-1 冲突
+
+    # 将 a 移到 CI-2：旧 CI-1 上 b 的冲突标记应解除，不再残留过期冲突
+    a.ci_id = 2
+    set_conflict_flag(db, a, previous_ci_id=1)
+    assert a.conflict_flag is False  # CI-2 上只有 a 自己
+    assert b.conflict_flag is False  # CI-1 上只剩 b 自己，无冲突

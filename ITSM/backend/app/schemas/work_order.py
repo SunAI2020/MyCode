@@ -65,6 +65,7 @@ class WorkOrderOut(BaseModel):
     contract_item_id: int | None = None
     ci_id: int | None = None
     project: str | None = None
+    description: str | None = None
     status: str
     priority: str
     sla_deadline: datetime | None = None

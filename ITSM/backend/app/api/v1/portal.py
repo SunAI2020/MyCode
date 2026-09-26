@@ -9,7 +9,7 @@ from app.schemas.portal import PortalTicketCreate
 from app.schemas.work_order import WorkOrderOut
 from app.services.audit_service import record
 from app.utils.response import ok
-from app.utils.wo_no import next_work_order_no
+from app.utils.wo_no import next_work_order_no, work_order_no_scope
 
 PORTAL_ROLE = ("sys_admin", "sys_ops", "ticket_mgr", "cust_admin", "cust_service")
 
@@ -31,6 +31,7 @@ def create_ticket(
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "平台侧报障须指定 customer_id")
         customer_id = body.customer_id
     # 客户侧行级隔离：合同 / 合同子项 / 配置项均须归属本人客户，防跨租户引用
+    item = None
     if scope is not None:
         if body.contract_id is not None:
             c = db.get(Contract, body.contract_id)
@@ -46,6 +47,13 @@ def create_ticket(
             if ci is None or ci.customer_id != scope:
                 raise HTTPException(status.HTTP_403_FORBIDDEN, "无权引用其他客户的配置项")
 
+    # 一致性校验（平台/客户侧均适用）：合同子项必须属于请求指定的合同，防跨合同错配
+    if body.contract_item_id is not None and body.contract_id is not None:
+        if item is None:
+            item = db.get(ContractItem, body.contract_item_id)
+        if item is None or item.contract_id != body.contract_id:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "合同子项不属于指定的合同")
+
     rec = OrderReceive(
         source="客户报障",
         customer_id=customer_id,
@@ -57,21 +65,22 @@ def create_ticket(
     )
     db.add(rec)
     db.flush()
-    wo = WorkOrder(
-        no=next_work_order_no(db),
-        type="客户工单",
-        receive_id=rec.id,
-        contract_id=body.contract_id,
-        contract_item_id=body.contract_item_id,
-        ci_id=body.ci_id,
-        project=body.project,
-        priority=body.priority,
-        description=body.description,
-    )
-    db.add(wo)
-    db.flush()
-    record(db, user_id=user.id, action="create_ticket", resource=f"work_order:{wo.id}", after=str(body.model_dump()))
-    db.commit()
+    with work_order_no_scope(db):
+        wo = WorkOrder(
+            no=next_work_order_no(db),
+            type="客户工单",
+            receive_id=rec.id,
+            contract_id=body.contract_id,
+            contract_item_id=body.contract_item_id,
+            ci_id=body.ci_id,
+            project=body.project,
+            priority=body.priority,
+            description=body.description,
+        )
+        db.add(wo)
+        db.flush()
+        record(db, user_id=user.id, action="create_ticket", resource=f"work_order:{wo.id}", after=str(body.model_dump()))
+        db.commit()
     return ok({"receive_id": rec.id, "work_order": WorkOrderOut.model_validate(wo).model_dump()})
 
 

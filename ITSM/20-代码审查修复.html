@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>步骤二十：后台代码审查 8 项缺陷修复</title>
+<style>body{font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;max-width:860px;margin:40px auto;padding:0 20px;line-height:1.7;color:#24292f}h1{border-bottom:2px solid #e1e4e8;padding-bottom:.3em}h2{margin-top:1.5em;border-bottom:1px solid #eaecef;padding-bottom:.2em}code{background:#f6f8fa;padding:.15em .4em;border-radius:4px;font-family:Consolas,monospace;font-size:.9em}pre{background:#f6f8fa;padding:12px;border-radius:6px;overflow:auto}blockquote{color:#57606a;border-left:4px solid #d0d7de;margin:0;padding-left:12px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #d0d7de;padding:6px 10px;font-size:.92em;text-align:left;vertical-align:top}th{background:#f6f8fa}</style>
+</head>
+<body>
+<h1>步骤二十：后台代码审查 8 项缺陷修复</h1>
+<blockquote>依据：《IT运维集中管控平台_软件设计方案.html》V1.0 定稿 · 全量代码审查<br>范围：修复 <code>/code-review</code> 返回的 8 项缺陷（4 实质正确性 + 4 健壮性/一致性），并补回归测试。</blockquote>
+
+<h2>1. 缺陷与修复方案</h2>
+<table>
+<tr><th>#</th><th>文件</th><th>缺陷</th><th>修复</th></tr>
+<tr><td>1</td><td><code>utils/wo_no.py</code></td><td>SQLite 取号竞态：线程锁只串行化 <code>max(no)</code> 读取，不覆盖后续 INSERT+commit</td><td>新增 <code>work_order_no_scope(db)</code> 上下文管理器（PG 事务级咨询锁 / 非 PG 线程锁），锁跨越「取号+插入+commit」；3 个调用点改为 <code>with</code> 包裹</td></tr>
+<tr><td>2</td><td><code>schemas/work_order.py</code></td><td><code>WorkOrderOut</code> 缺 <code>description</code>，工单描述在所有响应中被丢弃</td><td>补 <code>description: str | None = None</code></td></tr>
+<tr><td>3</td><td><code>core/deps.py</code></td><td><code>owning_customer_id</code>/<code>scope_filter</code> 不解析 <code>contract_item_id</code>，仅经子项关联的 Delivery/WorkOrder 对客户侧不可见</td><td>归属链路与 scope_filter 补 <code>contract_item_id → ContractItem → Contract</code> 左连接</td></tr>
+<tr><td>4</td><td><code>services/change_service.py</code></td><td><code>set_conflict_flag</code> 在 <code>ci_id</code> 变更时只重算新 CI，旧 CI 兄弟过期冲突标记不解除</td><td>增 <code>previous_ci_id</code> 形参，旧 CI 活跃兄弟一并重算</td></tr>
+<tr><td>5</td><td><code>api/v1/portal.py</code></td><td>未校验子项是否属于请求指定的 <code>contract_id</code>，可造跨合同错配</td><td>补「子项属于指定合同」一致性校验</td></tr>
+<tr><td>6</td><td><code>api/v1/performance.py</code></td><td>显式传 null 时 <code>float(None)</code> → 500</td><td>显式 null 直接 400（列 NOT NULL）</td></tr>
+<tr><td>7</td><td><code>services/cycle_service.py</code></td><td>幂等仅依赖 <code>cycle_no</code>，schedule 变更后残留旧日期周期</td><td>重建前删除该子项 pending+auto_generated 旧周期</td></tr>
+<tr><td>8</td><td><code>services/search_service.py</code></td><td>ES <code>total</code> 含已删除陈旧文档，与 DB <code>items</code> 不一致</td><td><code>total</code> 改以 DB <code>search_articles(...).count()</code> 为准</td></tr>
+</table>
+
+<h2>2. 回归测试</h2>
+<ul>
+<li><code>test_work_order.py</code>（新）：<code>WorkOrderOut</code> 含 <code>description</code>。</li>
+<li><code>test_row_isolation.py</code>（扩）：仅经 <code>contract_item_id</code> 关联的 WorkOrder/Delivery 对客户侧可见。</li>
+<li><code>test_portal.py</code>（扩）：<code>contract_item_id</code> 与 <code>contract_id</code> 错配被拒。</li>
+<li><code>test_performance_service.py</code>（扩）：显式 null 更新被拒 400。</li>
+<li><code>test_change_service.py</code>（扩）：<code>ci_id</code> 变更后旧 CI 冲突标记解除。</li>
+<li><code>test_cycle_service.py</code>（扩）：schedule 变更后重新生成不残留旧日期周期。</li>
+</ul>
+
+<h2>3. 验证</h2>
+<pre>cd backend &amp;&amp; python -m pytest -q</pre>
+
+<h2>4. 说明</h2>
+<p>修复 1 只影响非 PostgreSQL（SQLite 开发/测试）取号并发；生产 PostgreSQL 走事务级咨询锁（本就跨进程安全）。修复 8 中 <code>total</code> 改由 DB 统计，ES 仅提供候选排序。</p>
+</body>
+</html>

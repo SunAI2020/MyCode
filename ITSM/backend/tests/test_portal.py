@@ -3,7 +3,7 @@ import pytest
 from fastapi import HTTPException
 
 from app.api.v1.portal import create_ticket, overview
-from app.models import CmdbCi, Contract, Customer, OrderReceive, SysRole, SysUser, SysUserRole, WorkOrder
+from app.models import CmdbCi, Contract, ContractItem, Customer, OrderReceive, SysRole, SysUser, SysUserRole, WorkOrder
 from app.schemas.portal import PortalTicketCreate
 
 
@@ -58,6 +58,23 @@ def test_create_ticket_rejects_cross_tenant_ci(db):
     with pytest.raises(HTTPException) as exc:
         create_ticket(body, user=u, db=db)
     assert exc.value.status_code == 403  # 客户侧不得引用他人客户的配置项
+
+
+def test_create_ticket_rejects_cross_contract_item_mismatch(db):
+    u, ca = _mk_cust_user(db, name="A")
+    cta = Contract(customer_id=ca.id, name="A合同1")
+    ctb = Contract(customer_id=ca.id, name="A合同2")  # 同一客户两个不同合同
+    db.add_all([cta, ctb])
+    db.flush()
+    item_b = ContractItem(contract_id=ctb.id, project="ERP")
+    db.add(item_b)
+    db.commit()
+
+    # 子项属于合同 B，却指定 contract_id=A → 跨合同错配，须拒绝
+    body = PortalTicketCreate(description="x", contract_id=cta.id, contract_item_id=item_b.id)
+    with pytest.raises(HTTPException) as exc:
+        create_ticket(body, user=u, db=db)
+    assert exc.value.status_code == 400
 
 
 def test_overview_customer_isolation(db):

@@ -84,7 +84,11 @@ def update_performance(
     obj = db.get(Performance, pid)
     if obj is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "绩效记录不存在")
-    for k, v in body.model_dump(exclude_unset=True).items():
+    data = body.model_dump(exclude_unset=True)
+    for k, v in data.items():
+        if v is None:
+            # 数值列为 NOT NULL，显式 null 会导致 float(None) 崩溃 / 约束冲突，直接拒绝
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, f"字段 {k} 不能为空")
         setattr(obj, k, v)
     obj.perf_score = compute_perf_score(obj.workload, obj.dispatch_price, obj.ratio, obj.quality_score, obj.customer_score)
     db.flush()

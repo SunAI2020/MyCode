@@ -10,6 +10,7 @@ from app.core.security import decode_token
 from app.db.session import SessionLocal
 from app.models import (
     Contract,
+    ContractItem,
     Customer,
     Delivery,
     OrderReceive,
@@ -102,18 +103,36 @@ def scope_filter(q, model, scope: int | None):
     if model is WorkOrder:
         q = q.outerjoin(Contract, model.contract_id == Contract.id)
         q = q.outerjoin(OrderReceive, model.receive_id == OrderReceive.id)
-        return q.filter(or_(Contract.customer_id == scope, OrderReceive.customer_id == scope))
+        item_contract = aliased(Contract)
+        q = q.outerjoin(ContractItem, model.contract_item_id == ContractItem.id)
+        q = q.outerjoin(item_contract, ContractItem.contract_id == item_contract.id)
+        return q.filter(
+            or_(
+                Contract.customer_id == scope,
+                OrderReceive.customer_id == scope,
+                item_contract.customer_id == scope,
+            )
+        )
     if model is Delivery:
         wo_contract = aliased(Contract)
+        item_contract = aliased(Contract)
+        wo_item_contract = aliased(Contract)
         q = q.outerjoin(Contract, model.contract_id == Contract.id)
         q = q.outerjoin(WorkOrder, model.work_order_id == WorkOrder.id)
         q = q.outerjoin(wo_contract, WorkOrder.contract_id == wo_contract.id)
         q = q.outerjoin(OrderReceive, WorkOrder.receive_id == OrderReceive.id)
+        q = q.outerjoin(ContractItem, model.contract_item_id == ContractItem.id)
+        q = q.outerjoin(item_contract, ContractItem.contract_id == item_contract.id)
+        wo_item = aliased(ContractItem)
+        q = q.outerjoin(wo_item, WorkOrder.contract_item_id == wo_item.id)
+        q = q.outerjoin(wo_item_contract, wo_item.contract_id == wo_item_contract.id)
         return q.filter(
             or_(
                 Contract.customer_id == scope,
                 wo_contract.customer_id == scope,
                 OrderReceive.customer_id == scope,
+                item_contract.customer_id == scope,
+                wo_item_contract.customer_id == scope,
             )
         )
     return q.join(Contract, model.contract_id == Contract.id).filter(
@@ -124,7 +143,7 @@ def scope_filter(q, model, scope: int | None):
 def owning_customer_id(obj, db: Session) -> int | None:
     """解析对象归属的 customer_id；无归属返回 None。
 
-    归属链路：直接 customer_id → contract_id → receive_id → work_order_id。
+    归属链路：直接 customer_id → contract_id → contract_item_id → receive_id → work_order_id。
     """
     if isinstance(obj, Customer):
         return obj.id
@@ -136,6 +155,13 @@ def owning_customer_id(obj, db: Session) -> int | None:
         c = db.get(Contract, cid)
         if c is not None:
             return c.customer_id
+    iid = getattr(obj, "contract_item_id", None)
+    if iid is not None:
+        item = db.get(ContractItem, iid)
+        if item is not None:
+            c = db.get(Contract, item.contract_id)
+            if c is not None:
+                return c.customer_id
     rid = getattr(obj, "receive_id", None)
     if rid is not None:
         r = db.get(OrderReceive, rid)

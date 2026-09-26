@@ -68,9 +68,10 @@ def update_change_order(
     obj = db.get(ChangeOrder, cid)
     if obj is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "变更单不存在")
+    previous_ci_id = obj.ci_id
     for k, v in body.model_dump(exclude_unset=True).items():
         setattr(obj, k, v)
-    set_conflict_flag(db, obj)
+    set_conflict_flag(db, obj, previous_ci_id=previous_ci_id)
     record(db, user_id=user.id, action="update", resource=f"change_order:{cid}", after=str(body.model_dump(exclude_unset=True)))
     db.commit()
     return ok(ChangeOrderOut.model_validate(obj).model_dump())

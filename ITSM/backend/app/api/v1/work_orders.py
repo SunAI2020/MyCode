@@ -32,7 +32,7 @@ from app.services.search_service import index_kb_article
 from app.services.workflow_service import assert_transition, log_transition
 from app.utils.pagination import paginate
 from app.utils.response import ok
-from app.utils.wo_no import next_work_order_no
+from app.utils.wo_no import next_work_order_no, work_order_no_scope
 
 WORK_WRITE_ROLE = ("sys_admin", "sys_ops", "ticket_mgr")
 
@@ -105,20 +105,21 @@ def create_work_order(
         if receive is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "接单记录不存在")
         assert_scoped(receive, customer_scope_of(user, db), db)
-    wo = WorkOrder(
-        no=next_work_order_no(db),
-        type=body.type,
-        receive_id=body.receive_id,
-        contract_id=body.contract_id if body.contract_id is not None else (receive.contract_id if receive else None),
-        contract_item_id=body.contract_item_id if body.contract_item_id is not None else (receive.contract_item_id if receive else None),
-        ci_id=body.ci_id if body.ci_id is not None else (receive.ci_id if receive else None),
-        project=body.project if body.project is not None else (receive.project if receive else None),
-        priority=body.priority,
-    )
-    db.add(wo)
-    db.flush()
-    record(db, user_id=user.id, action="create", resource=f"work_order:{wo.id}", after=str(body.model_dump()))
-    db.commit()
+    with work_order_no_scope(db):
+        wo = WorkOrder(
+            no=next_work_order_no(db),
+            type=body.type,
+            receive_id=body.receive_id,
+            contract_id=body.contract_id if body.contract_id is not None else (receive.contract_id if receive else None),
+            contract_item_id=body.contract_item_id if body.contract_item_id is not None else (receive.contract_item_id if receive else None),
+            ci_id=body.ci_id if body.ci_id is not None else (receive.ci_id if receive else None),
+            project=body.project if body.project is not None else (receive.project if receive else None),
+            priority=body.priority,
+        )
+        db.add(wo)
+        db.flush()
+        record(db, user_id=user.id, action="create", resource=f"work_order:{wo.id}", after=str(body.model_dump()))
+        db.commit()
     return ok(WorkOrderOut.model_validate(wo).model_dump())
 
 

@@ -1,7 +1,8 @@
 """周期拆分算法单测（对应 §9.2：2次/周跨月均匀、无重复遗漏）。"""
 from datetime import date
 
-from app.services.cycle_service import split_cycles
+from app.models import Contract, ContractItem, Customer, ServiceCycle
+from app.services.cycle_service import generate_cycles, split_cycles
 
 
 def test_two_per_week_cross_month():
@@ -54,3 +55,28 @@ def test_day_high_frequency_no_duplicate():
     assert len(cycles) == 1
     assert cycles[0][1] == date(2024, 1, 1)
     assert cycles[0][2] == date(2024, 1, 2)
+
+
+def test_generate_cycles_rebuild_on_frequency_change(db):
+    c = Customer(name="A")
+    db.add(c)
+    db.flush()
+    ct = Contract(customer_id=c.id, name="x", start_date=date(2024, 1, 1), end_date=date(2025, 1, 1))
+    db.add(ct)
+    db.flush()
+    item = ContractItem(contract_id=ct.id, project="OA", frequency=1, unit="月")
+    db.add(item)
+    db.commit()
+
+    generate_cycles(db, item.id)
+    assert db.query(ServiceCycle).filter_by(contract_item_id=item.id).count() == 12
+
+    item.frequency = 2  # 改为每月 2 次
+    db.commit()
+    generate_cycles(db, item.id)
+    rows = db.query(ServiceCycle).filter_by(contract_item_id=item.id).order_by(ServiceCycle.cycle_no).all()
+    # 旧 12 个 pending 周期被清除，按新频率重建为 24 个，无旧日期残留
+    assert len(rows) == 24
+    assert [r.cycle_no for r in rows] == list(range(1, 25))
+    # 全部为 pending（重建），无 started/done 遗留
+    assert all(r.status == "pending" for r in rows)

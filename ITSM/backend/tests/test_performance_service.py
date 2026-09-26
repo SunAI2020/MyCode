@@ -1,5 +1,10 @@
 """绩效考核单测：公式 + 换岗分摊精确归属。"""
-from app.models import OrderDispatch, Performance, WorkOrder, WorkOrderAssignee
+import pytest
+from fastapi import HTTPException
+
+from app.api.v1.performance import update_performance
+from app.models import OrderDispatch, Performance, SysUser, WorkOrder, WorkOrderAssignee
+from app.schemas.performance import PerformanceUpdate
 from app.services.dispatch_service import record_assignee_hours, transfer_assignee
 from app.services.performance_service import compute_perf_score, generate_performance
 
@@ -63,3 +68,19 @@ def test_generate_performance_after_transfer(db):
     assert by_user[1] == 5100.0
     assert by_user[3] == 3900.0
     assert by_user[2] == 2000.0
+
+
+def test_update_performance_rejects_null(db):
+    u = SysUser(username="admin", name="管理员", pwd_hash="x")
+    db.add(u)
+    db.flush()
+    p = Performance(
+        user_id=u.id, work_order_id=1, workload=10, dispatch_price=100,
+        ratio=100, quality_score=1.0, customer_score=1.0, perf_score=1000,
+    )
+    db.add(p)
+    db.commit()
+
+    with pytest.raises(HTTPException) as exc:
+        update_performance(p.id, PerformanceUpdate(dispatch_price=None), user=u, db=db)
+    assert exc.value.status_code == 400  # 数值列 NOT NULL，显式 null 拒绝而非 500
