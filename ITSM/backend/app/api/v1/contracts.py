@@ -265,8 +265,12 @@ def create_dependency(
     user: SysUser = Depends(require_role(*WRITE_ROLE)),
     db: Session = Depends(get_db),
 ):
-    if db.get(CmdbCi, body.source_ci_id) is None or db.get(CmdbCi, body.target_ci_id) is None:
+    src = db.get(CmdbCi, body.source_ci_id)
+    dst = db.get(CmdbCi, body.target_ci_id)
+    if src is None or dst is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "服务对象不存在")
+    if src.customer_id != dst.customer_id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "不能跨客户建立依赖")
     obj = CmdbCiDependency(**body.model_dump())
     db.add(obj)
     db.flush()
@@ -280,6 +284,8 @@ def delete_dependency(did: int, user: SysUser = Depends(require_role(*WRITE_ROLE
     obj = db.get(CmdbCiDependency, did)
     if obj is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "依赖不存在")
+    src = db.get(CmdbCi, obj.source_ci_id)
+    assert_scoped(src, customer_scope_of(user, db), db)
     db.delete(obj)
     record(db, user_id=user.id, action="delete", resource=f"cmdb_ci_dependency:{did}")
     db.commit()
