@@ -6,9 +6,12 @@ set -euo pipefail
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.yml}"
 cd "$(dirname "$0")/.."
 
-mkdir -p backups
+# 备份含敏感数据：收紧文件权限（目录 0700、文件 0600）
+umask 077
+install -d -m 700 backups
 STAMP="$(date +%Y%m%d_%H%M%S)"
 OUT="backups/itsm_${STAMP}.dump"
 
 docker compose -f "$COMPOSE_FILE" exec -T postgres pg_dump -U itsm -Fc itsm > "$OUT"
+chmod 600 "$OUT"
 echo "备份完成：$OUT"

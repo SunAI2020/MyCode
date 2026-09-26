@@ -1,10 +1,11 @@
 """种子数据：七级角色 / 字典枚举 / 初始管理员
 
 运行：python -m app.db.seed
-管理员初始密码取 ADMIN_INITIAL_PASSWORD（默认 admin123）。
+管理员初始密码取 ADMIN_INITIAL_PASSWORD；未设置时生成强随机口令并打印（登录后请立即修改）。
 """
 
 import os
+import secrets
 
 from sqlalchemy.orm import Session
 
@@ -105,11 +106,14 @@ def seed() -> None:
             if not db.query(KbArticle).filter_by(title=title).first():
                 db.add(KbArticle(title=title, category=category, content=content, tags=tags, status="已发布"))
 
+        admin_pwd = None
         if not db.query(SysUser).filter_by(username="admin").first():
+            # 不设弱默认口令：未配置时生成强随机口令，仅本次打印
+            admin_pwd = os.environ.get("ADMIN_INITIAL_PASSWORD") or secrets.token_urlsafe(12)
             admin = SysUser(
                 username="admin",
                 name="系统管理员",
-                pwd_hash=hash_password(os.environ.get("ADMIN_INITIAL_PASSWORD", "admin123")),
+                pwd_hash=hash_password(admin_pwd),
             )
             db.add(admin)
             db.flush()
@@ -117,7 +121,9 @@ def seed() -> None:
             db.add(SysUserRole(user_id=admin.id, role_id=role.id))
 
         db.commit()
-        print("seed 完成：7 角色 / 37 字典项 / 3 SLA 模板 / 3 知识条目 / 1 管理员(admin，默认 admin123)")
+        print("seed 完成：7 角色 / 37 字典项 / 3 SLA 模板 / 3 知识条目 / 1 管理员(admin)")
+        if admin_pwd:
+            print(f"  admin 初始密码：{admin_pwd}（请登录后立即修改）")
     finally:
         db.close()
 

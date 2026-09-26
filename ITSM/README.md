@@ -49,7 +49,7 @@ npm install
 npm run dev                                           # http://localhost:5173
 ```
 
-**默认账号**：`admin / admin123`（系统管理员）。
+**默认账号**：`admin`，初始密码取 `ADMIN_INITIAL_PASSWORD`；未设置时 seed 生成强随机口令并打印（登录后请立即修改）。
 
 ## 七级 RBAC
 

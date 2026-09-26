@@ -14,10 +14,16 @@ def _req(headers=None, host="9.9.9.9"):
     )
 
 
-def test_client_ip_prefers_x_forwarded_for():
-    # nginx 反代注入 X-Forwarded-For，取首段为真实客户端
-    req = _req(headers={"x-forwarded-for": "1.2.3.4, 10.0.0.1"}, host="172.17.0.2")
+def test_client_ip_prefers_x_real_ip():
+    # nginx 覆盖 X-Real-IP 为真实对端地址，优先采用
+    req = _req(headers={"x-real-ip": "1.2.3.4"}, host="172.17.0.2")
     assert _client_ip(req) == "1.2.3.4"
+
+
+def test_client_ip_ignores_spoofable_xff():
+    # X-Forwarded-For 可被客户端伪造，忽略；回退到直连对端
+    req = _req(headers={"x-forwarded-for": "6.6.6.6"}, host="192.168.1.50")
+    assert _client_ip(req) == "192.168.1.50"
 
 
 def test_client_ip_falls_back_to_peer():

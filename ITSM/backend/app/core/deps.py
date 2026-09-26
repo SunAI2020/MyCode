@@ -33,12 +33,16 @@ def get_db() -> Iterator[Session]:
 
 
 def _client_ip(request: Request) -> str | None:
-    """取真实客户端 IP：优先 X-Forwarded-For（nginx 反代注入），否则直连 client.host。"""
+    """取真实客户端 IP：优先 X-Real-IP，否则直连 client.host。
+
+    只信任 X-Real-IP（nginx ``proxy_set_header X-Real-IP $remote_addr`` 会覆盖为真实
+    对端地址，不可被客户端伪造）；不读 X-Forwarded-For——其首段可被客户端注入任意值。
+    """
     if request is None:
         return None
-    xff = request.headers.get("x-forwarded-for")
-    if xff:
-        return xff.split(",")[0].strip()
+    real = request.headers.get("x-real-ip")
+    if real:
+        return real.strip()
     return request.client.host if request.client else None
 
 
