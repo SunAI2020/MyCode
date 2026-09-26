@@ -1,4 +1,5 @@
 # 汇总导入所有模型，供 Alembic autogenerate 发现
+from app.models.approval import Approval
 from app.models.customer import Customer
 from app.models.change_order import ChangeOrder
 from app.models.checkin import CheckIn
@@ -26,6 +27,7 @@ from app.models.workflow import ActionLog, WorkflowRule
 __all__ = [
     "SysUser",
     "SysRole",
+    "Approval",
     "SysPermission",
     "SysUserRole",
     "SysRolePermission",
