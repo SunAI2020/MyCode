@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>ITSM 阿里云部署手册（超详细版）</title>
+<style>
+body{font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;max-width:920px;margin:40px auto;padding:0 20px;line-height:1.8;color:#24292f}
+h1{border-bottom:3px solid #ff6a00;padding-bottom:.4em;color:#d35400}
+h2{margin-top:2em;border-bottom:2px solid #e1e4e8;padding-bottom:.3em;color:#d35400}
+h3{margin-top:1.4em;color:#333}
+code{background:#f6f8fa;padding:.15em .5em;border-radius:4px;font-family:Consolas,monospace;font-size:.9em;color:#c7254e}
+pre{background:#1e1e2e;color:#e5e5e5;padding:14px;border-radius:8px;overflow:auto}
+pre code{background:none;color:#e5e5e5;padding:0}
+blockquote{color:#57606a;border-left:4px solid #d0d7de;margin:0;padding-left:14px}
+table{border-collapse:collapse;width:100%;margin:14px 0}
+th,td{border:1px solid #d0d7de;padding:8px 12px;font-size:.93em;text-align:left;vertical-align:top}
+th{background:#fff3e6;color:#d35400}
+.toc{background:#f6f8fa;border:1px solid #eaecef;border-radius:8px;padding:16px 24px}
+.warn{background:#ffecec;border-left:4px solid #e5484d;padding:10px 14px;border-radius:4px;margin:14px 0}
+</style>
+</head>
+<body>
+<h1>ITSM 阿里云部署手册（超详细版）</h1>
+<blockquote>覆盖：服务器选购 → 操作系统 → 软件环境 → 数据库 → 软件/数据导入 → 端口 → 协议 → 调试 → 故障处置。</blockquote>
+
+<div class="toc"><b>目录</b><br>1. 购买 ECS · 2. 系统初始配置 · 3. 软件环境 · 4. 数据库 · 5. 上传软件与导入数据 · 6. 端口与安全组 · 7. 协议 · 8. 一键部署 · 9. 调试验证 · 10. 故障处置</div>
+
+<h2>一、购买云服务器（ECS）</h2>
+<table>
+<tr><th>参数</th><th>推荐值</th></tr>
+<tr><td>地域</td><td>国内（华东1杭州）</td></tr>
+<tr><td>规格</td><td>2 核 4G 起（建议 4 核 8G）</td></tr>
+<tr><td>镜像</td><td>Ubuntu 22.04 64 位</td></tr>
+<tr><td>系统盘</td><td>高效云盘 40G</td></tr>
+<tr><td>登录凭证</td><td>密钥对（推荐）</td></tr>
+</table>
+<div class="warn"><b>安全组入方向只放行：</b>22（SSH）、80、443、8080。<b>切勿放行</b> 5433/6379/9200/8000（数据库/后端只内网访问）。</div>
+
+<h2>二、操作系统初始配置</h2>
+<pre><code>ssh root@公网IP
+apt update &amp;&amp; apt upgrade -y
+apt install -y curl wget git vim unzip net-tools
+timedatectl set-timezone Asia/Shanghai
+hostnamectl set-hostname itsm-server
+# 加 swap（2核4G 防内存不足）
+fallocate -l 2G /swapfile &amp;&amp; chmod 600 /swapfile &amp;&amp; mkswap /swapfile &amp;&amp; swapon /swapfile</code></pre>
+
+<h2>三、软件环境</h2>
+<pre><code># Docker + Compose
+curl -fsSL https://get.docker.com | bash
+# Python
+apt install -y python3 python3-pip python3-venv
+# Node.js 20
+curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+apt install -y nodejs
+# Nginx
+apt install -y nginx</code></pre>
+
+<h2>四、数据库</h2>
+<p><b>方式 A（默认）</b>：项目 <code>docker-compose.prod.yml</code> 自带 PG/Redis/ES，上传代码后 <code>docker compose up</code> 即拉起，无需单独装。</p>
+<p><b>方式 B（生产推荐）</b>：阿里云 RDS PostgreSQL 16，与 ECS 同 VPC，白名单加 ECS 内网 IP，改 <code>DATABASE_URL</code> 为 RDS 内网地址。</p>
+
+<h2>五、上传软件与导入数据</h2>
+<pre><code># 上传代码
+cd /opt &amp;&amp; git clone 仓库地址 ITSM
+# 本地导出数据库
+bash scripts/backup.sh
+# 上传备份并导入（服务器上）
+scp backups/itsm_xxx.dump root@公网IP:/opt/ITSM/backups/
+cd /opt/ITSM &amp;&amp; bash scripts/restore.sh backups/itsm_xxx.dump</code></pre>
+
+<h2>六、端口与安全组</h2>
+<table>
+<tr><th>服务</th><th>端口</th><th>对外</th></tr>
+<tr><td>nginx 前端</td><td>8080</td><td>✅ 公网</td></tr>
+<tr><td>后端</td><td>8000</td><td>❌ 仅内网</td></tr>
+<tr><td>PostgreSQL</td><td>5432（容器内网）</td><td>❌</td></tr>
+<tr><td>Redis / ES</td><td>6379 / 9200</td><td>❌</td></tr>
+</table>
+
+<h2>七、协议（HTTP/HTTPS）</h2>
+<pre><code># HTTP 先跑通：http://公网IP:8080
+# HTTPS：域名 A 记录指向服务器后
+apt install -y certbot python3-certbot-nginx
+certbot --nginx -d itsm.example.com
+certbot renew --dry-run   # 验证自动续期</code></pre>
+
+<h2>八、一键部署生产</h2>
+<pre><code>cd /opt/ITSM
+cp .env.production.example .env.production   # 填 SECRET_KEY + POSTGRES_PASSWORD
+POSTGRES_PASSWORD=强密码 docker compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml exec backend alembic upgrade head
+docker compose -f docker-compose.prod.yml exec backend python -m app.db.seed
+# 访问 http://公网IP:8080</code></pre>
+
+<h2>九、调试与验证</h2>
+<pre><code>docker compose -f docker-compose.prod.yml ps              # 看状态
+curl http://localhost:8000/api/v1/health                  # 后端健康
+docker compose -f docker-compose.prod.yml logs -f backend # 看日志</code></pre>
+
+<h2>十、故障处置</h2>
+<table>
+<tr><th>现象</th><th>解决</th></tr>
+<tr><td>公网访问不通</td><td>安全组放行 8080；确认 nginx 容器 healthy</td></tr>
+<tr><td>SSH 连不上</td><td>安全组放行 22</td></tr>
+<tr><td>数据库连不上</td><td>看 postgres 容器状态；核对 DATABASE_URL</td></tr>
+<tr><td>后端 500</td><td>看 backend 日志，多为环境变量缺失</td></tr>
+<tr><td>seed 报数据库不存在</td><td>先 alembic upgrade head</td></tr>
+<tr><td>证书失败</td><td>先加域名 A 记录再 certbot</td></tr>
+<tr><td>内存不足被杀</td><td>加 swap；升级 4 核 8G</td></tr>
+<tr><td>ES 起不来</td><td>调小 ES_JAVA_OPTS 或注释掉（系统自动降级）</td></tr>
+</table>
+
+<p style="margin-top:2em;color:#57606a">更多见 <code>43-ITSM安装使用手册.md</code>（本地安装）、<code>41-阿里云部署方案.md</code>（架构）、<code>scripts/</code>（备份/恢复）。</p>
+</body>
+</html>
