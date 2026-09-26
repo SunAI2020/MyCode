@@ -18,6 +18,8 @@ sleep 10
 
 echo "[2/4] 配置后端环境变量..."
 [ -f backend/.env ] || cp .env.example backend/.env
+echo "  [提示] 本地默认数据库密码 itsm_password；生产/云服务器请修改"
+echo "         docker-compose.yml 的 POSTGRES_PASSWORD 与 backend/.env 的 DATABASE_URL"
 
 echo "[3/4] 安装后端依赖并初始化数据库..."
 cd backend

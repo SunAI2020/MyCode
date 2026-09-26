@@ -50,6 +50,8 @@ if not exist "backend\.env" (
 ) else (
     echo   backend\.env 已存在，跳过
 )
+echo   [提示] 本地默认数据库密码 itsm_password；生产/云服务器请修改
+echo          docker-compose.yml 的 POSTGRES_PASSWORD 与 backend\.env 的 DATABASE_URL
 
 REM ---- 5. 后端依赖 + 迁移 + 种子 ----
 echo [5/6] 安装后端依赖并初始化数据库（首次可能耗时）...
