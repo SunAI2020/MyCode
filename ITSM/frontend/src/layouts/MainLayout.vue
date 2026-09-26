@@ -21,14 +21,7 @@
           text-color="#cbd5e1"
           active-text-color="#fff"
         >
-          <el-menu-item index="/dashboard">仪表盘</el-menu-item>
-          <el-menu-item index="/customers">客户管理</el-menu-item>
-          <el-menu-item index="/contracts">合同管理</el-menu-item>
-          <el-menu-item index="/work-orders">工单管理</el-menu-item>
-          <el-menu-item index="/portal">自助门户</el-menu-item>
-          <el-menu-item index="/knowledge">知识库</el-menu-item>
-          <el-menu-item index="/workflows">工作流</el-menu-item>
-          <el-menu-item index="/sla">SLA / 周期</el-menu-item>
+          <el-menu-item v-for="m in visibleMenu" :key="m.path" :index="m.path">{{ m.label }}</el-menu-item>
         </el-menu>
       </el-aside>
       <el-main class="main"><router-view /></el-main>
@@ -47,6 +40,24 @@ const auth = useAuthStore()
 
 onMounted(() => {
   if (!auth.user) auth.fetchMe().catch(() => {})
+})
+
+// 菜单 × 角色白名单（§20 权限矩阵）；sys_admin 显示全部
+const MENU_ITEMS = [
+  { path: '/dashboard', label: '仪表盘', roles: ['sys_admin', 'sys_ops', 'ticket_mgr', 'cs_staff', 'cust_admin', 'cust_service'] },
+  { path: '/customers', label: '客户管理', roles: ['sys_admin', 'ticket_mgr'] },
+  { path: '/contracts', label: '合同管理', roles: ['sys_admin', 'ticket_mgr'] },
+  { path: '/work-orders', label: '工单管理', roles: ['sys_admin', 'sys_ops', 'ticket_mgr', 'cs_staff', 'sec_staff', 'cust_admin', 'cust_service'] },
+  { path: '/portal', label: '自助门户', roles: ['sys_admin', 'sys_ops', 'ticket_mgr', 'cust_admin', 'cust_service'] },
+  { path: '/knowledge', label: '知识库', roles: ['sys_admin', 'sys_ops', 'ticket_mgr', 'cs_staff', 'sec_staff', 'cust_admin', 'cust_service'] },
+  { path: '/workflows', label: '工作流', roles: ['sys_admin', 'ticket_mgr'] },
+  { path: '/sla', label: 'SLA / 周期', roles: ['sys_admin', 'sys_ops', 'ticket_mgr'] },
+]
+
+const visibleMenu = computed(() => {
+  const roles = (auth.user?.roles || []).map((r: any) => r.code)
+  if (!roles.length || roles.includes('sys_admin')) return MENU_ITEMS
+  return MENU_ITEMS.filter((m) => m.roles.some((r) => roles.includes(r)))
 })
 
 function onCommand(cmd: string) {
