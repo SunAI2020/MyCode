@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
-from app.core.deps import customer_scope_of, get_current_user, get_db, role_rows_of
+from app.core.deps import _client_ip, customer_scope_of, get_current_user, get_db, role_rows_of
 from app.core.security import create_access_token, verify_password
 from app.models import SysUser
 from app.schemas.auth import LoginRequest, RoleBrief, TokenResponse, UserOut
@@ -24,10 +24,6 @@ def _user_out(user: SysUser, db: Session) -> UserOut:
         roles=roles,
         customer_id=customer_scope_of(user, db),
     )
-
-
-def _client_ip(request: Request) -> str | None:
-    return request.client.host if request.client else None
 
 
 @router.post("/login")

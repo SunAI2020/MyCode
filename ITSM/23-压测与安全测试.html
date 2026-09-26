@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>步骤二十三：性能压测 + 安全测试 + 等保测评</title>
+<style>body{font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;max-width:860px;margin:40px auto;padding:0 20px;line-height:1.7;color:#24292f}h1{border-bottom:2px solid #e1e4e8;padding-bottom:.3em}h2{margin-top:1.5em;border-bottom:1px solid #eaecef;padding-bottom:.2em}code{background:#f6f8fa;padding:.15em .4em;border-radius:4px;font-family:Consolas,monospace;font-size:.9em}pre{background:#f6f8fa;padding:12px;border-radius:6px;overflow:auto}blockquote{color:#57606a;border-left:4px solid #d0d7de;margin:0;padding-left:12px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #d0d7de;padding:6px 10px;font-size:.92em;text-align:left;vertical-align:top}th{background:#f6f8fa}</style>
+</head>
+<body>
+<h1>步骤二十三：性能压测 + 安全测试 + 等保测评（阶段六收尾）</h1>
+<blockquote>依据：《IT运维集中管控平台_软件设计方案.html》V1.0 定稿 · §8.6 阶段六 · §9 · §10.2<br>范围：JMeter 压测脚本、OWASP ZAP 扫描清单、等保 2.0 三级对照表。</blockquote>
+
+<h2>1. 目标</h2>
+<table>
+<tr><th>维度</th><th>工具/产物</th><th>验收标准</th></tr>
+<tr><td>性能</td><td>JMeter（<code>perf/itsm-load.jmx</code>）</td><td>并发 500 稳定，P95 &lt; 500ms</td></tr>
+<tr><td>安全</td><td>OWASP ZAP（<code>security/owasp-zap-checklist.md</code>）</td><td>OWASP Top 10 全覆盖</td></tr>
+<tr><td>等保</td><td>对照表（<code>security/等保三级对照.md</code>）</td><td>等保 2.0 三级逐项对应</td></tr>
+</table>
+
+<h2>2. 文件清单</h2>
+<ul>
+<li><code>perf/itsm-load.jmx</code> — JMeter 压测脚本</li>
+<li><code>perf/README.md</code> — 压测运行说明 + 阈值</li>
+<li><code>security/owasp-zap-checklist.md</code> — ZAP 扫描配置 + OWASP Top 10</li>
+<li><code>security/等保三级对照.md</code> — 等保 2.0 三级对照表</li>
+<li><code>backend/app/api/v1/auth.py</code> — 登录审计 IP 复用共享 <code>_client_ip</code></li>
+</ul>
+
+<h2>3. 压测场景（JMeter）</h2>
+<p>登录（提取 token）→ 工单/客户/合同列表、门户概览、知识库检索。线程组 500 并发、30s 爬坡、循环 2 次，目标 P95 &lt; 500ms、错误率 0。</p>
+
+<h2>4. 安全测试（OWASP ZAP）</h2>
+<p>主动扫描目标：认证、RBAC 越权、行级隔离、IDOR、注入、脱敏、审计。关键断言：客户侧角色不得访问他人客户数据；敏感字段响应须脱敏；审计含 IP。</p>
+
+<h2>5. 等保三级对照</h2>
+<p>九大类（物理/网络/边界/计算/管理/制度/人员/建设/运维）逐项对照系统实现与证据，详见 <code>security/等保三级对照.md</code>。</p>
+
+<h2>6. 验证</h2>
+<pre>cd backend &amp;&amp; python -m pytest -q
+# JMeter：jmeter -n -t perf/itsm-load.jmx
+# ZAP：按 checklist 对 http://localhost:8080 扫描</pre>
+
+<h2>7. 说明</h2>
+<p>本步骤交付脚本与对照文档（执行模板），需在部署环境落地运行；不替代真实压测/渗透执行记录。移动端单独开阶段。</p>
+</body>
+</html>
