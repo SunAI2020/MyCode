@@ -1,11 +1,12 @@
 """依赖注入：数据库会话 / 当前用户 / 角色校验 / 客户行级隔离锚点。"""
 from typing import Iterator
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, aliased
 
+from app.core.context import client_ip
 from app.core.security import decode_token
 from app.db.session import SessionLocal
 from app.models import (
@@ -34,8 +35,13 @@ def get_db() -> Iterator[Session]:
 def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     db: Session = Depends(get_db),
+    request: Request = None,
 ) -> SysUser:
-    """解析 Bearer Token 并加载当前用户；未登录/凭证无效/停用分别 401/401/403。"""
+    """解析 Bearer Token 并加载当前用户；未登录/凭证无效/停用分别 401/401/403。
+
+    同时捕获客户端 IP 到 ContextVar，供 audit_service.record 补全审计留痕。
+    """
+    client_ip.set(request.client.host if request and request.client else None)
     if credentials is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "未登录或凭证缺失")
     try:

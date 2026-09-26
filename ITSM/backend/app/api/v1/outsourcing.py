@@ -102,7 +102,10 @@ def create_outsourcing(body: OutsourcingCreate, user: SysUser = Depends(require_
     obj = Outsourcing(**body.model_dump())
     db.add(obj)
     db.flush()
-    record(db, user_id=user.id, action="create", resource=f"outsourcing:{obj.id}", after=str(body.model_dump()))
+    after = body.model_dump()
+    if after.get("nda") is not None:
+        after["nda"] = "***"  # 保密协议字段级加密，审计不留明文
+    record(db, user_id=user.id, action="create", resource=f"outsourcing:{obj.id}", after=str(after))
     db.commit()
     return ok(OutsourcingOut.model_validate(obj).model_dump())
 
@@ -123,7 +126,10 @@ def update_outsourcing(oid: int, body: OutsourcingUpdate, user: SysUser = Depend
     for k, v in body.model_dump(exclude_unset=True).items():
         setattr(obj, k, v)
     db.flush()
-    record(db, user_id=user.id, action="update", resource=f"outsourcing:{oid}", after=str(body.model_dump(exclude_unset=True)))
+    after = body.model_dump(exclude_unset=True)
+    if after.get("nda") is not None:
+        after["nda"] = "***"  # 保密协议字段级加密，审计不留明文
+    record(db, user_id=user.id, action="update", resource=f"outsourcing:{oid}", after=str(after))
     db.commit()
     return ok(OutsourcingOut.model_validate(obj).model_dump())
 

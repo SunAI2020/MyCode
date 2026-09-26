@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>步骤二十一：数据安全加固（阶段六 · FR-22）</title>
+<style>body{font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;max-width:860px;margin:40px auto;padding:0 20px;line-height:1.7;color:#24292f}h1{border-bottom:2px solid #e1e4e8;padding-bottom:.3em}h2{margin-top:1.5em;border-bottom:1px solid #eaecef;padding-bottom:.2em}code{background:#f6f8fa;padding:.15em .4em;border-radius:4px;font-family:Consolas,monospace;font-size:.9em}pre{background:#f6f8fa;padding:12px;border-radius:6px;overflow:auto}blockquote{color:#57606a;border-left:4px solid #d0d7de;margin:0;padding-left:12px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #d0d7de;padding:6px 10px;font-size:.92em;text-align:left;vertical-align:top}th{background:#f6f8fa}</style>
+</head>
+<body>
+<h1>步骤二十一：数据安全加固（阶段六 · FR-22）</h1>
+<blockquote>依据：《IT运维集中管控平台_软件设计方案.html》V1.0 定稿 · §8.6 阶段六 · §5.3 数据安全<br>范围：审计 IP 留痕、字段级加密、前端水印、脱敏覆盖审查。</blockquote>
+
+<h2>1. 目标</h2>
+<p>落地 FR-22「数据脱敏/加密/水印/审计」在应用层可实施部分：</p>
+<ul>
+<li><b>审计留痕补全</b>：<code>before/after + IP + 时间</code> 三要素齐备（时间已有 <code>operated_at</code>，本次补 IP）。</li>
+<li><b>字段级加密</b>：敏感文本列（<code>Outsourcing.nda</code> 保密协议）AES 加密落库，可逆解密。</li>
+<li><b>前端水印</b>：全屏「用户名 + 日期」水印防拍照泄露。</li>
+<li><b>脱敏覆盖审查</b>：确认客户侧可见端点敏感字段已脱敏，无遗漏。</li>
+</ul>
+
+<h2>2. 文件清单</h2>
+<table>
+<tr><th>文件</th><th>变更</th></tr>
+<tr><td><code>core/context.py</code></td><td>新增 <code>client_ip</code> ContextVar</td></tr>
+<tr><td><code>core/deps.py</code></td><td><code>get_current_user</code> 注入 <code>request</code>，捕获客户端 IP</td></tr>
+<tr><td><code>services/audit_service.py</code></td><td><code>record()</code> 默认填充 IP</td></tr>
+<tr><td><code>core/crypto.py</code></td><td>新增 Fernet 可逆加密 + <code>EncryptedText</code> 列类型</td></tr>
+<tr><td><code>models/outsourcing.py</code></td><td><code>nda</code> 改为 <code>EncryptedText</code></td></tr>
+<tr><td><code>api/v1/outsourcing.py</code></td><td>外包审计 <code>after</code> 中 <code>nda</code> 脱敏</td></tr>
+<tr><td><code>requirements.txt</code></td><td>补 <code>cryptography</code></td></tr>
+<tr><td><code>frontend/src/layouts/MainLayout.vue</code></td><td>全局水印层</td></tr>
+<tr><td><code>tests/test_crypto.py</code> / <code>tests/test_audit_ip.py</code></td><td>回归测试</td></tr>
+</table>
+
+<h2>3. 设计要点</h2>
+<ul>
+<li><b>加密</b>：<code>cryptography.fernet.Fernet</code>（AES-128-CBC + HMAC 认证），密钥由 <code>SECRET_KEY</code> 经 SHA-256 派生。密文带 <code>enc:v1:</code> 前缀，非前缀值（历史明文）原样返回，无迁移平滑升级。</li>
+<li><b>列类型</b>：<code>EncryptedText</code>（TypeDecorator，impl=Text）透明加解密，DB 列仍为 TEXT，无 DDL 变更。</li>
+<li><b>IP 捕获</b>：<code>get_current_user</code> 覆盖全部鉴权端点，经 ContextVar 传递到 <code>record()</code>，线程安全。</li>
+</ul>
+
+<h2>4. 验证</h2>
+<pre>cd backend &amp;&amp; python -m pytest -q
+cd frontend &amp;&amp; npm run build</pre>
+</body>
+</html>

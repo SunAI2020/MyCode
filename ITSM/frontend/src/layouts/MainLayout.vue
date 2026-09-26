@@ -34,10 +34,11 @@
       <el-main class="main"><router-view /></el-main>
     </el-container>
   </el-container>
+  <div class="watermark" :style="watermarkStyle" aria-hidden="true"></div>
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
@@ -54,6 +55,14 @@ function onCommand(cmd: string) {
     router.push('/login')
   }
 }
+
+// 全屏水印：用户名 + 日期，防拍照/截图泄露（pointer-events 不拦截交互）
+const watermarkStyle = computed(() => {
+  const name = auth.user?.name || 'IT运维集中管控平台'
+  const text = `${name} · ${new Date().toLocaleDateString('zh-CN')}`
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="160"><text x="150" y="100" font-size="14" fill="rgba(60,80,120,0.07)" transform="rotate(-25 150 100)" text-anchor="middle">${text}</text></svg>`
+  return { backgroundImage: `url("data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}")` }
+})
 </script>
 
 <style scoped>
@@ -64,4 +73,5 @@ function onCommand(cmd: string) {
 .user { color: #fff; cursor: pointer; }
 .sidebar { background: #0f2440; }
 .main { background: #f5f7fa; }
+.watermark { position: fixed; inset: 0; pointer-events: none; z-index: 9999; }
 </style>

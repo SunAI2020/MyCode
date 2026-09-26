@@ -4,6 +4,7 @@ from datetime import date, datetime
 from sqlalchemy import Date, DateTime, ForeignKey, Numeric, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.core.crypto import EncryptedText
 from app.db.base import Base
 
 
@@ -33,7 +34,7 @@ class Outsourcing(Base):
     type: Mapped[str] = mapped_column(String(16), default="能力")  # 能力/时间/资质
     outsource_user_id: Mapped[int] = mapped_column(ForeignKey("outsource_user.id"), index=True)
     price: Mapped[float | None] = mapped_column(Numeric(14, 2), nullable=True)
-    nda: Mapped[str | None] = mapped_column(Text, nullable=True)  # 保密协议
+    nda: Mapped[str | None] = mapped_column(EncryptedText, nullable=True)  # 保密协议（字段级加密落库）
     status: Mapped[str] = mapped_column(String(16), default="待接单")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
