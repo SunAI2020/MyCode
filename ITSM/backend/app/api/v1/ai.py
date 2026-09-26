@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, require_role
+from app.core.deps import customer_scope_of, get_db, require_role
 from app.models import EngineerSkill, SysUser
 from app.schemas.ai import ClassifyIn, ClassifyOut, EngineerSkillCreate, EngineerSkillOut
 from app.services.ai_service import classify_ticket, contract_insight, recommend_assignee
@@ -28,6 +28,9 @@ def recommend(
 
 @router.get("/ai/contract-insight")
 def contract_insight_endpoint(user: SysUser = Depends(require_role(*ROLE)), db: Session = Depends(get_db)):
+    # 全局履约洞察：拒绝带客户 scope 的用户，防止跨租户泄露
+    if customer_scope_of(user, db) is not None:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "无权查看全局履约洞察")
     return ok(contract_insight(db))
 
 
