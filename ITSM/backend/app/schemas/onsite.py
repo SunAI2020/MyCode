@@ -67,3 +67,30 @@ class OnsiteDailyReportOut(BaseModel):
     content: str
     issue_ref: int | None = None
     created_at: datetime | None = None
+
+
+# ---- 驻场人员清单 ----
+class OnsiteAssignmentCreate(BaseModel):
+    onsite_id: int
+    user_id: int
+    start_date: date | None = None
+    end_date: date | None = None
+    status: str = "在岗"  # 在岗/离岗
+
+
+class OnsiteAssignmentUpdate(BaseModel):
+    start_date: date | None = None
+    end_date: date | None = None
+    status: str | None = None
+
+
+class OnsiteAssignmentOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    onsite_id: int
+    user_id: int
+    start_date: date | None = None
+    end_date: date | None = None
+    status: str
+    created_at: datetime | None = None

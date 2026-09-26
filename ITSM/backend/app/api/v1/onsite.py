@@ -12,8 +12,11 @@ from app.core.deps import (
     require_role,
     scope_filter,
 )
-from app.models import Contract, OnsiteDailyReport, OnsiteService, SysUser
+from app.models import Contract, OnsiteAssignment, OnsiteDailyReport, OnsiteService, SysUser
 from app.schemas.onsite import (
+    OnsiteAssignmentCreate,
+    OnsiteAssignmentOut,
+    OnsiteAssignmentUpdate,
     OnsiteDailyReportCreate,
     OnsiteDailyReportOut,
     OnsiteDailyReportUpdate,
@@ -30,6 +33,7 @@ WRITE_ROLE = ("sys_admin", "sys_ops", "ticket_mgr")
 
 services = APIRouter(prefix="/onsite-services", tags=["驻场服务"])
 reports = APIRouter(prefix="/onsite-daily-reports", tags=["驻场日报"])
+assignments = APIRouter(prefix="/onsite-assignments", tags=["驻场人员"])
 
 
 def _assert_report_scoped(obj: OnsiteDailyReport, scope: int | None, db: Session) -> None:
@@ -221,3 +225,68 @@ def delete_report(rid: int, user: SysUser = Depends(require_role("sys_admin", "s
     record(db, user_id=user.id, action="delete", resource=f"onsite_daily_report:{rid}")
     db.commit()
     return ok({"deleted": rid})
+
+
+# ---- 驻场人员清单 ----
+@assignments.get("")
+def list_assignments(
+    onsite_id: int = Query(...),
+    user: SysUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    os = db.get(OnsiteService, onsite_id)
+    if os is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "驻场配置不存在")
+    assert_scoped(os, customer_scope_of(user, db), db)
+    rows = db.query(OnsiteAssignment).filter_by(onsite_id=onsite_id).order_by(OnsiteAssignment.id).all()
+    return ok([OnsiteAssignmentOut.model_validate(a).model_dump() for a in rows])
+
+
+@assignments.post("")
+def create_assignment(
+    body: OnsiteAssignmentCreate,
+    user: SysUser = Depends(require_role(*WRITE_ROLE)),
+    db: Session = Depends(get_db),
+):
+    os = db.get(OnsiteService, body.onsite_id)
+    if os is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "驻场配置不存在")
+    assert_scoped(os, customer_scope_of(user, db), db)
+    obj = OnsiteAssignment(**body.model_dump())
+    db.add(obj)
+    db.flush()
+    record(db, user_id=user.id, action="create", resource=f"onsite_assignment:{obj.id}", after=str(body.model_dump()))
+    db.commit()
+    return ok(OnsiteAssignmentOut.model_validate(obj).model_dump())
+
+
+@assignments.put("/{aid}")
+def update_assignment(
+    aid: int,
+    body: OnsiteAssignmentUpdate,
+    user: SysUser = Depends(require_role(*WRITE_ROLE)),
+    db: Session = Depends(get_db),
+):
+    obj = db.get(OnsiteAssignment, aid)
+    if obj is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "驻场人员不存在")
+    os = db.get(OnsiteService, obj.onsite_id)
+    assert_scoped(os, customer_scope_of(user, db), db)
+    before = {k: getattr(obj, k) for k in body.model_dump(exclude_unset=True)}
+    for k, v in body.model_dump(exclude_unset=True).items():
+        setattr(obj, k, v)  # 换岗：status 改离岗 / end_date
+    db.flush()
+    record(db, user_id=user.id, action="update", resource=f"onsite_assignment:{aid}", before=str(before), after=str(body.model_dump(exclude_unset=True)))
+    db.commit()
+    return ok(OnsiteAssignmentOut.model_validate(obj).model_dump())
+
+
+@assignments.delete("/{aid}")
+def delete_assignment(aid: int, user: SysUser = Depends(require_role("sys_admin", "sys_ops")), db: Session = Depends(get_db)):
+    obj = db.get(OnsiteAssignment, aid)
+    if obj is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "驻场人员不存在")
+    db.delete(obj)
+    record(db, user_id=user.id, action="delete", resource=f"onsite_assignment:{aid}")
+    db.commit()
+    return ok({"deleted": aid})

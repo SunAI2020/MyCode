@@ -40,3 +40,19 @@ class OnsiteDailyReport(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+
+
+class OnsiteAssignment(Base):
+    """驻场人员清单：绑定驻场配置与人员，支持换岗。"""
+
+    __tablename__ = "onsite_assignment"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    onsite_id: Mapped[int] = mapped_column(ForeignKey("onsite_service.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("sys_user.id"), index=True)
+    start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    status: Mapped[str] = mapped_column(String(16), default="在岗")  # 在岗/离岗
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )

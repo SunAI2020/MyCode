@@ -9,7 +9,7 @@ from app.models.escalation import Escalation
 from app.models.dispatch import OrderDispatch
 from app.models.issue import Issue, Rectification, RectificationRecord
 from app.models.kb import KbArticle
-from app.models.onsite import OnsiteDailyReport, OnsiteService
+from app.models.onsite import OnsiteAssignment, OnsiteDailyReport, OnsiteService
 from app.models.outsourcing import Outsourcing, OutsourcingReport, OutsourceUser
 from app.models.performance import Performance
 from app.models.service import ServiceCycle, ServiceReminder, SlaPolicy
@@ -52,6 +52,7 @@ __all__ = [
     "Performance",
     "OnsiteService",
     "OnsiteDailyReport",
+    "OnsiteAssignment",
     "KbArticle",
     "OutsourceUser",
     "Outsourcing",

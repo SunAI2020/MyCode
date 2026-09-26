@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>步骤三十：驻场人员清单</title>
+<style>body{font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;max-width:860px;margin:40px auto;padding:0 20px;line-height:1.7;color:#24292f}h1{border-bottom:2px solid #e1e4e8;padding-bottom:.3em}h2{margin-top:1.5em;border-bottom:1px solid #eaecef;padding-bottom:.2em}code{background:#f6f8fa;padding:.15em .4em;border-radius:4px;font-family:Consolas,monospace;font-size:.9em}pre{background:#f6f8fa;padding:12px;border-radius:6px;overflow:auto}blockquote{color:#57606a;border-left:4px solid #d0d7de;margin:0;padding-left:12px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #d0d7de;padding:6px 10px;font-size:.92em;text-align:left;vertical-align:top}th{background:#f6f8fa}</style>
+</head>
+<body>
+<h1>步骤三十：驻场人员清单（完善方案 P1 · §7.1）</h1>
+<blockquote>依据：V7.0 · §7.1 / §18.2 onsite_assignment<br>范围：驻场人员清单模型 + 增删改查，支持换岗。</blockquote>
+
+<h2>1. 目标</h2>
+<p>驻场配置从「仅人数」升级为「人员清单」，可换岗。</p>
+
+<h2>2. 接口</h2>
+<table>
+<tr><th>方法</th><th>路径</th><th>说明</th></tr>
+<tr><td>GET</td><td><code>/onsite-assignments?onsite_id=</code></td><td>人员清单</td></tr>
+<tr><td>POST</td><td><code>/onsite-assignments</code></td><td>添加驻场人员</td></tr>
+<tr><td>PUT</td><td><code>/onsite-assignments/{id}</code></td><td>换岗</td></tr>
+<tr><td>DELETE</td><td><code>/onsite-assignments/{id}</code></td><td>移除</td></tr>
+</table>
+
+<h2>3. 验证</h2>
+<pre>cd backend &amp;&amp; python -m pytest -q</pre>
+</body>
+</html>
