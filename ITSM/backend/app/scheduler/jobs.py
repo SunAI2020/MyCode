@@ -1,11 +1,11 @@
 """APScheduler 定时任务：每日定期工单生成 + SLA 预警扫描。"""
-from datetime import date
+from datetime import date, datetime
 
 from sqlalchemy.orm import Session
 
 from app.models import Contract, ContractItem, ServiceCycle, ServiceReminder, WorkOrder
 from app.services.cycle_service import normalize_unit, split_cycles
-from app.services.sla_service import scan_sla_alerts, scan_sla_escalations
+from app.services.sla_service import compute_sla_deadline, scan_sla_alerts, scan_sla_escalations
 from app.utils.wo_no import next_work_order_no, work_order_no_scope
 
 
@@ -50,6 +50,7 @@ def run_daily_work_order_generation(db: Session, today: date | None = None) -> i
                     project=item.project,
                     status="待派单",
                     current_cycle_no=no,
+                    sla_deadline=compute_sla_deadline(db, item.id, datetime.now()),
                 )
                 db.add(wo)
                 db.flush()

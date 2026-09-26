@@ -129,6 +129,10 @@ def contract_insight(db, today: date | None = None) -> list[dict]:
     today = today or date.today()
     insights: list[dict] = []
 
+    # 预取合同/子项，避免逐条 N+1 查询
+    contracts = {c.id: c for c in db.query(Contract).all()}
+    items = {i.id: i for i in db.query(ContractItem).all()}
+
     # 临近到期（未来 7 天内未完成）
     cycles = (
         db.query(ServiceCycle)
@@ -140,8 +144,8 @@ def contract_insight(db, today: date | None = None) -> list[dict]:
         .all()
     )
     for c in cycles:
-        item = db.get(ContractItem, c.contract_item_id)
-        contract = db.get(Contract, item.contract_id) if item else None
+        item = items.get(c.contract_item_id)
+        contract = contracts.get(item.contract_id) if item else None
         insights.append(
             {
                 "type": "临近到期",
@@ -156,8 +160,8 @@ def contract_insight(db, today: date | None = None) -> list[dict]:
         )
 
     # 履约缺口（已生成周期数 < 按频率应生成）
-    for item in db.query(ContractItem).all():
-        contract = db.get(Contract, item.contract_id)
+    for item in items.values():
+        contract = contracts.get(item.contract_id)
         if contract is None or contract.start_date is None or contract.end_date is None:
             continue
         expected = split_cycles(contract.start_date, contract.end_date, item.frequency, item.unit)

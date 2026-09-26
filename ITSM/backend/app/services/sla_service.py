@@ -1,5 +1,6 @@
 """SLA 分级预警与升级链。"""
-from datetime import date
+import re
+from datetime import date, datetime, timedelta
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -10,8 +11,11 @@ from app.models import (
     ServiceCycle,
     ServiceReminder,
     SlaPolicy,
+    WorkCalendar,
     WorkOrder,
 )
+from app.services.calendar_service import add_work_minutes, parse_time
+from app.services.notify_service import notify_all_channels
 
 
 def sla_level(service_end: date, today: date) -> str | None:
@@ -42,17 +46,56 @@ def scan_sla_alerts(db: Session, today: date | None = None) -> int:
         )
         if dup:
             continue
+        content = f"服务周期将于 {c.service_end} 结束，SLA {level} 级预警"
         db.add(
             ServiceReminder(
                 cycle_id=c.id,
                 type="预警",
                 level=level,
-                content=f"服务周期将于 {c.service_end} 结束，SLA {level} 级预警",
+                content=content,
             )
         )
+        notify_all_channels(content)  # 多渠道路由（未配置 webhook 时静默降级）
         created += 1
     db.commit()
     return created
+
+
+def parse_resolve_limit(limit: str | None) -> int:
+    """解析解决时限（"4小时"/"30分钟"/"2天"）为分钟；无法解析返回 0。"""
+    if not limit:
+        return 0
+    m = re.match(r"(\d+)\s*(分钟|小时|天|min|hour|day|h|d)", limit)
+    if not m:
+        return 0
+    n = int(m.group(1))
+    unit = m.group(2)
+    if unit in ("分钟", "min"):
+        return n
+    if unit in ("小时", "hour", "h"):
+        return n * 60
+    if unit in ("天", "day", "d"):
+        return n * 1440
+    return 0
+
+
+def compute_sla_deadline(db: Session, contract_item_id: int, start: datetime) -> datetime | None:
+    """按合同子项 SLA 策略（含工作日历）计算解决时限；无策略/时限返回 None。"""
+    item = db.get(ContractItem, contract_item_id)
+    if item is None or item.sla_policy_id is None:
+        return None
+    policy = db.get(SlaPolicy, item.sla_policy_id)
+    if policy is None:
+        return None
+    minutes = parse_resolve_limit(policy.resolve_limit)
+    if minutes <= 0:
+        return None
+    if policy.work_calendar_id is not None:
+        cal = db.get(WorkCalendar, policy.work_calendar_id)
+        if cal is not None:
+            days = {int(x) for x in cal.work_days.split(",") if x.strip()}
+            return add_work_minutes(start, minutes, days, parse_time(cal.work_start), parse_time(cal.work_end))
+    return start + timedelta(minutes=minutes)
 
 
 def _escalation_chain_of(db: Session, wo: WorkOrder) -> list[str] | None:

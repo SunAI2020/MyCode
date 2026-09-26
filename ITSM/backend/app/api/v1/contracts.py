@@ -269,6 +269,7 @@ def create_dependency(
     dst = db.get(CmdbCi, body.target_ci_id)
     if src is None or dst is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "服务对象不存在")
+    assert_scoped(src, customer_scope_of(user, db), db)  # 校验调用方归属
     if src.customer_id != dst.customer_id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "不能跨客户建立依赖")
     obj = CmdbCiDependency(**body.model_dump())

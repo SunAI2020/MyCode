@@ -36,3 +36,12 @@ def send_channel(channel: str, content: str) -> bool:
         return True
     except Exception:
         return False
+
+
+def notify_all_channels(content: str) -> int:
+    """遍历已配置的渠道发送消息，返回成功发送的渠道数（未配置则 0，站内已落库）。"""
+    sent = 0
+    for ch in ("企微", "飞书", "钉钉"):
+        if send_channel(ch, content):
+            sent += 1
+    return sent

@@ -2,6 +2,12 @@
 from datetime import datetime, time, timedelta
 
 
+def parse_time(s: str) -> time:
+    """解析 "HH:MM" 为 time。"""
+    h, m = s.split(":")
+    return time(int(h), int(m))
+
+
 def add_work_minutes(
     start: datetime,
     minutes: int,
@@ -10,6 +16,10 @@ def add_work_minutes(
     work_end: time,
 ) -> datetime:
     """在 work_days 的工作时段内累加 minutes 分钟，跳过非工作日 / 非工作时段。"""
+    if minutes <= 0:
+        return start
+    if not work_days:
+        return start + timedelta(minutes=minutes)  # 无工作日定义 → 按自然时间兜底
     cur = start
     remaining = minutes
     while remaining > 0:

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>步骤四十二：完善方案代码审查修复</title>
+<style>body{font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;max-width:860px;margin:40px auto;padding:0 20px;line-height:1.7;color:#24292f}h1{border-bottom:2px solid #e1e4e8;padding-bottom:.3em}h2{margin-top:1.5em;border-bottom:1px solid #eaecef;padding-bottom:.2em}code{background:#f6f8fa;padding:.15em .4em;border-radius:4px;font-family:Consolas,monospace;font-size:.9em}pre{background:#f6f8fa;padding:12px;border-radius:6px;overflow:auto}blockquote{color:#57606a;border-left:4px solid #d0d7de;margin:0;padding-left:12px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #d0d7de;padding:6px 10px;font-size:.92em;text-align:left;vertical-align:top}th{background:#f6f8fa}</style>
+</head>
+<body>
+<h1>步骤四十二：完善方案代码审查修复（6 项）</h1>
+<blockquote>依据：后台 /code-review 对 P2 批次审查<br>范围：2 授权 + 1 死循环 + 2 死代码接入 + 1 N+1。</blockquote>
+
+<h2>1. 缺陷与修复</h2>
+<table>
+<tr><th>#</th><th>缺陷</th><th>修复</th></tr>
+<tr><td>1</td><td>create_dependency 未校验 scope</td><td>补 assert_scoped</td></tr>
+<tr><td>2</td><td>work_calendars 未拒绝客户 scope</td><td>补 customer_scope_of 拒绝</td></tr>
+<tr><td>3</td><td>send_channel 无调用者</td><td>sla 生成提醒时调用 notify_all_channels</td></tr>
+<tr><td>4</td><td>add_work_minutes 无调用者</td><td>compute_sla_deadline 接入定期工单</td></tr>
+<tr><td>5</td><td>add_work_minutes 空集合死循环</td><td>加空集合保护</td></tr>
+<tr><td>6</td><td>contract_insight N+1</td><td>批量预取</td></tr>
+</table>
+
+<h2>2. 验证</h2>
+<pre>cd backend &amp;&amp; python -m pytest -q</pre>
+</body>
+</html>
