@@ -3,8 +3,20 @@
 均遵循 §4.16 落地原则：LLM 不可用时确定性降级，不阻塞主流程；转知识仅生成草稿，审核后入库。
 """
 import json
+from datetime import date, timedelta
 
-from app.models import EngineerSkill, KbArticle, SysUser, WorkOrder
+from sqlalchemy import func
+
+from app.models import (
+    Contract,
+    ContractItem,
+    EngineerSkill,
+    KbArticle,
+    ServiceCycle,
+    SysUser,
+    WorkOrder,
+)
+from app.services.cycle_service import split_cycles
 from app.services.llm_service import chat, llm_configured
 
 
@@ -109,3 +121,60 @@ def recommend_assignee(db, project: str, limit: int = 3) -> list[dict]:
         )
     result.sort(key=lambda x: -x["score"])
     return result[:limit]
+
+
+# ---- 合同履约洞察 ----
+def contract_insight(db, today: date | None = None) -> list[dict]:
+    """合同履约洞察：临近到期未完成周期 + 履约缺口（应生成 vs 已生成）。"""
+    today = today or date.today()
+    insights: list[dict] = []
+
+    # 临近到期（未来 7 天内未完成）
+    cycles = (
+        db.query(ServiceCycle)
+        .filter(
+            ServiceCycle.status != "done",
+            ServiceCycle.service_end >= today,
+            ServiceCycle.service_end <= today + timedelta(days=7),
+        )
+        .all()
+    )
+    for c in cycles:
+        item = db.get(ContractItem, c.contract_item_id)
+        contract = db.get(Contract, item.contract_id) if item else None
+        insights.append(
+            {
+                "type": "临近到期",
+                "contract_id": contract.id if contract else None,
+                "contract_name": contract.name if contract else None,
+                "item_id": c.contract_item_id,
+                "project": item.project if item else None,
+                "cycle_no": c.cycle_no,
+                "service_end": c.service_end.isoformat(),
+                "status": c.status,
+            }
+        )
+
+    # 履约缺口（已生成周期数 < 按频率应生成）
+    for item in db.query(ContractItem).all():
+        contract = db.get(Contract, item.contract_id)
+        if contract is None or contract.start_date is None or contract.end_date is None:
+            continue
+        expected = split_cycles(contract.start_date, contract.end_date, item.frequency, item.unit)
+        if not expected:
+            continue
+        generated = db.query(func.count(ServiceCycle.id)).filter_by(contract_item_id=item.id).scalar() or 0
+        if generated < len(expected):
+            insights.append(
+                {
+                    "type": "履约缺口",
+                    "contract_id": contract.id,
+                    "contract_name": contract.name,
+                    "item_id": item.id,
+                    "project": item.project,
+                    "expected": len(expected),
+                    "generated": int(generated),
+                    "gap": len(expected) - int(generated),
+                }
+            )
+    return insights

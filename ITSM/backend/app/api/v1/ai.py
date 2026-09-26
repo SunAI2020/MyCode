@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_db, require_role
 from app.models import EngineerSkill, SysUser
 from app.schemas.ai import ClassifyIn, ClassifyOut, EngineerSkillCreate, EngineerSkillOut
-from app.services.ai_service import classify_ticket, recommend_assignee
+from app.services.ai_service import classify_ticket, contract_insight, recommend_assignee
 from app.utils.response import ok
 
 router = APIRouter(tags=["AI增强"])
@@ -24,6 +24,11 @@ def recommend(
     db: Session = Depends(get_db),
 ):
     return ok(recommend_assignee(db, project))
+
+
+@router.get("/ai/contract-insight")
+def contract_insight_endpoint(user: SysUser = Depends(require_role(*ROLE)), db: Session = Depends(get_db)):
+    return ok(contract_insight(db))
 
 
 @router.get("/engineer-skills")
