@@ -27,6 +27,10 @@ class Settings(BaseSettings):
     LLM_MODEL: str = ""
     # 上传文件存储目录（签到拍照等），相对工作目录
     UPLOAD_DIR: str = "uploads"
+    # 提醒多渠道路由 webhook（空 = 未配置，降级站内）
+    WECOM_WEBHOOK: str = ""
+    FEISHU_WEBHOOK: str = ""
+    DINGTALK_WEBHOOK: str = ""
 
     @property
     def cors_origins_list(self) -> list[str]:
