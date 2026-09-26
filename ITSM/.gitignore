@@ -15,6 +15,10 @@ vite.config.d.ts
 
 # 环境与密钥
 .env
+.env.production
+
+# 数据库备份
+backups/
 
 # 日志
 *.log

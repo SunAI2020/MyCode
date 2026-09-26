@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.core.security import hash_password
 from app.db.session import SessionLocal
-from app.models import SysDict, SysRole, SysUser, SysUserRole
+from app.models import KbArticle, SlaPolicy, SysDict, SysRole, SysUser, SysUserRole
 
 ROLES = [
     ("sys_admin", "系统管理员", "platform"),
@@ -68,6 +68,21 @@ DICTS = [
 ]
 
 
+# (name, customer_level, response_limit, resolve_limit, escalation_chain)
+SLA_POLICIES = [
+    ("金牌 SLA", "金牌", "15分钟", "4小时", "执行人→经理→负责人"),
+    ("银牌 SLA", "银牌", "30分钟", "8小时", "执行人→经理"),
+    ("普通 SLA", "普通", "2小时", "24小时", "执行人→经理"),
+]
+
+# (title, category, content, tags)
+KB_ARTICLES = [
+    ("系统无法登录排查", "故障手册", "1. 确认账号密码无误；2. 检查账号是否被停用；3. 联系管理员重置密码。", "登录,故障"),
+    ("工单提交流程", "SOP", "客户报障 → 接单 → 派单 → 执行 → 验收 → 完成，全程可在工单列表追踪进度。", "工单,流程"),
+    ("常见漏洞整改指引", "整改方案", "高危漏洞优先整改，按 CVSS 排序，先修复互联网暴露面，再内网，整改后复测验证。", "漏洞,整改"),
+]
+
+
 def seed() -> None:
     db: Session = SessionLocal()
     try:
@@ -78,6 +93,17 @@ def seed() -> None:
         for category, code, name in DICTS:
             if not db.query(SysDict).filter_by(category=category, code=code).first():
                 db.add(SysDict(category=category, code=code, name=name))
+
+        for name, level, resp, resolve, chain in SLA_POLICIES:
+            if not db.query(SlaPolicy).filter_by(name=name).first():
+                db.add(SlaPolicy(
+                    name=name, customer_level=level, response_limit=resp,
+                    resolve_limit=resolve, escalation_chain=chain,
+                ))
+
+        for title, category, content, tags in KB_ARTICLES:
+            if not db.query(KbArticle).filter_by(title=title).first():
+                db.add(KbArticle(title=title, category=category, content=content, tags=tags, status="已发布"))
 
         if not db.query(SysUser).filter_by(username="admin").first():
             admin = SysUser(
@@ -91,7 +117,7 @@ def seed() -> None:
             db.add(SysUserRole(user_id=admin.id, role_id=role.id))
 
         db.commit()
-        print("seed 完成：7 角色 / 37 字典项 / 1 管理员(admin，密码来自 ADMIN_INITIAL_PASSWORD，默认 admin123)")
+        print("seed 完成：7 角色 / 37 字典项 / 3 SLA 模板 / 3 知识条目 / 1 管理员(admin，默认 admin123)")
     finally:
         db.close()
 

@@ -32,6 +32,16 @@ def get_db() -> Iterator[Session]:
         db.close()
 
 
+def _client_ip(request: Request) -> str | None:
+    """取真实客户端 IP：优先 X-Forwarded-For（nginx 反代注入），否则直连 client.host。"""
+    if request is None:
+        return None
+    xff = request.headers.get("x-forwarded-for")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.client.host if request.client else None
+
+
 def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     db: Session = Depends(get_db),
@@ -41,7 +51,7 @@ def get_current_user(
 
     同时捕获客户端 IP 到 ContextVar，供 audit_service.record 补全审计留痕。
     """
-    client_ip.set(request.client.host if request and request.client else None)
+    client_ip.set(_client_ip(request))
     if credentials is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "未登录或凭证缺失")
     try:
