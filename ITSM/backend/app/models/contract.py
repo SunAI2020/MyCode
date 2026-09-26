@@ -42,6 +42,20 @@ class CmdbCi(Base):
     )
 
 
+class CmdbCiDependency(Base):
+    """服务对象依赖关系：source 依赖 target（target 故障影响 source）。"""
+
+    __tablename__ = "cmdb_ci_dependency"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    source_ci_id: Mapped[int] = mapped_column(ForeignKey("cmdb_ci.id"), index=True)
+    target_ci_id: Mapped[int] = mapped_column(ForeignKey("cmdb_ci.id"), index=True)
+    relation: Mapped[str] = mapped_column(String(32), default="依赖")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
 class ContractItem(Base):
     __tablename__ = "contract_item"
 

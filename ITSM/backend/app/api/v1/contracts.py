@@ -10,8 +10,9 @@ from app.core.deps import (
     require_role,
     scope_filter,
 )
-from app.models import CmdbCi, Contract, ContractItem, SysUser
+from app.models import CmdbCi, CmdbCiDependency, Contract, ContractItem, SysUser
 from app.core.security import mask_sensitive, masked_page
+from app.schemas.cmdb import CmdbCiDependencyCreate, CmdbCiDependencyOut
 from app.schemas.contract import (
     CmdbCiCreate,
     CmdbCiOut,
@@ -252,3 +253,68 @@ def delete_ci(iid: int, user: SysUser = Depends(require_role("sys_admin")), db: 
     record(db, user_id=user.id, action="delete", resource=f"cmdb_ci:{iid}")
     db.commit()
     return ok({"deleted": iid})
+
+
+# ---- 依赖拓扑 ----
+dependencies = APIRouter(prefix="/cmdb-ci-dependencies", tags=["依赖拓扑"])
+
+
+@dependencies.post("")
+def create_dependency(
+    body: CmdbCiDependencyCreate,
+    user: SysUser = Depends(require_role(*WRITE_ROLE)),
+    db: Session = Depends(get_db),
+):
+    if db.get(CmdbCi, body.source_ci_id) is None or db.get(CmdbCi, body.target_ci_id) is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "服务对象不存在")
+    obj = CmdbCiDependency(**body.model_dump())
+    db.add(obj)
+    db.flush()
+    record(db, user_id=user.id, action="create", resource=f"cmdb_ci_dependency:{obj.id}", after=str(body.model_dump()))
+    db.commit()
+    return ok(CmdbCiDependencyOut.model_validate(obj).model_dump())
+
+
+@dependencies.delete("/{did}")
+def delete_dependency(did: int, user: SysUser = Depends(require_role(*WRITE_ROLE)), db: Session = Depends(get_db)):
+    obj = db.get(CmdbCiDependency, did)
+    if obj is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "依赖不存在")
+    db.delete(obj)
+    record(db, user_id=user.id, action="delete", resource=f"cmdb_ci_dependency:{did}")
+    db.commit()
+    return ok({"deleted": did})
+
+
+@cis.get("/{iid}/dependencies")
+def list_dependencies(iid: int, user: SysUser = Depends(get_current_user), db: Session = Depends(get_db)):
+    obj = db.get(CmdbCi, iid)
+    if obj is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "服务对象不存在")
+    assert_scoped(obj, customer_scope_of(user, db), db)
+    rows = db.query(CmdbCiDependency).filter(
+        (CmdbCiDependency.source_ci_id == iid) | (CmdbCiDependency.target_ci_id == iid)
+    ).all()
+    return ok([CmdbCiDependencyOut.model_validate(r).model_dump() for r in rows])
+
+
+@cis.get("/{iid}/impact")
+def impact_analysis(iid: int, user: SysUser = Depends(get_current_user), db: Session = Depends(get_db)):
+    """影响分析：返回该 CI 故障时受影响的上游 CI（递归，含直接/间接依赖方）。"""
+    obj = db.get(CmdbCi, iid)
+    if obj is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "服务对象不存在")
+    assert_scoped(obj, customer_scope_of(user, db), db)
+    # BFS 递归上游：谁依赖我（source 依赖 target=我）
+    affected: list[int] = []
+    frontier = [iid]
+    seen = {iid}
+    while frontier:
+        cur = frontier.pop(0)
+        deps = db.query(CmdbCiDependency).filter(CmdbCiDependency.target_ci_id == cur).all()
+        for d in deps:
+            if d.source_ci_id not in seen:
+                seen.add(d.source_ci_id)
+                affected.append(d.source_ci_id)
+                frontier.append(d.source_ci_id)
+    return ok({"affected_ci_ids": affected})

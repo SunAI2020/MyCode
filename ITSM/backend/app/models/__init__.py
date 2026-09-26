@@ -3,7 +3,7 @@ from app.models.approval import Approval
 from app.models.customer import Customer
 from app.models.change_order import ChangeOrder
 from app.models.checkin import CheckIn
-from app.models.contract import CmdbCi, Contract, ContractItem
+from app.models.contract import CmdbCi, CmdbCiDependency, Contract, ContractItem
 from app.models.delivery import Delivery
 from app.models.escalation import Escalation
 from app.models.engineer_skill import EngineerSkill
@@ -40,6 +40,7 @@ __all__ = [
     "CheckIn",
     "Contract",
     "CmdbCi",
+    "CmdbCiDependency",
     "ContractItem",
     "OrderReceive",
     "OrderDispatch",
