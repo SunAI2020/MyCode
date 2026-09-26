@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     WECOM_WEBHOOK: str = ""
     FEISHU_WEBHOOK: str = ""
     DINGTALK_WEBHOOK: str = ""
+    # 人脸识别登录（需接入人脸比对 SDK；False = 预留，端点返回不支持）
+    FACE_VERIFY_ENABLED: bool = False
 
     @property
     def cors_origins_list(self) -> list[str]:
