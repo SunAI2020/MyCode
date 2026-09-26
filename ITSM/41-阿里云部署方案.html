@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>步骤四十一：阿里云部署方案</title>
+<style>body{font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;max-width:920px;margin:40px auto;padding:0 20px;line-height:1.7;color:#24292f}h1{border-bottom:2px solid #e1e4e8;padding-bottom:.3em}h2{margin-top:1.5em;border-bottom:1px solid #eaecef;padding-bottom:.2em}code{background:#f6f8fa;padding:.15em .4em;border-radius:4px;font-family:Consolas,monospace;font-size:.9em}pre{background:#f6f8fa;padding:12px;border-radius:6px;overflow:auto}blockquote{color:#57606a;border-left:4px solid #d0d7de;margin:0;padding-left:12px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #d0d7de;padding:6px 10px;font-size:.92em;text-align:left;vertical-align:top}th{background:#f6f8fa}</style>
+</head>
+<body>
+<h1>步骤四十一：阿里云部署方案（完善方案 P2 · §21）</h1>
+<blockquote>依据：V7.0 · §21 部署架构（阿里云）<br>范围：本地 docker 映射阿里云 + 迁移方案 + 安全配置。</blockquote>
+
+<h2>1. 架构映射</h2>
+<table>
+<tr><th>本地 docker</th><th>阿里云服务</th></tr>
+<tr><td>frontend (nginx)</td><td>SLB + CDN + WAF</td></tr>
+<tr><td>backend (uvicorn)</td><td>ECS / ACK</td></tr>
+<tr><td>postgres</td><td>RDS PostgreSQL（高可用）</td></tr>
+<tr><td>redis</td><td>云数据库 Redis 版</td></tr>
+<tr><td>elasticsearch</td><td>阿里云 Elasticsearch</td></tr>
+<tr><td>uploads/</td><td>OSS + CDN（SSE）</td></tr>
+<tr><td>—</td><td>KMS + 安全组 + 云防火墙</td></tr>
+</table>
+
+<h2>2. 迁移步骤</h2>
+<p>数据层（RDS 导入 + SSL/TDE/备份加密）→ 对象存储（OSS）→ 缓存/检索（云 Redis/ES）→ 应用层（ECS/ACK 复用镜像）→ 接入层（SLB/WAF/CDN + TLS）→ 安全（安全组/KMS/云防火墙）。</p>
+
+<h2>3. 数据安全</h2>
+<p>TLS 1.2+ 全链路；RDS TDE + OSS SSE + KMS 信封加密；应用层脱敏/水印/审计已落地。</p>
+
+<h2>4. 说明</h2>
+<p>本方案为迁移蓝图，本地 docker 已可演示全部能力；容器镜像与备份脚本已在步骤二十二交付。</p>
+</body>
+</html>
