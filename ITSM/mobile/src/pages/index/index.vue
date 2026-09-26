@@ -8,9 +8,9 @@
     <view class="grid">
       <view class="cell" @click="go('/pages/workorder/list')">
         <view class="num">{{ todoCount }}</view>
-        <view class="label">工单总数</view>
+        <view class="label">{{ isCustomer ? "我的报障" : "工单总数" }}</view>
       </view>
-      <view class="cell" @click="go('/pages/checkin/checkin')">
+      <view v-if="isService" class="cell" @click="go('/pages/checkin/checkin')">
         <view class="num">{{ signedIn ? "✓" : "去签到" }}</view>
         <view class="label">签到打卡</view>
       </view>
@@ -19,20 +19,25 @@
     <view class="card">
       <view class="sec">快捷入口</view>
       <view class="entry" @click="go('/pages/workorder/list')">工单列表 ›</view>
-      <view class="entry" @click="go('/pages/checkin/checkin')">签到打卡 ›</view>
+      <view v-if="isService" class="entry" @click="go('/pages/checkin/checkin')">签到打卡 ›</view>
       <view class="entry" @click="go('/pages/mine/mine')">我的 ›</view>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { onShow } from "@dcloudio/uni-app";
 import { request } from "../../api";
 import { auth } from "../../stores/auth";
 
 const signedIn = ref(false);
 const todoCount = ref(0);
+
+// 按角色裁剪：服务人员显示签到，客户侧显示「我的报障」视角
+const roleCodes = computed(() => (auth.user?.roles || []).map((r: any) => r.code));
+const isService = computed(() => roleCodes.value.some((c: string) => ["sec_staff", "cs_staff"].includes(c)));
+const isCustomer = computed(() => roleCodes.value.some((c: string) => ["cust_admin", "cust_service"].includes(c)));
 
 async function load() {
   if (!auth.user) await auth.fetchMe().catch(() => {});
