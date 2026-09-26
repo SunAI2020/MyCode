@@ -1,9 +1,9 @@
 """数据看板：多维聚合统计（合同/工单/交付/知识/外包/绩效）。"""
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, require_role
+from app.core.deps import customer_scope_of, get_db, require_role
 from app.models import (
     Contract,
     Customer,
@@ -24,6 +24,9 @@ ROLE = ("sys_admin", "sys_ops", "ticket_mgr")
 @router.get("")
 def dashboard(user: SysUser = Depends(require_role(*ROLE)), db: Session = Depends(get_db)):
     """多维统计：客户/合同/工单/交付/知识/外包/绩效 Top5。"""
+    # 全局管理看板：拒绝带客户 scope 的用户，防止向客户侧泄露跨租户聚合数据
+    if customer_scope_of(user, db) is not None:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "无权查看全局看板")
     perf_top = (
         db.query(Performance.user_id, SysUser.name, func.sum(Performance.perf_score))
         .join(SysUser, Performance.user_id == SysUser.id)

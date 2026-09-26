@@ -34,6 +34,8 @@ def list_skills(user: SysUser = Depends(require_role(*ROLE)), db: Session = Depe
 
 @router.post("/engineer-skills")
 def create_skill(body: EngineerSkillCreate, user: SysUser = Depends(require_role(*ROLE)), db: Session = Depends(get_db)):
+    if db.get(SysUser, body.user_id) is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "用户不存在")
     obj = EngineerSkill(**body.model_dump())
     db.add(obj)
     db.commit()
