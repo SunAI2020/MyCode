@@ -11,6 +11,7 @@ class OutsourceUserCreate(BaseModel):
     qualification: str | None = None
     settle_type: str = "按次"
     permissions: str | None = None
+    user_id: int | None = None  # 绑定登录账号（外包人员）
 
 
 class OutsourceUserUpdate(BaseModel):
@@ -19,6 +20,7 @@ class OutsourceUserUpdate(BaseModel):
     qualification: str | None = None
     settle_type: str | None = None
     permissions: str | None = None
+    user_id: int | None = None
 
 
 class OutsourceUserOut(BaseModel):
@@ -30,6 +32,7 @@ class OutsourceUserOut(BaseModel):
     qualification: str | None = None
     settle_type: str
     permissions: str | None = None
+    user_id: int | None = None
     created_at: datetime | None = None
 
 

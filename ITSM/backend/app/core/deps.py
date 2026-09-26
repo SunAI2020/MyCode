@@ -16,6 +16,7 @@ from app.models import (
     Customer,
     Delivery,
     OrderReceive,
+    OutsourceUser,
     SysRole,
     SysUser,
     SysUserRole,
@@ -94,6 +95,18 @@ def customer_scope_of(user: SysUser, db: Session) -> int | None:
         .first()
     )
     return row.customer_id if row else None
+
+
+def outsourcing_scope_of(user: SysUser, db: Session) -> int | None:
+    """外包人员返回其 outsource_user_id；非外包角色返回 None（平台侧看全部）。
+
+    §9.3 外包账号仅见被指派的外包工单，据此做行级隔离。
+    """
+    roles = {r.code for r in role_rows_of(user, db)}
+    if "outsource" not in roles:
+        return None
+    row = db.query(OutsourceUser).filter(OutsourceUser.user_id == user.id).first()
+    return row.id if row else None
 
 
 def require_role(*allowed: str):

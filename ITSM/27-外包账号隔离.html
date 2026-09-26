@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>步骤二十七：外包账号隔离</title>
+<style>body{font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;max-width:860px;margin:40px auto;padding:0 20px;line-height:1.7;color:#24292f}h1{border-bottom:2px solid #e1e4e8;padding-bottom:.3em}h2{margin-top:1.5em;border-bottom:1px solid #eaecef;padding-bottom:.2em}code{background:#f6f8fa;padding:.15em .4em;border-radius:4px;font-family:Consolas,monospace;font-size:.9em}pre{background:#f6f8fa;padding:12px;border-radius:6px;overflow:auto}blockquote{color:#57606a;border-left:4px solid #d0d7de;margin:0;padding-left:12px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #d0d7de;padding:6px 10px;font-size:.92em;text-align:left;vertical-align:top}th{background:#f6f8fa}</style>
+</head>
+<body>
+<h1>步骤二十七：外包账号隔离（完善方案 P0 · §9.3）</h1>
+<blockquote>依据：V7.0 · §9.3 外包人员权限隔离<br>范围：外包账号角色 + 行级隔离 + 接单/拒单端点。</blockquote>
+
+<h2>1. 目标</h2>
+<ul>
+<li>新增「外包人员」角色（<code>outsource</code>）。</li>
+<li><code>OutsourceUser</code> 绑定登录账号（<code>user_id</code>）。</li>
+<li>外包任务列表/详情按 <code>outsource_user_id</code> 行级隔离。</li>
+<li>外包接单/拒单端点。</li>
+</ul>
+
+<h2>2. 接口</h2>
+<table>
+<tr><th>方法</th><th>路径</th><th>说明</th></tr>
+<tr><td>GET</td><td><code>/outsourcings</code></td><td>外包仅见自己；平台见全部</td></tr>
+<tr><td>POST</td><td><code>/outsourcings/{oid}/accept</code></td><td>外包接单</td></tr>
+<tr><td>POST</td><td><code>/outsourcings/{oid}/reject</code></td><td>外包拒单</td></tr>
+<tr><td>POST</td><td><code>/outsourcing-reports</code></td><td>外包仅为自己的任务汇报</td></tr>
+</table>
+
+<h2>3. 隔离设计</h2>
+<p><code>outsourcing_scope_of(user, db)</code>：外包角色返回其 <code>outsource_user_id</code>；平台角色返回 <code>None</code>（看全部）。外包访问他人任务/名册 → 403。</p>
+
+<h2>4. 验证</h2>
+<pre>cd backend &amp;&amp; python -m pytest -q</pre>
+</body>
+</html>

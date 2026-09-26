@@ -21,6 +21,7 @@ ROLES = [
     ("sec_staff", "安服人员", "platform"),
     ("cust_admin", "客户系统管理员", "customer"),
     ("cust_service", "客户服务管理人员", "customer"),
+    ("outsource", "外包人员", "platform"),  # 外包账号（§9.3 隔离）
 ]
 
 # (category, code, name)
@@ -121,7 +122,7 @@ def seed() -> None:
             db.add(SysUserRole(user_id=admin.id, role_id=role.id))
 
         db.commit()
-        print("seed 完成：7 角色 / 37 字典项 / 3 SLA 模板 / 3 知识条目 / 1 管理员(admin)")
+        print("seed 完成：8 角色 / 37 字典项 / 3 SLA 模板 / 3 知识条目 / 1 管理员(admin)")
         if admin_pwd:
             print(f"  admin 初始密码：{admin_pwd}（请登录后立即修改）")
     finally:

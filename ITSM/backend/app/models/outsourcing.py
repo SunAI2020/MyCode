@@ -19,6 +19,7 @@ class OutsourceUser(Base):
     qualification: Mapped[str | None] = mapped_column(String(128), nullable=True)  # 资质
     settle_type: Mapped[str] = mapped_column(String(16), default="按次")  # 按次/按月/按工时
     permissions: Mapped[str | None] = mapped_column(Text, nullable=True)  # 权限范围
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("sys_user.id"), nullable=True)  # 绑定登录账号（外包人员）
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
