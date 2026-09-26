@@ -6,6 +6,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, aliased
 
+from app.core.config import settings
 from app.core.context import client_ip
 from app.core.security import decode_token
 from app.db.session import SessionLocal
@@ -33,16 +34,18 @@ def get_db() -> Iterator[Session]:
 
 
 def _client_ip(request: Request) -> str | None:
-    """取真实客户端 IP：优先 X-Real-IP，否则直连 client.host。
+    """取真实客户端 IP。
 
-    只信任 X-Real-IP（nginx ``proxy_set_header X-Real-IP $remote_addr`` 会覆盖为真实
-    对端地址，不可被客户端伪造）；不读 X-Forwarded-For——其首段可被客户端注入任意值。
+    仅当 settings.TRUST_PROXY_HEADERS 为真（后端置于可信 nginx 之后，nginx 用
+    ``proxy_set_header X-Real-IP $remote_addr`` 覆盖为真实对端地址）时信任 X-Real-IP；
+    否则直连取 client.host，避免直连暴露下客户端伪造反代头（X-Forwarded-For 恒不采信）。
     """
     if request is None:
         return None
-    real = request.headers.get("x-real-ip")
-    if real:
-        return real.strip()
+    if settings.TRUST_PROXY_HEADERS:
+        real = request.headers.get("x-real-ip")
+        if real:
+            return real.strip()
     return request.client.host if request.client else None
 
 
