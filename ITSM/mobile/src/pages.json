@@ -1,0 +1,44 @@
+{
+  "pages": [
+    {
+      "path": "pages/login/login",
+      "style": { "navigationBarTitleText": "登录" }
+    },
+    {
+      "path": "pages/index/index",
+      "style": { "navigationBarTitleText": "工作台" }
+    },
+    {
+      "path": "pages/workorder/list",
+      "style": { "navigationBarTitleText": "工单" }
+    },
+    {
+      "path": "pages/workorder/detail",
+      "style": { "navigationBarTitleText": "工单详情" }
+    },
+    {
+      "path": "pages/checkin/checkin",
+      "style": { "navigationBarTitleText": "签到打卡" }
+    },
+    {
+      "path": "pages/mine/mine",
+      "style": { "navigationBarTitleText": "我的" }
+    }
+  ],
+  "tabBar": {
+    "color": "#7A7E83",
+    "selectedColor": "#0a3d91",
+    "backgroundColor": "#ffffff",
+    "list": [
+      { "pagePath": "pages/index/index", "text": "工作台" },
+      { "pagePath": "pages/checkin/checkin", "text": "签到" },
+      { "pagePath": "pages/mine/mine", "text": "我的" }
+    ]
+  },
+  "globalStyle": {
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "IT运维移动端",
+    "navigationBarBackgroundColor": "#0a3d91",
+    "backgroundColor": "#F5F7FA"
+  }
+}

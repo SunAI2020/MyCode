@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>步骤二十五：移动端前端（uni-app）</title>
+<style>body{font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;max-width:860px;margin:40px auto;padding:0 20px;line-height:1.7;color:#24292f}h1{border-bottom:2px solid #e1e4e8;padding-bottom:.3em}h2{margin-top:1.5em;border-bottom:1px solid #eaecef;padding-bottom:.2em}code{background:#f6f8fa;padding:.15em .4em;border-radius:4px;font-family:Consolas,monospace;font-size:.9em}pre{background:#f6f8fa;padding:12px;border-radius:6px;overflow:auto}blockquote{color:#57606a;border-left:4px solid #d0d7de;margin:0;padding-left:12px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #d0d7de;padding:6px 10px;font-size:.92em;text-align:left;vertical-align:top}th{background:#f6f8fa}</style>
+</head>
+<body>
+<h1>步骤二十五：移动端前端（uni-app）</h1>
+<blockquote>依据：《IT运维集中管控平台_软件设计方案.html》V1.0 定稿 · §8.6 阶段六 · §6.3/6.4 移动端<br>范围：uni-app（Vue3 + Vite + TS）一套代码多端，对接步骤二十四后端。</blockquote>
+
+<h2>1. 目标</h2>
+<ul>
+<li><b>登录</b>：JWT 登录 + 生物识别预留。</li>
+<li><b>工作台</b>：今日签到状态 + 我的工单汇总。</li>
+<li><b>工单</b>：列表（状态筛选）+ 详情 + 状态流转。</li>
+<li><b>签到打卡</b>：GPS + 拍照 + 上传 + 提交。</li>
+<li><b>我的</b>：用户信息 + 退出。</li>
+</ul>
+
+<h2>2. 技术方案</h2>
+<p>脚手架 <code>@dcloudio/uni-preset-vue#vite-ts</code>；Pinia 存 token；<code>src/api/index.ts</code> 封装 <code>uni.request</code>；路由 <code>pages.json</code>。</p>
+
+<h2>3. 页面清单</h2>
+<table>
+<tr><th>页面</th><th>路径</th></tr>
+<tr><td>登录</td><td><code>pages/login/login</code></td></tr>
+<tr><td>工作台</td><td><code>pages/index/index</code></td></tr>
+<tr><td>工单列表</td><td><code>pages/workorder/list</code></td></tr>
+<tr><td>工单详情</td><td><code>pages/workorder/detail</code></td></tr>
+<tr><td>签到打卡</td><td><code>pages/checkin/checkin</code></td></tr>
+<tr><td>我的</td><td><code>pages/mine/mine</code></td></tr>
+</table>
+
+<h2>4. 对接端点</h2>
+<table>
+<tr><th>功能</th><th>端点</th></tr>
+<tr><td>登录</td><td><code>POST /api/v1/auth/login</code></td></tr>
+<tr><td>当前用户</td><td><code>GET /api/v1/auth/me</code></td></tr>
+<tr><td>工单列表</td><td><code>GET /api/v1/work-orders</code></td></tr>
+<tr><td>工单状态</td><td><code>PUT /api/v1/work-orders/{id}/status</code></td></tr>
+<tr><td>今日签到</td><td><code>GET /api/v1/checkins/today</code></td></tr>
+<tr><td>签到</td><td><code>POST /api/v1/checkins</code></td></tr>
+<tr><td>上传照片</td><td><code>POST /api/v1/uploads</code></td></tr>
+</table>
+
+<h2>5. 验证</h2>
+<pre>cd mobile &amp;&amp; npm install
+npm run build:h5
+npm run dev:h5</pre>
+</body>
+</html>
