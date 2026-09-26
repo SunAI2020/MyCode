@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>ITSM 软件设计报告</title>
+<style>
+body{font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;max-width:920px;margin:40px auto;padding:0 20px;line-height:1.8;color:#24292f}
+h1{border-bottom:3px solid #0a3d91;padding-bottom:.4em;color:#0a3d91}
+h2{margin-top:2em;border-bottom:2px solid #e1e4e8;padding-bottom:.3em;color:#0a3d91}
+code{background:#f6f8fa;padding:.15em .5em;border-radius:4px;font-family:Consolas,monospace;font-size:.9em;color:#c7254e}
+pre{background:#f6f8fa;padding:14px;border-radius:8px;overflow:auto;border:1px solid #eaecef}
+table{border-collapse:collapse;width:100%;margin:14px 0}
+th,td{border:1px solid #d0d7de;padding:8px 12px;font-size:.93em;text-align:left;vertical-align:top}
+th{background:#eef3fb;color:#0a3d91}
+blockquote{color:#57606a;border-left:4px solid #d0d7de;margin:0;padding-left:14px}
+</style>
+</head>
+<body>
+<h1>ITSM 软件设计报告</h1>
+<blockquote>项目：IT运维集中管控平台 · 版本 V1.0 · 依据《安全运维集中管控平台_完整交付文档》V7.0</blockquote>
+
+<h2>一、项目概述</h2>
+<p>面向安服团队/MSSP，以「合同 → 子项 → 工单」为主轴，统一承载合同履约、内部任务、外包协作、问题整改、交付、绩效、SLA 提醒、AI 增强与知识沉淀。</p>
+
+<h2>二、总体架构</h2>
+<h3>2.1 技术栈</h3>
+<table>
+<tr><th>层次</th><th>选型</th></tr>
+<tr><td>前端 PC</td><td>Vue3 + Vite + Element Plus + Pinia + ECharts</td></tr>
+<tr><td>移动端</td><td>uni-app（一套代码多端）</td></tr>
+<tr><td>后端</td><td>Python 3.13 + FastAPI + SQLAlchemy 2.0 + Alembic + APScheduler</td></tr>
+<tr><td>认证</td><td>JWT + bcrypt + 七级 RBAC + 行级隔离</td></tr>
+<tr><td>数据库</td><td>PostgreSQL 16 + Redis + Elasticsearch（可降级）</td></tr>
+<tr><td>AI</td><td>OpenAI 兼容 LLM + RAG（可降级）</td></tr>
+</table>
+
+<h3>2.2 分层架构</h3>
+<pre>浏览器/APP → Nginx → FastAPI（api → services → schemas → models → core）
+                    → PostgreSQL + Redis + ES</pre>
+
+<h2>三、数据模型（31 张表）</h2>
+<p>客户合同、工单、服务、驻场、外包、问题交付、绩效、知识/AI、移动端、系统十大域；核心 ER：<code>customer→contract→contract_item→service_cycle→定期工单</code>，<code>work_order→dispatch→assignee（比例分摊）</code>。</p>
+
+<h2>四、关键设计</h2>
+<ul>
+<li><b>七级 RBAC + 多租户</b>：<code>scope_filter</code>/<code>assert_scoped</code> 行级隔离 + 字段脱敏 + 外包独立隔离。</li>
+<li><b>可配置工作流</b>：<code>workflow_rule</code> + <code>Approval</code> 审批流（职责分离）。</li>
+<li><b>AI 增强</b>：分类/派单建议/摘要/履约洞察/RAG，未配置时确定性降级。</li>
+<li><b>数据安全</b>：脱敏/水印/审计 + <code>EncryptedText</code> 字段加密。</li>
+<li><b>周期拆分 + SLA</b>：<code>split_cycles</code> + <code>add_work_minutes</code> + 分级预警/升级链。</li>
+</ul>
+
+<h2>五、部署架构</h2>
+<p>本地 docker compose + 生产 compose（nginx）+ 阿里云（RDS/Redis/ES/OSS/KMS/SLB/WAF）+ 一键脚本。</p>
+
+<h2>六、非功能性</h2>
+<ul>
+<li><b>可测试</b>：132 个 pytest 单测。</li>
+<li><b>降级设计</b>：Redis→内存缓存、ES→SQL、LLM→规则。</li>
+<li><b>可观测</b>：统一响应/审计 + <code>/api/v1/health</code>。</li>
+<li><b>安全合规</b>：等保三级对照 + OWASP Top 10。</li>
+</ul>
+</body>
+</html>

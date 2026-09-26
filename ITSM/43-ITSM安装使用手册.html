@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>ITSM 系统安装使用手册（新手超详细版）</title>
+<style>
+body{font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;max-width:920px;margin:40px auto;padding:0 20px;line-height:1.8;color:#24292f}
+h1{border-bottom:3px solid #0a3d91;padding-bottom:.4em;color:#0a3d91}
+h2{margin-top:2em;border-bottom:2px solid #e1e4e8;padding-bottom:.3em;color:#0a3d91}
+h3{margin-top:1.4em;color:#333}
+code{background:#f6f8fa;padding:.15em .5em;border-radius:4px;font-family:Consolas,monospace;font-size:.9em;color:#c7254e}
+pre{background:#f6f8fa;padding:14px;border-radius:8px;overflow:auto;border:1px solid #eaecef}
+pre code{background:none;color:#24292f;padding:0}
+blockquote{color:#57606a;border-left:4px solid #d0d7de;margin:0;padding-left:14px}
+table{border-collapse:collapse;width:100%;margin:14px 0}
+th,td{border:1px solid #d0d7de;padding:8px 12px;font-size:.93em;text-align:left;vertical-align:top}
+th{background:#eef3fb;color:#0a3d91}
+.toc{background:#f6f8fa;border:1px solid #eaecef;border-radius:8px;padding:16px 24px}
+.note{background:#fff8e1;border-left:4px solid #f0b400;padding:10px 14px;border-radius:4px;margin:14px 0}
+</style>
+</head>
+<body>
+<h1>ITSM 系统安装使用手册（新手超详细版）</h1>
+<blockquote>面向零基础用户；覆盖前端、后端、手机 APP、云服务器的安装/配置/端口/容器数据库/登录/脱敏/人脸识别/打卡拍照。</blockquote>
+
+<div class="toc">
+<b>目录</b><br>
+1. 系统是什么 &nbsp;·&nbsp; 2. 安装前的准备 &nbsp;·&nbsp; 3. 一键安装 &nbsp;·&nbsp; 4. 手动安装详解 &nbsp;·&nbsp; 5. 手机 APP &nbsp;·&nbsp; 6. 云服务器部署 &nbsp;·&nbsp; 7. 日常使用 &nbsp;·&nbsp; 8. 常见问题
+</div>
+
+<h2>一、系统是什么</h2>
+<p>IT运维集中管控平台（ITSM）是「合同 → 子项 → 工单」全链路运维管理系统，由三部分组成：</p>
+<table>
+<tr><th>部分</th><th>技术</th><th>作用</th><th>端口</th></tr>
+<tr><td>前端（网页）</td><td>Vue3</td><td>浏览器操作</td><td>5173 / 8080</td></tr>
+<tr><td>后端（接口）</td><td>FastAPI</td><td>业务逻辑</td><td>8000</td></tr>
+<tr><td>手机 APP</td><td>uni-app</td><td>打卡/签到</td><td>同前端</td></tr>
+<tr><td>数据库</td><td>PostgreSQL</td><td>存数据</td><td>5433</td></tr>
+<tr><td>缓存 / 检索</td><td>Redis / ES</td><td>加速 / 搜索</td><td>6379 / 9200</td></tr>
+</table>
+<p>一句话：<b>数据库存数据 → 后端算逻辑 → 前端/APP 展示操作</b>。</p>
+
+<h2>二、安装前的准备</h2>
+<h3>2.1 Windows（装 3 个软件）</h3>
+<p><b>① Docker Desktop</b>：https://www.docker.com/products/docker-desktop/ ，装完重启电脑，图标变绿。验证：<code>docker --version</code></p>
+<p><b>② Python 3.13</b>：https://www.python.org/downloads/ ，安装务必勾选 <code>Add python.exe to PATH</code>。验证：<code>python --version</code></p>
+<p><b>③ Node.js 20</b>：https://nodejs.org/ 下载 LTS 版。验证：<code>node -v</code></p>
+<h3>2.2 Linux（云服务器）</h3>
+<pre><code>curl -fsSL https://get.docker.com | bash
+apt install -y python3 python3-pip nodejs</code></pre>
+
+<h2>三、一键安装</h2>
+<h3>3.1 Windows</h3>
+<p>双击项目里的 <code>install.bat</code> → 完成后双击 <code>start.bat</code> → 浏览器打开 <code>http://localhost:5173</code>。</p>
+<h3>3.2 Linux</h3>
+<pre><code>cd /opt/ITSM
+bash install.sh
+bash start.sh</code></pre>
+<h3>3.3 脚本做了什么</h3>
+<table>
+<tr><th>步骤</th><th>命令</th><th>含义</th></tr>
+<tr><td>启动数据库</td><td><code>docker compose up -d</code></td><td>拉起 PG/Redis/ES</td></tr>
+<tr><td>建表</td><td><code>alembic upgrade head</code></td><td>创建全部表</td></tr>
+<tr><td>初始账号</td><td><code>python -m app.db.seed</code></td><td>写角色 + admin + 初始密码</td></tr>
+<tr><td>启动后端</td><td><code>uvicorn ... --port 8000</code></td><td>后端 8000</td></tr>
+<tr><td>启动前端</td><td><code>npm run dev</code></td><td>前端 5173</td></tr>
+</table>
+
+<h2>四、手动安装详解</h2>
+<pre><code># 1. 启动数据库（项目根目录）
+docker compose up -d
+
+# 2. 配置后端环境变量
+cd backend
+copy ..\.env.example .env        # Windows（Linux 用 cp）
+
+# 3. 安装后端依赖 + 建表 + 初始数据
+python -m pip install -r requirements.txt
+python -m alembic upgrade head
+python -m app.db.seed            # 会打印 admin 初始密码
+
+# 4. 启动后端
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+# 5. 启动前端（另开窗口）
+cd ../frontend
+npm install
+npm run dev</code></pre>
+<div class="note">关键配置 <code>backend/.env</code>：<code>DATABASE_URL=postgresql+psycopg://itsm:itsm_password@localhost:5433/itsm</code>；<code>SECRET_KEY</code> 用 <code>python -c "import secrets;print(secrets.token_urlsafe(32))"</code> 生成。</div>
+
+<h2>五、手机 APP 安装</h2>
+<h3>5.1 H5 预览（最快）</h3>
+<pre><code>cd mobile
+npm install
+npm run dev:h5</code></pre>
+<h3>5.2 真机调试（HBuilderX）</h3>
+<p>下载 HBuilderX → 导入 <code>mobile/</code> 目录 → 手机连电脑 → 运行到手机。</p>
+<h3>5.3 打包 App/小程序</h3>
+<p>HBuilderX → 发行 → 云打包（App）或对应小程序平台（需在 manifest.json 填 appid）。</p>
+<div class="note">真机/打包时，改 <code>mobile/src/api/index.ts</code> 的 <code>BASE_URL</code> 为后端实际地址。</div>
+
+<h2>六、云服务器部署（阿里云）</h2>
+<pre><code># 1. 安全组放行 22/80/443/8000/8080（数据库端口不对外）
+# 2. 上传代码到 /opt/ITSM
+# 3. 一键安装
+bash install.sh
+# 4. 生产模式（容器 + nginx，对外 8080）
+cp .env.production.example .env.production
+docker compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml exec backend alembic upgrade head
+docker compose -f docker-compose.prod.yml exec backend python -m app.db.seed
+# 访问 http://服务器IP:8080</code></pre>
+
+<h2>七、日常使用操作</h2>
+<h3>7.1 登录</h3>
+<p>账号 <code>admin</code>，密码为 seed 输出的初始密码。</p>
+<h3>7.2 七级角色</h3>
+<table>
+<tr><th>角色</th><th>权限</th></tr>
+<tr><td>sys_admin 系统管理员</td><td>全部</td></tr>
+<tr><td>sys_ops 系统运维</td><td>监控/备份</td></tr>
+<tr><td>ticket_mgr 工单管理</td><td>接单/派单/改价</td></tr>
+<tr><td>cs_staff 客服</td><td>只读进度</td></tr>
+<tr><td>sec_staff 安服</td><td>自己的工单 + 签到</td></tr>
+<tr><td>cust_admin 客户管理员</td><td>本客户合同/工单</td></tr>
+<tr><td>cust_service 客户服务</td><td>本客户报障/评价</td></tr>
+<tr><td>outsource 外包</td><td>仅自己被指派任务</td></tr>
+</table>
+<p>前端/APP 菜单按角色自动裁剪。</p>
+<h3>7.3 数据脱敏（自动）</h3>
+<table>
+<tr><th>类型</th><th>原文</th><th>客户/外包看到</th></tr>
+<tr><td>电话</td><td>13812341234</td><td>138****1234</td></tr>
+<tr><td>IP</td><td>10.1.2.3</td><td>10.1.*.*</td></tr>
+<tr><td>金额</td><td>10000</td><td>***</td></tr>
+</table>
+<p>平台管理员看原文，客户/外包看脱敏值，系统自动完成。</p>
+<h3>7.4 人脸识别登录（预留）</h3>
+<p>当前为预留接口（未接入人脸 SDK 返回 501）；客户端用手机自带指纹/面容保护本地登录态。</p>
+<h3>7.5 打卡拍照（移动端签到）</h3>
+<p>APP 进入「签到」→ 点「定位」（GPS）→ 点「拍照留证」→ 选签到/签退 → 提交。记录含经纬度+照片+时间。</p>
+
+<h2>八、常见问题</h2>
+<table>
+<tr><th>问题</th><th>解决</th></tr>
+<tr><td>docker compose 报错</td><td>确认 Docker Desktop 图标变绿</td></tr>
+<tr><td>8000 端口被占用</td><td>换 <code>--port 8001</code> 并同步前端 proxy 与 CORS</td></tr>
+<tr><td>登录密码错误</td><td>密码是 seed 随机口令，非 admin123</td></tr>
+<tr><td>数据库 5433 连不上</td><td>确认 postgres 容器 running；云上不对外</td></tr>
+<tr><td>手机 APP 连不上</td><td>改 <code>BASE_URL</code> 为后端实际地址</td></tr>
+<tr><td>没装 Redis/ES</td><td>不影响，后端自动降级</td></tr>
+<tr><td>彻底卸载</td><td><code>docker compose down -v</code> + 删目录</td></tr>
+</table>
+
+<p style="margin-top:2em;color:#57606a">更多技术细节见 <code>26-差距分析与完善方案.md</code>、<code>41-阿里云部署方案.md</code>；开发文档 <code>01~42</code> 均在本目录。</p>
+</body>
+</html>
