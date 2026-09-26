@@ -1,8 +1,10 @@
-"""AI 增强（建议 + 人工确认）：工单摘要 / 工单转知识草稿。
+"""AI 增强（建议 + 人工确认）：工单摘要 / 工单转知识草稿 / 智能分类 / 派单建议。
 
 均遵循 §4.16 落地原则：LLM 不可用时确定性降级，不阻塞主流程；转知识仅生成草稿，审核后入库。
 """
-from app.models import KbArticle, WorkOrder
+import json
+
+from app.models import EngineerSkill, KbArticle, SysUser, WorkOrder
 from app.services.llm_service import chat, llm_configured
 
 
@@ -38,3 +40,72 @@ def work_order_to_kb_draft(db, wo: WorkOrder, operator_id: int | None) -> KbArti
     db.add(article)
     db.flush()
     return article
+
+
+# ---- 智能分类 ----
+PROJECT_KEYWORDS = [
+    ("漏洞扫描", ["漏洞", "扫描", "CVE", "scan"]),
+    ("渗透测试", ["渗透", "攻防", "pentest", "红队"]),
+    ("应急演练", ["应急演练", "演练", "drill"]),
+    ("安全加固", ["加固", "补丁", "基线", "hardening"]),
+    ("等保测评", ["等保", "测评"]),
+    ("安全巡检", ["巡检"]),
+    ("安全评估", ["评估"]),
+    ("应急处置", ["应急处置", "事件响应", "事件"]),
+    ("故障排查", ["故障", "无法", "报障", "排查", "登录", "异常", "报错", "宕机"]),
+]
+HIGH_KEYWORDS = ["紧急", "立刻", "马上", "宕机", "无法", "严重", "瘫痪"]
+LOW_KEYWORDS = ["建议", "不急", "有空", "低"]
+
+
+def classify_ticket(description: str) -> dict:
+    """报障描述 → 运维项目/优先级。LLM 可用则调 LLM，否则关键词规则降级。"""
+    if llm_configured():
+        prompt = (
+            "对运维报障描述分类，只返回 JSON：{\"project\":\"<运维项目>\",\"priority\":\"<高/中/低>\"}。"
+            f"描述：{description}"
+        )
+        try:
+            data = json.loads(chat(prompt))
+            return {"project": data.get("project", "故障排查"), "priority": data.get("priority", "中")}
+        except Exception:
+            pass
+    project = "故障排查"
+    for p, kws in PROJECT_KEYWORDS:
+        if any(kw in description for kw in kws):
+            project = p
+            break
+    priority = "中"
+    if any(kw in description for kw in HIGH_KEYWORDS):
+        priority = "高"
+    elif any(kw in description for kw in LOW_KEYWORDS):
+        priority = "低"
+    return {"project": project, "priority": priority}
+
+
+# ---- 智能派单建议 ----
+LEVEL_SCORE = {"高级": 3, "中级": 2, "初级": 1}
+
+
+def recommend_assignee(db, project: str, limit: int = 3) -> list[dict]:
+    """按技能匹配（等级）→ 负载 → 绩效推荐执行人（确定性降级，不依赖 LLM）。"""
+    rows = (
+        db.query(EngineerSkill, SysUser)
+        .join(SysUser, EngineerSkill.user_id == SysUser.id)
+        .filter(EngineerSkill.skill == project)
+        .all()
+    )
+    result = []
+    for skill, user in rows:
+        score = LEVEL_SCORE.get(skill.level, 1)
+        result.append(
+            {
+                "user_id": user.id,
+                "name": user.name,
+                "level": skill.level,
+                "score": score,
+                "reason": f"技能匹配({project})·{skill.level}",
+            }
+        )
+    result.sort(key=lambda x: -x["score"])
+    return result[:limit]

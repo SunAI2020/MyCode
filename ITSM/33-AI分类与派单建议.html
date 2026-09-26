@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>步骤三十三：AI 智能分类 + 派单建议</title>
+<style>body{font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;max-width:860px;margin:40px auto;padding:0 20px;line-height:1.7;color:#24292f}h1{border-bottom:2px solid #e1e4e8;padding-bottom:.3em}h2{margin-top:1.5em;border-bottom:1px solid #eaecef;padding-bottom:.2em}code{background:#f6f8fa;padding:.15em .4em;border-radius:4px;font-family:Consolas,monospace;font-size:.9em}pre{background:#f6f8fa;padding:12px;border-radius:6px;overflow:auto}blockquote{color:#57606a;border-left:4px solid #d0d7de;margin:0;padding-left:12px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #d0d7de;padding:6px 10px;font-size:.92em;text-align:left;vertical-align:top}th{background:#f6f8fa}</style>
+</head>
+<body>
+<h1>步骤三十三：AI 智能分类 + 派单建议（完善方案 P1 · §15）</h1>
+<blockquote>依据：V7.0 · §15<br>范围：技能矩阵 + AI 分类 + 派单推荐。</blockquote>
+
+<h2>1. 目标</h2>
+<ul>
+<li><code>EngineerSkill</code> 技能矩阵。</li>
+<li><code>classify_ticket</code>：描述 → 运维项目/优先级。</li>
+<li><code>recommend_assignee</code>：技能匹配 → 负载 → 绩效推荐。</li>
+</ul>
+
+<h2>2. 接口</h2>
+<table>
+<tr><th>方法</th><th>路径</th><th>说明</th></tr>
+<tr><td>POST</td><td><code>/ai/classify</code></td><td>描述 → 项目/优先级</td></tr>
+<tr><td>GET</td><td><code>/ai/recommend-assignee?project=</code></td><td>推荐执行人</td></tr>
+<tr><td>GET/POST/DELETE</td><td><code>/engineer-skills</code></td><td>技能矩阵管理</td></tr>
+</table>
+
+<h2>3. 降级策略</h2>
+<p>LLM 未配置时分类走关键词规则、推荐走技能匹配，不依赖外部服务。</p>
+
+<h2>4. 验证</h2>
+<pre>cd backend &amp;&amp; python -m pytest -q</pre>
+</body>
+</html>
