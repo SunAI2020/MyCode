@@ -25,7 +25,22 @@ th{background:#fff3e6;color:#d35400}
 
 <div class="toc"><b>目录</b><br>1. 购买 ECS · 2. 系统初始配置 · 3. 软件环境 · 4. 数据库 · 5. 上传软件与导入数据 · 6. 端口与安全组 · 7. 协议 · 8. 一键部署 · 9. 调试验证 · 10. 故障处置</div>
 
-<h2>一、购买云服务器（ECS）</h2>
+<h2>一、购买云服务器（ECS 或轻量应用服务器）</h2>
+<h3>1.0 轻量应用服务器 vs ECS</h3>
+<p>两种都能跑 ITSM（本质都是 Linux + Docker）；轻量便宜简单、ECS 灵活可扩展。</p>
+<p><b>内存是唯一关键</b>：2核2G ❌ 不足；2核4G ✅（注释掉 ES，自动降级 SQL 检索）；4核8G ✅ 推荐。</p>
+<h3>1.0b 重置/重装系统选什么镜像</h3>
+<p><b>选「系统镜像」的纯净 Linux，不要选「应用镜像」</b>（宝塔/WordPress 会冲突占资源）。</p>
+<table>
+<tr><th>镜像类型</th><th>具体</th><th>结论</th></tr>
+<tr><td>系统镜像</td><td>Ubuntu 22.04 LTS</td><td>✅ 首选</td></tr>
+<tr><td>系统镜像</td><td>Debian 11/12</td><td>✅ 也行</td></tr>
+<tr><td>系统镜像</td><td>CentOS 7.9 / Stream 9</td><td>⚠️ CentOS 7 已停维护</td></tr>
+<tr><td>应用镜像</td><td>宝塔 / WordPress</td><td>❌ 不要选</td></tr>
+</table>
+<p>入口：控制台 → 重置系统 → 镜像 → 「系统镜像」标签页 → Ubuntu 22.04。</p>
+
+<h3>1.1 选购参数</h3>
 <table>
 <tr><th>参数</th><th>推荐值</th></tr>
 <tr><td>地域</td><td>国内（华东1杭州）</td></tr>
