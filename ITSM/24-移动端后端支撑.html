@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>步骤二十四：移动端后端支撑</title>
+<style>body{font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;max-width:860px;margin:40px auto;padding:0 20px;line-height:1.7;color:#24292f}h1{border-bottom:2px solid #e1e4e8;padding-bottom:.3em}h2{margin-top:1.5em;border-bottom:1px solid #eaecef;padding-bottom:.2em}code{background:#f6f8fa;padding:.15em .4em;border-radius:4px;font-family:Consolas,monospace;font-size:.9em}pre{background:#f6f8fa;padding:12px;border-radius:6px;overflow:auto}blockquote{color:#57606a;border-left:4px solid #d0d7de;margin:0;padding-left:12px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #d0d7de;padding:6px 10px;font-size:.92em;text-align:left;vertical-align:top}th{background:#f6f8fa}</style>
+</head>
+<body>
+<h1>步骤二十四：移动端后端支撑（阶段六 · uni-app 前置）</h1>
+<blockquote>依据：《IT运维集中管控平台_软件设计方案.html》V1.0 定稿 · §8.6 阶段六 · §6.3/6.4 移动端<br>范围：签到打卡（GPS + 拍照留证）+ 图片上传 + 静态挂载。</blockquote>
+
+<h2>1. 目标</h2>
+<ul>
+<li><b>签到打卡</b>：<code>CheckIn</code> 模型 + 签到/签退端点（GPS 经纬度 + 地址 + 照片）。</li>
+<li><b>图片上传</b>：multipart 上传 → 本地 <code>uploads/</code> 存储 + 静态访问 <code>/uploads</code>。</li>
+<li><b>今日状态</b>：<code>/checkins/today</code> 供移动端判断今日是否已签到。</li>
+</ul>
+<blockquote>人脸识别登录务实方案：复用 JWT 登录，人脸/指纹用设备级生物识别（uni-app SOTER）保护本地 token；后端不建人脸库。</blockquote>
+
+<h2>2. 文件清单</h2>
+<table>
+<tr><th>文件</th><th>说明</th></tr>
+<tr><td><code>models/checkin.py</code></td><td><code>CheckIn</code> 模型</td></tr>
+<tr><td><code>alembic/versions/0011_checkin.py</code></td><td>迁移</td></tr>
+<tr><td><code>schemas/checkin.py</code></td><td><code>CheckInCreate</code>/<code>CheckInOut</code></td></tr>
+<tr><td><code>api/v1/checkins.py</code></td><td>签到/签退/今日状态/记录</td></tr>
+<tr><td><code>api/v1/uploads.py</code></td><td>图片上传</td></tr>
+<tr><td><code>main.py</code></td><td>挂载 <code>/uploads</code></td></tr>
+<tr><td><code>core/config.py</code></td><td><code>UPLOAD_DIR</code></td></tr>
+<tr><td><code>frontend/nginx.conf</code></td><td><code>/uploads</code> 反代</td></tr>
+<tr><td><code>tests/test_checkin.py</code>/<code>test_upload.py</code></td><td>回归测试</td></tr>
+</table>
+
+<h2>3. 接口</h2>
+<table>
+<tr><th>方法</th><th>路径</th><th>说明</th></tr>
+<tr><td>POST</td><td><code>/api/v1/checkins</code></td><td>签到/签退（同类型每日一次）</td></tr>
+<tr><td>GET</td><td><code>/api/v1/checkins</code></td><td>我的签到记录</td></tr>
+<tr><td>GET</td><td><code>/api/v1/checkins/today</code></td><td>今日签到状态</td></tr>
+<tr><td>POST</td><td><code>/api/v1/uploads</code></td><td>图片上传 → <code>{url}</code></td></tr>
+</table>
+
+<h2>4. 验证</h2>
+<pre>cd backend &amp;&amp; python -m pytest -q</pre>
+</body>
+</html>

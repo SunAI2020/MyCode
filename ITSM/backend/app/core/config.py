@@ -25,6 +25,8 @@ class Settings(BaseSettings):
     LLM_API_BASE: str = ""
     LLM_API_KEY: str = ""
     LLM_MODEL: str = ""
+    # 上传文件存储目录（签到拍照等），相对工作目录
+    UPLOAD_DIR: str = "uploads"
 
     @property
     def cors_origins_list(self) -> list[str]:
