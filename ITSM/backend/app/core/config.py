@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     # 合同原件档案：加密密钥（Fernet base64；空=自动生成并持久化到 uploads/contracts/.archive.key）
     ARCHIVE_ENC_KEY: str = ""
     ARCHIVE_MAX_MB: int = 20
+    # MinerU 云端 PDF 解析（含扫描件 OCR）；空 = 不启用，走本地 pypdf
+    MINERU_TOKEN: str = ""
     # 提醒多渠道路由 webhook（空 = 未配置，降级站内）
     WECOM_WEBHOOK: str = ""
     FEISHU_WEBHOOK: str = ""

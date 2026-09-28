@@ -136,6 +136,7 @@ def upload_archive(
         "extracted": extracted,
         "original_filename": filename,
         "file_size": len(data),
+        "has_text": bool(text.strip()),
         # 未用 LLM 时把纯文本回传，供前端展示辅助人工补录
         "text_preview": (text[:2000] if not extracted.get("llm_used") else None),
     })

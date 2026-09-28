@@ -39,6 +39,12 @@ def _mk_archive(db, u):
     return obj
 
 
+def test_mineru_disabled_without_token():
+    """未配置 MINERU_TOKEN 时不走云端、不发起网络请求，返回空串。"""
+    from app.services.contract_extract_service import _extract_pdf_mineru
+    assert _extract_pdf_mineru(b"%PDF-1.4 fake") == ""
+
+
 def test_rule_extract_fallback():
     """无 LLM 时规则抽取常见字段，识别结果不空。"""
     text = (
@@ -46,7 +52,7 @@ def test_rule_extract_fallback():
         "合同编号：HT-2026-001\n"
         "甲方：某科技有限公司\n"
         "乙方：某安全公司\n"
-        "合同金额：12万元\n"
+        "合同金额：人民币 12万元\n"
         "服务期限：2026-01-01 至 2026-12-31\n"
         "驻场服务：是\n"
         "服务对象：OA系统、数据库服务器\n"

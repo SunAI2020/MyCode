@@ -98,7 +98,7 @@ class ContractArchive(Base):
     stored_name: Mapped[str] = mapped_column(String(128))  # 加密文件名（upload/contracts/ 下）
     file_hash: Mapped[str] = mapped_column(String(64))  # SHA-256
     file_size: Mapped[int] = mapped_column(Integer)
-    mime_type: Mapped[str] = mapped_column(String(64))
+    mime_type: Mapped[str] = mapped_column(String(128))
     extracted: Mapped[str | None] = mapped_column(Text, nullable=True)  # 抽取字段 JSON
     status: Mapped[str] = mapped_column(String(16), default="待确认")  # 待确认/已确认
     created_by: Mapped[int | None] = mapped_column(

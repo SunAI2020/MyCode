@@ -4,9 +4,12 @@
 """
 import io
 import json
+import os
 import re
+import tempfile
 from datetime import date
 
+from app.core.config import settings
 from app.services.llm_service import chat, llm_configured
 
 EXTRACT_SYSTEM = "你是合同信息抽取助手，仅依据给定合同文本抽取字段，不编造。输出严格 JSON，不要输出任何解释。"
@@ -36,6 +39,36 @@ def extract_text(filename: str, data: bytes) -> str:
 
 
 def _extract_pdf(data: bytes) -> str:
+    text = _extract_pdf_mineru(data)
+    if text:
+        return text
+    return _extract_pdf_pypdf(data)
+
+
+def _extract_pdf_mineru(data: bytes) -> str:
+    """MinerU 云端解析 PDF（含扫描件 OCR）；未配置 token 或失败返回空串。"""
+    if not getattr(settings, "MINERU_TOKEN", ""):
+        return ""
+    tmp = None
+    try:
+        from mineru import MinerU
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
+            f.write(data)
+            tmp = f.name
+        client = MinerU(settings.MINERU_TOKEN)
+        result = client.extract(tmp, ocr=True, timeout=120)
+        return (result.markdown or "").strip()
+    except Exception:
+        return ""
+    finally:
+        if tmp and os.path.exists(tmp):
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+
+
+def _extract_pdf_pypdf(data: bytes) -> str:
     try:
         from pypdf import PdfReader
     except ImportError:
@@ -174,7 +207,10 @@ def _rule_extract(text: str) -> dict:
     if m:
         out["customer_name"] = m.group(1).strip()
 
-    m = re.search(r"(?:合同金额|合同总价|总价|金额|价款|¥|￥)\s*[:：]?\s*([0-9][0-9,.]*)\s*(万|万元|元)?", text)
+    m = re.search(
+        r"(?:合同金额|合同总价|总价|金额|价款|¥|￥)\s*[:：]?\s*(?:人民币|RMB)?\s*(?:¥|￥)?\s*([0-9][0-9,.]*)\s*(万|万元|元)?",
+        text,
+    )
     if m:
         amt = m.group(1).replace(",", "")
         try:

@@ -247,6 +247,7 @@
       </el-table>
       <el-button link type="primary" style="margin-top: 8px" @click="importForm.service_items.push({ project: '', frequency: 1, unit: '月', price: null, service_object: null })">+ 添加服务项目</el-button>
 
+      <el-alert v-if="importNoText" title="未能从文件中提取文字（可能是扫描件/图片型 PDF），请手动录入或换用文字版 PDF" type="error" :closable="false" style="margin-top: 12px" />
       <template v-if="importTextPreview">
         <el-alert title="已用规则识别（未配置大模型），请核对补充；下方为原文片段" type="warning" :closable="false" style="margin-top: 12px" />
         <div class="text-preview">{{ importTextPreview }}</div>
@@ -308,6 +309,7 @@ const importLoading = ref(false)
 const importArchiveId = ref<number | null>(null)
 const importOriginalName = ref('')
 const importTextPreview = ref('')
+const importNoText = ref(false)
 const importForm = reactive({
   customer_id: null as number | null,
   customer_name: '',
@@ -348,6 +350,7 @@ async function onFilePicked(e: Event) {
     importArchiveId.value = d.archive_id
     importOriginalName.value = d.original_filename
     importTextPreview.value = d.text_preview || ''
+    importNoText.value = d.has_text === false
     const ex = d.extracted || {}
     resetImportForm()
     importForm.customer_name = ex.customer_name || ''
