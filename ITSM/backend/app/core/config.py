@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     LLM_MODEL: str = ""
     # 上传文件存储目录（签到拍照等），相对工作目录
     UPLOAD_DIR: str = "uploads"
+    # 合同原件档案：加密密钥（Fernet base64；空=自动生成并持久化到 uploads/contracts/.archive.key）
+    ARCHIVE_ENC_KEY: str = ""
+    ARCHIVE_MAX_MB: int = 20
     # 提醒多渠道路由 webhook（空 = 未配置，降级站内）
     WECOM_WEBHOOK: str = ""
     FEISHU_WEBHOOK: str = ""

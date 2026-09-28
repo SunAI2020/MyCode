@@ -1,4 +1,5 @@
 import request from './request'
+import axios from 'axios'
 
 // ---- 认证 ----
 export const login = (data: { username: string; password: string }) => request.post('/auth/login', data)
@@ -15,6 +16,24 @@ export const listContracts = (params: any) => request.get('/contracts', { params
 export const createContract = (data: any) => request.post('/contracts', data)
 export const updateContract = (id: number, data: any) => request.put(`/contracts/${id}`, data)
 export const deleteContract = (id: number) => request.delete(`/contracts/${id}`)
+
+// ---- 合同原件档案 ----
+export const uploadContractArchive = (file: File) => {
+  const fd = new FormData()
+  fd.append('file', file)
+  return request.post('/contract-archives/upload', fd)
+}
+export const confirmContractArchive = (id: number, data: any) => request.post(`/contract-archives/${id}/confirm`, data)
+export const listContractArchives = (params: any) => request.get('/contract-archives', { params })
+// 下载原件需返回二进制，绕过统一 JSON 响应拦截器，用原生 axios + token
+export const downloadContractArchive = async (id: number): Promise<Blob> => {
+  const token = localStorage.getItem('token')
+  const res = await axios.get(`/api/v1/contract-archives/${id}/download`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    responseType: 'blob',
+  })
+  return res.data as Blob
+}
 
 // ---- 合同子项 ----
 export const listItems = (params: any) => request.get('/contract-items', { params })

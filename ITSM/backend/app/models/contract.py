@@ -19,6 +19,12 @@ class Contract(Base):
     end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     has_onsite: Mapped[bool] = mapped_column(Boolean, default=False)
     status: Mapped[str] = mapped_column(String(16), default="洽谈中")  # 洽谈中/执行中/已到期/已续约
+    # 合同原件导入抽取的补充字段（步骤 49）
+    sign_date: Mapped[date | None] = mapped_column(Date, nullable=True)  # 合同签署日期
+    staff_requirement: Mapped[str | None] = mapped_column(Text, nullable=True)  # 人员要求
+    accept_standard: Mapped[str | None] = mapped_column(Text, nullable=True)  # 验收标准
+    delivery_docs: Mapped[str | None] = mapped_column(Text, nullable=True)  # 交付文档
+    acceptance_report_format: Mapped[str | None] = mapped_column(Text, nullable=True)  # 验收报告格式
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -71,6 +77,33 @@ class ContractItem(Base):
     )
     accept_standard: Mapped[str | None] = mapped_column(Text, nullable=True)
     price: Mapped[float | None] = mapped_column(Numeric(14, 2), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class ContractArchive(Base):
+    """合同原件档案：原件 Fernet 加密落盘，本表存元数据 + 提取字段 JSON。"""
+
+    __tablename__ = "contract_archive"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    contract_id: Mapped[int | None] = mapped_column(
+        ForeignKey("contract.id"), nullable=True, index=True
+    )
+    customer_id: Mapped[int | None] = mapped_column(
+        ForeignKey("customer.id"), nullable=True, index=True
+    )
+    original_filename: Mapped[str] = mapped_column(String(255))
+    stored_name: Mapped[str] = mapped_column(String(128))  # 加密文件名（upload/contracts/ 下）
+    file_hash: Mapped[str] = mapped_column(String(64))  # SHA-256
+    file_size: Mapped[int] = mapped_column(Integer)
+    mime_type: Mapped[str] = mapped_column(String(64))
+    extracted: Mapped[str | None] = mapped_column(Text, nullable=True)  # 抽取字段 JSON
+    status: Mapped[str] = mapped_column(String(16), default="待确认")  # 待确认/已确认
+    created_by: Mapped[int | None] = mapped_column(
+        ForeignKey("sys_user.id"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

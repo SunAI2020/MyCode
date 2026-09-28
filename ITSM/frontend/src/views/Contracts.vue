@@ -1,10 +1,12 @@
 <template>
   <div>
+    <input ref="fileInput" type="file" accept=".pdf,.docx" style="display: none" @change="onFilePicked" />
     <el-tabs v-model="tab">
       <el-tab-pane label="合同" name="contract">
         <el-card>
           <div class="toolbar">
             <el-button v-if="canWrite" type="primary" @click="openContract()">新增合同</el-button>
+            <el-button v-if="canWrite" type="primary" plain @click="pickFile()">导入合同</el-button>
           </div>
           <el-table :data="contracts" v-loading="loading">
             <el-table-column prop="id" label="ID" width="60" />
@@ -13,8 +15,9 @@
             <el-table-column prop="type" label="类型" width="110" />
             <el-table-column prop="amount" label="金额" width="110" />
             <el-table-column prop="status" label="状态" width="90" />
-            <el-table-column v-if="canWrite || canDelete" label="操作" width="150">
+            <el-table-column label="操作" width="220">
               <template #default="{ row }">
+                <el-button link type="success" @click="onViewContract(row)">查看合同</el-button>
                 <el-button v-if="canWrite" link type="primary" @click="openContract(row)">编辑</el-button>
                 <el-button v-if="canDelete" link type="danger" @click="onDeleteContract(row)">删除</el-button>
               </template>
@@ -154,6 +157,106 @@
       </el-form>
       <template #footer><el-button @click="ciDlg = false">取消</el-button><el-button type="primary" @click="saveCi">保存</el-button></template>
     </el-dialog>
+
+    <!-- 导入存档弹窗 -->
+    <el-dialog v-model="importDlg" title="合同原件导入 - 识别结果" width="840px" top="4vh">
+      <el-alert v-if="importOriginalName" :title="`原件：${importOriginalName}`" type="info" :closable="false" style="margin-bottom: 12px" />
+      <el-form :model="importForm" label-width="110px">
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="客户（可选）">
+              <el-select v-model="importForm.customer_id" clearable placeholder="留空则按名称匹配/新建" style="width: 100%">
+                <el-option v-for="c in customers" :key="c.id" :label="c.name" :value="c.id" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="客户名称"><el-input v-model="importForm.customer_name" /></el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="合同号"><el-input v-model="importForm.contract_no" /></el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="签署日期"><el-date-picker v-model="importForm.sign_date" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="合同金额"><el-input v-model.number="importForm.amount" /></el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="是否驻场服务"><el-switch v-model="importForm.has_onsite" /></el-form-item>
+          </el-col>
+          <el-col :span="24">
+            <el-form-item label="服务期限"><el-input v-model="importForm.service_period" placeholder="如 2026-01-01 至 2026-12-31" /></el-form-item>
+          </el-col>
+          <el-col :span="24">
+            <el-form-item label="人员要求"><el-input v-model="importForm.staff_requirement" type="textarea" :rows="2" /></el-form-item>
+          </el-col>
+          <el-col :span="24">
+            <el-form-item label="验收标准"><el-input v-model="importForm.accept_standard" type="textarea" :rows="2" /></el-form-item>
+          </el-col>
+          <el-col :span="24">
+            <el-form-item label="交付文档"><el-input v-model="importForm.delivery_docs" type="textarea" :rows="2" /></el-form-item>
+          </el-col>
+          <el-col :span="24">
+            <el-form-item label="验收报告格式"><el-input v-model="importForm.acceptance_report_format" /></el-form-item>
+          </el-col>
+        </el-row>
+      </el-form>
+
+      <el-divider content-position="left">服务对象</el-divider>
+      <div class="obj-list">
+        <div v-for="(o, i) in importForm.service_objects" :key="i" class="obj-row">
+          <el-input v-model="importForm.service_objects[i]" placeholder="服务对象名称" style="width: 300px" />
+          <el-button link type="danger" @click="importForm.service_objects.splice(i, 1)">删除</el-button>
+        </div>
+        <el-button link type="primary" @click="importForm.service_objects.push('')">+ 添加服务对象</el-button>
+      </div>
+
+      <el-divider content-position="left">服务项目</el-divider>
+      <el-table :data="importForm.service_items" size="small" border>
+        <el-table-column label="服务对象" width="150">
+          <template #default="{ row }">
+            <el-select v-model="row.service_object" clearable placeholder="默认首个" size="small">
+              <el-option v-for="o in importForm.service_objects" :key="o" :label="o" :value="o" />
+            </el-select>
+          </template>
+        </el-table-column>
+        <el-table-column label="运维项目" min-width="160">
+          <template #default="{ row }">
+            <el-select v-model="row.project" filterable allow-create size="small" style="width: 100%">
+              <el-option v-for="p in PROJECTS" :key="p" :label="p" :value="p" />
+            </el-select>
+          </template>
+        </el-table-column>
+        <el-table-column label="频次" width="110">
+          <template #default="{ row }"><el-input-number v-model="row.frequency" :min="1" size="small" /></template>
+        </el-table-column>
+        <el-table-column label="单位" width="110">
+          <template #default="{ row }">
+            <el-select v-model="row.unit" size="small">
+              <el-option v-for="u in ['天', '周', '月', '季度', '半年', '年', '不定期']" :key="u" :label="u" :value="u" />
+            </el-select>
+          </template>
+        </el-table-column>
+        <el-table-column label="价格" width="120">
+          <template #default="{ row }"><el-input v-model.number="row.price" size="small" /></template>
+        </el-table-column>
+        <el-table-column label="操作" width="70">
+          <template #default="{ $index }"><el-button link type="danger" @click="importForm.service_items.splice($index, 1)">删除</el-button></template>
+        </el-table-column>
+      </el-table>
+      <el-button link type="primary" style="margin-top: 8px" @click="importForm.service_items.push({ project: '', frequency: 1, unit: '月', price: null, service_object: null })">+ 添加服务项目</el-button>
+
+      <template v-if="importTextPreview">
+        <el-alert title="未识别到大模型，以下为原文片段，请对照人工补录" type="warning" :closable="false" style="margin-top: 12px" />
+        <div class="text-preview">{{ importTextPreview }}</div>
+      </template>
+
+      <template #footer>
+        <el-button @click="importDlg = false">取消</el-button>
+        <el-button type="primary" :loading="importLoading" @click="onConfirmImport">确认导入并生成合同</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -164,6 +267,7 @@ import {
   listContracts, createContract, updateContract, deleteContract,
   listItems, createItem, updateItem, deleteItem, generateCycles,
   listCis, createCi, updateCi, deleteCi, listCustomers,
+  uploadContractArchive, confirmContractArchive, listContractArchives, downloadContractArchive,
 } from '@/api'
 import { useAuthStore } from '@/stores/auth'
 
@@ -196,6 +300,106 @@ const PROJECTS = ['漏洞扫描', '渗透测试', '应急演练', '安全加固'
 const ciDlg = ref(false)
 const ciEditId = ref<number | null>(null)
 const ciForm = reactive({ contract_id: 1, name: '', type: '业务系统', ip: '', lifecycle: '在用' })
+
+// ---- 合同原件导入 ----
+const fileInput = ref<HTMLInputElement | null>(null)
+const importDlg = ref(false)
+const importLoading = ref(false)
+const importArchiveId = ref<number | null>(null)
+const importOriginalName = ref('')
+const importTextPreview = ref('')
+const importForm = reactive({
+  customer_id: null as number | null,
+  customer_name: '',
+  contract_no: '',
+  sign_date: '',
+  amount: null as number | null,
+  has_onsite: false,
+  service_period: '',
+  staff_requirement: '',
+  accept_standard: '',
+  delivery_docs: '',
+  acceptance_report_format: '',
+  service_objects: [] as string[],
+  service_items: [] as any[],
+})
+
+function pickFile() {
+  fileInput.value?.click()
+}
+
+function resetImportForm() {
+  Object.assign(importForm, {
+    customer_id: null, customer_name: '', contract_no: '', sign_date: '',
+    amount: null, has_onsite: false, service_period: '', staff_requirement: '',
+    accept_standard: '', delivery_docs: '', acceptance_report_format: '',
+    service_objects: [], service_items: [],
+  })
+}
+
+async function onFilePicked(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  importLoading.value = true
+  try {
+    const res = await uploadContractArchive(file)
+    const d = res.data
+    importArchiveId.value = d.archive_id
+    importOriginalName.value = d.original_filename
+    importTextPreview.value = d.text_preview || ''
+    const ex = d.extracted || {}
+    resetImportForm()
+    importForm.customer_name = ex.customer_name || ''
+    importForm.contract_no = ex.contract_no || ''
+    importForm.sign_date = ex.sign_date || ''
+    importForm.amount = ex.amount ?? null
+    importForm.has_onsite = !!ex.has_onsite
+    importForm.service_period = ex.service_period || ''
+    importForm.staff_requirement = ex.staff_requirement || ''
+    importForm.accept_standard = ex.accept_standard || ''
+    importForm.delivery_docs = ex.delivery_docs || ''
+    importForm.acceptance_report_format = ex.acceptance_report_format || ''
+    importForm.service_objects = ex.service_objects || []
+    importForm.service_items = (ex.service_items || []).map((it: any) => ({
+      project: it.project, frequency: it.frequency ?? 1, unit: it.unit || '月',
+      price: it.price ?? null, service_object: it.service_object || null,
+    }))
+    importDlg.value = true
+  } finally {
+    importLoading.value = false
+    input.value = ''
+  }
+}
+
+async function onConfirmImport() {
+  if (!importArchiveId.value) return
+  importLoading.value = true
+  try {
+    await confirmContractArchive(importArchiveId.value, {
+      customer_id: importForm.customer_id,
+      customer_name: importForm.customer_name,
+      contract_no: importForm.contract_no,
+      sign_date: importForm.sign_date || null,
+      amount: importForm.amount,
+      has_onsite: importForm.has_onsite,
+      service_period: importForm.service_period || null,
+      staff_requirement: importForm.staff_requirement || null,
+      accept_standard: importForm.accept_standard || null,
+      delivery_docs: importForm.delivery_docs || null,
+      acceptance_report_format: importForm.acceptance_report_format || null,
+      service_objects: importForm.service_objects.filter((o: string) => o && o.trim()),
+      service_items: importForm.service_items.filter((it: any) => it.project && it.project.trim()),
+    })
+    ElMessage.success('导入完成，已生成合同与服务对象/项目')
+    importDlg.value = false
+    loadContracts()
+    loadCis()
+    loadItems()
+  } finally {
+    importLoading.value = false
+  }
+}
 
 async function loadContracts() {
   loading.value = true
@@ -254,6 +458,21 @@ async function onDeleteContract(row: any) {
   await ElMessageBox.confirm(`确认删除合同「${row.name}」？`, '提示', { type: 'warning' })
   await deleteContract(row.id)
   loadContracts()
+}
+async function onViewContract(row: any) {
+  try {
+    const list = await listContractArchives({ page: 1, size: 1, contract_id: row.id })
+    const archives = list.data.items
+    if (!archives.length) {
+      ElMessage.warning('该合同尚未导入原件')
+      return
+    }
+    const blob = await downloadContractArchive(archives[0].id)
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank')
+  } catch {
+    ElMessage.error('查看原件失败')
+  }
 }
 
 // 服务项目
@@ -318,4 +537,6 @@ onMounted(() => {
 
 <style scoped>
 .toolbar { display: flex; gap: 12px; margin-bottom: 14px; }
+.obj-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.text-preview { margin-top: 8px; max-height: 200px; overflow: auto; white-space: pre-wrap; background: #f5f7fa; padding: 8px; border-radius: 4px; font-size: 12px; color: #666; }
 </style>

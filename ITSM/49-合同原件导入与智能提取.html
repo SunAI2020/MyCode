@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>步骤 49 · 合同原件导入与智能提取</title>
+<style>
+body{font-family:"Microsoft YaHei",sans-serif;max-width:960px;margin:2rem auto;line-height:1.7;color:#222;padding:0 1rem}
+h1{border-bottom:2px solid #2c6fbb;padding-bottom:.4rem}
+h2{color:#2c6fbb;margin-top:1.8rem}
+code,pre{background:#f5f7fa;border-radius:4px}
+code{padding:0 .3em}
+pre{padding:.8rem;overflow:auto}
+table{border-collapse:collapse;width:100%;margin:1rem 0}
+th,td{border:1px solid #d0d7de;padding:.4rem .6rem;text-align:left}
+th{background:#f0f3f6}
+.tag{display:inline-block;background:#e8f0fe;color:#1a56b0;border-radius:3px;padding:0 .4em;font-size:.85em;margin-right:.3em}
+</style>
+</head>
+<body>
+<h1>步骤 49 · 合同原件导入与智能提取</h1>
+
+<h2>目标</h2>
+<p>合同管理页新增「合同原件」导入：上传 PDF/Word 原件 → 加密存档 → 智能识别并自动提取合同要素 → 弹窗表格展示、供人工修改补充 → 确认后自动生成「客户 → 合同 → 服务对象 → 服务项目」全链路。</p>
+
+<h2>关键决策（用户已确认）</h2>
+<ol>
+<li><strong>文件存储</strong>：原件 Fernet 加密后存本地磁盘 <code>uploads/contracts/</code>，数据库只存元数据（哈希/加密文件名/大小/提取字段），不存 BLOB。</li>
+<li><strong>确认后落地</strong>：自动生成全链路（客户 → 合同 → 服务对象 → 服务项目）。</li>
+</ol>
+
+<h2>交互流程</h2>
+<pre>「导入存档」→ 选文件(.pdf/.docx)
+  → POST /contract-archives/upload：校验 → 抽文本 → LLM 抽取 → 加密写盘 → 建待确认行
+  → 返回 archive_id + 抽取字段 → 前端弹窗编辑
+  → POST /contract-archives/{id}/confirm：匹配/新建客户 → 建合同 → 建服务对象 → 建服务项目 → 归档
+  → 返回合同 → 刷新列表</pre>
+
+<h2>抽取字段（14 项）</h2>
+<table>
+<tr><th>字段</th><th>落点</th><th>说明</th></tr>
+<tr><td>客户名称</td><td>Customer.name</td><td>精确匹配复用，否则新建</td></tr>
+<tr><td>合同号</td><td>Contract.no</td><td></td></tr>
+<tr><td>合同签署日期</td><td>Contract.sign_date <span class="tag">新增列</span></td><td></td></tr>
+<tr><td>合同金额</td><td>Contract.amount</td><td>客户侧脱敏</td></tr>
+<tr><td>服务对象</td><td>CmdbCi（多）</td><td>名称列表</td></tr>
+<tr><td>服务项目</td><td>ContractItem.project（多）</td><td>每条含 project/frequency/unit/price</td></tr>
+<tr><td>服务频次</td><td>ContractItem.frequency + unit</td><td>随服务项目</td></tr>
+<tr><td>是否驻场服务</td><td>Contract.has_onsite</td><td>bool</td></tr>
+<tr><td>人员要求</td><td>Contract.staff_requirement <span class="tag">新增列</span></td><td></td></tr>
+<tr><td>服务期限</td><td>Contract.start_date/end_date</td><td>「起 至 止」解析，失败留空</td></tr>
+<tr><td>验收标准</td><td>Contract.accept_standard <span class="tag">新增列</span></td><td></td></tr>
+<tr><td>交付文档</td><td>Contract.delivery_docs <span class="tag">新增列</span></td><td></td></tr>
+<tr><td>验收报告格式</td><td>Contract.acceptance_report_format <span class="tag">新增列</span></td><td></td></tr>
+</table>
+
+<h2>变更内容</h2>
+<ul>
+<li><strong>依赖</strong>：<code>pypdf</code>、<code>python-docx</code>。</li>
+<li><strong>加密</strong>：<code>app/services/archive_crypto.py</code>，密钥来自持久化密钥文件 <code>uploads/contracts/.archive.key</code>（跨重启稳定），可选 <code>ARCHIVE_ENC_KEY</code> 覆盖。</li>
+<li><strong>模型</strong>：<code>Contract</code> 加 5 列；新增 <code>ContractArchive</code>。</li>
+<li><strong>抽取服务</strong>：<code>app/services/contract_extract_service.py</code>（LLM+降级）。</li>
+<li><strong>API</strong>：<code>app/api/v1/contract_archives.py</code>（upload / confirm / list / download）。</li>
+<li><strong>迁移</strong>：<code>0022_contract_archive.py</code>。</li>
+<li><strong>前端</strong>：<code>Contracts.vue</code> 加「导入存档」+ 抽取结果编辑弹窗。</li>
+<li><strong>测试</strong>：<code>test_contract_archive.py</code>。</li>
+</ul>
+
+<h2>安全说明</h2>
+<ul>
+<li><strong>加密传输</strong>：生产由 nginx 终止 TLS；文件落盘前已 Fernet 加密（静态加密覆盖开发/直连）。</li>
+<li><strong>脱敏</strong>：提取结果中的金额等敏感字段对客户侧角色按 <code>mask_sensitive</code> 脱敏。</li>
+<li><strong>行级隔离</strong>：归档按 <code>customer_id</code> 隔离；待确认行仅本次会话可见。</li>
+<li><strong>类型/大小</strong>：仅 <code>.pdf</code>/<code>.docx</code>，上限 20MB。</li>
+</ul>
+</body>
+</html>

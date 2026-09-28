@@ -15,6 +15,11 @@ class ContractCreate(BaseModel):
     end_date: date | None = None
     has_onsite: bool = False
     status: str = "洽谈中"
+    sign_date: date | None = None
+    staff_requirement: str | None = None
+    accept_standard: str | None = None
+    delivery_docs: str | None = None
+    acceptance_report_format: str | None = None
 
 
 class ContractUpdate(BaseModel):
@@ -27,6 +32,11 @@ class ContractUpdate(BaseModel):
     end_date: date | None = None
     has_onsite: bool | None = None
     status: str | None = None
+    sign_date: date | None = None
+    staff_requirement: str | None = None
+    accept_standard: str | None = None
+    delivery_docs: str | None = None
+    acceptance_report_format: str | None = None
 
 
 class ContractOut(BaseModel):
@@ -42,6 +52,11 @@ class ContractOut(BaseModel):
     end_date: date | None = None
     has_onsite: bool
     status: str
+    sign_date: date | None = None
+    staff_requirement: str | None = None
+    accept_standard: str | None = None
+    delivery_docs: str | None = None
+    acceptance_report_format: str | None = None
     created_at: datetime | None = None
 
 

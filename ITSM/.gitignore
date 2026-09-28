@@ -17,6 +17,9 @@ vite.config.d.ts
 .env
 .env.production
 
+# 上传与合同档案（加密原件 + 归档密钥，严禁入库）
+uploads/
+
 # 数据库备份
 backups/
 
