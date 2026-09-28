@@ -19,6 +19,7 @@ from app.models import (
 )
 from app.schemas.contract_archive import ContractArchiveConfirm, ServiceItemIn
 from app.services.archive_crypto import decrypt_bytes, encrypt_bytes
+from app.services.contract_extract_service import extract_contract_fields
 
 
 def _mk_user(db):
@@ -36,6 +37,29 @@ def _mk_archive(db, u):
     db.add(obj)
     db.commit()
     return obj
+
+
+def test_rule_extract_fallback():
+    """无 LLM 时规则抽取常见字段，识别结果不空。"""
+    text = (
+        "安全服务合同\n"
+        "合同编号：HT-2026-001\n"
+        "甲方：某科技有限公司\n"
+        "乙方：某安全公司\n"
+        "合同金额：12万元\n"
+        "服务期限：2026-01-01 至 2026-12-31\n"
+        "驻场服务：是\n"
+        "服务对象：OA系统、数据库服务器\n"
+    )
+    r = extract_contract_fields(text)
+    assert r["llm_used"] is False
+    assert r["contract_no"] == "HT-2026-001"
+    assert r["customer_name"] == "某科技有限公司"
+    assert r["amount"] == 120000.0
+    assert r["has_onsite"] is True
+    assert r["sign_date"] == "2026-01-01"
+    assert r["service_period"] == "2026-01-01 至 2026-12-31"
+    assert r["service_objects"] == ["OA系统", "数据库服务器"]
 
 
 def test_encrypt_decrypt_roundtrip(tmp_path, monkeypatch):

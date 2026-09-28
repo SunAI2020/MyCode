@@ -248,7 +248,7 @@
       <el-button link type="primary" style="margin-top: 8px" @click="importForm.service_items.push({ project: '', frequency: 1, unit: '月', price: null, service_object: null })">+ 添加服务项目</el-button>
 
       <template v-if="importTextPreview">
-        <el-alert title="未识别到大模型，以下为原文片段，请对照人工补录" type="warning" :closable="false" style="margin-top: 12px" />
+        <el-alert title="已用规则识别（未配置大模型），请核对补充；下方为原文片段" type="warning" :closable="false" style="margin-top: 12px" />
         <div class="text-preview">{{ importTextPreview }}</div>
       </template>
 

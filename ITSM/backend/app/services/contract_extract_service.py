@@ -155,14 +155,62 @@ def _normalize(parsed: dict) -> dict:
     return out
 
 
-def extract_contract_fields(text: str) -> dict:
-    """LLM 抽取 14 类字段；未配置/失败返回空字段（llm_used=False）。"""
-    base = {
+def _rule_extract(text: str) -> dict:
+    """无 LLM 时的确定性降级：正则/关键词抽取常见字段，供人工核对补充。"""
+    out = {
         "customer_name": None, "contract_no": None, "sign_date": None,
         "amount": None, "has_onsite": None, "service_period": None,
         "staff_requirement": None, "accept_standard": None, "delivery_docs": None,
         "acceptance_report_format": None, "service_objects": [], "service_items": [],
     }
+    if not text:
+        return out
+
+    m = re.search(r"(?:合同编号|合同号|合同NO\.?|Contract\s*No\.?)\s*[:：]?\s*([A-Za-z0-9][A-Za-z0-9\-_/]*)", text, re.I)
+    if m:
+        out["contract_no"] = m.group(1).strip()
+
+    m = re.search(r"甲方\s*[:：]?\s*([^\n\r：:]+)", text)
+    if m:
+        out["customer_name"] = m.group(1).strip()
+
+    m = re.search(r"(?:合同金额|合同总价|总价|金额|价款|¥|￥)\s*[:：]?\s*([0-9][0-9,.]*)\s*(万|万元|元)?", text)
+    if m:
+        amt = m.group(1).replace(",", "")
+        try:
+            val = float(amt)
+            if m.group(2) in ("万", "万元"):
+                val *= 10000
+            out["amount"] = val
+        except ValueError:
+            pass
+
+    norm_dates: list[date] = []
+    for d in re.findall(r"\d{4}[-./年]\d{1,2}[-./月]\d{1,2}日?", text):
+        s = d.replace("年", "-").replace("月", "-").replace("日", "").replace("/", "-").replace(".", "-")
+        try:
+            norm_dates.append(date.fromisoformat(s))
+        except ValueError:
+            continue
+    if norm_dates:
+        norm_dates.sort()
+        out["sign_date"] = norm_dates[0].isoformat()
+        if len(norm_dates) >= 2:
+            out["service_period"] = f"{norm_dates[0].isoformat()} 至 {norm_dates[-1].isoformat()}"
+
+    if re.search(r"驻场|现场服务|驻点", text):
+        out["has_onsite"] = True
+
+    m = re.search(r"(?:服务对象|维护对象|运维对象|服务内容)\s*[:：]?\s*([^\n\r]+)", text)
+    if m:
+        objs = re.split(r"[、,，;；]", m.group(1))
+        out["service_objects"] = [o.strip() for o in objs if o.strip()]
+
+    return out
+
+
+def extract_contract_fields(text: str) -> dict:
+    """抽取 14 类字段：LLM 优先，未配置/失败降级为规则抽取（llm_used=False）。"""
     if llm_configured() and text.strip():
         try:
             raw = chat(EXTRACT_PROMPT_TMPL.format(text=text[:8000]), system=EXTRACT_SYSTEM)
@@ -173,6 +221,7 @@ def extract_contract_fields(text: str) -> dict:
                 return base
         except Exception:
             pass
+    base = _rule_extract(text)
     base["llm_used"] = False
     return base
 
