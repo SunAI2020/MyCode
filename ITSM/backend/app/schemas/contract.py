@@ -14,10 +14,11 @@ class ContractCreate(BaseModel):
     start_date: date | None = None
     end_date: date | None = None
     has_onsite: bool = False
-    status: str = "草稿"
+    status: str = "洽谈中"
 
 
 class ContractUpdate(BaseModel):
+    customer_id: int | None = None
     type: str | None = None
     name: str | None = None
     no: str | None = None
@@ -46,7 +47,7 @@ class ContractOut(BaseModel):
 
 # ---- 服务对象 CI ----
 class CmdbCiCreate(BaseModel):
-    customer_id: int
+    contract_id: int
     name: str
     type: str = "业务系统"
     ip: str | None = None
@@ -56,6 +57,7 @@ class CmdbCiCreate(BaseModel):
 
 
 class CmdbCiUpdate(BaseModel):
+    contract_id: int | None = None
     name: str | None = None
     type: str | None = None
     ip: str | None = None
@@ -69,6 +71,7 @@ class CmdbCiOut(BaseModel):
 
     id: int
     customer_id: int
+    contract_id: int
     name: str
     type: str
     ip: str | None = None
@@ -80,8 +83,7 @@ class CmdbCiOut(BaseModel):
 
 # ---- 合同子项 ----
 class ContractItemCreate(BaseModel):
-    contract_id: int
-    ci_id: int | None = None
+    ci_id: int
     project: str
     frequency: int = 1
     unit: str = "月"

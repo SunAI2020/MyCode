@@ -18,7 +18,7 @@ class Contract(Base):
     start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     has_onsite: Mapped[bool] = mapped_column(Boolean, default=False)
-    status: Mapped[str] = mapped_column(String(16), default="草稿")  # 草稿/执行中/已到期/已续约
+    status: Mapped[str] = mapped_column(String(16), default="洽谈中")  # 洽谈中/执行中/已到期/已续约
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -30,7 +30,8 @@ class CmdbCi(Base):
     __tablename__ = "cmdb_ci"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    customer_id: Mapped[int] = mapped_column(ForeignKey("customer.id"), index=True)
+    customer_id: Mapped[int] = mapped_column(ForeignKey("customer.id"), index=True)  # 冗余，由合同派生，供行级隔离直接过滤
+    contract_id: Mapped[int] = mapped_column(ForeignKey("contract.id"), index=True)  # 服务对象归属合同
     name: Mapped[str] = mapped_column(String(128))  # 如 OA 系统 / XX 系统
     type: Mapped[str] = mapped_column(String(32), default="业务系统")  # 业务系统/网络设备/服务器/机房/数据库
     ip: Mapped[str | None] = mapped_column(String(64), nullable=True)  # 脱敏
@@ -60,8 +61,8 @@ class ContractItem(Base):
     __tablename__ = "contract_item"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    contract_id: Mapped[int] = mapped_column(ForeignKey("contract.id"), index=True)
-    ci_id: Mapped[int | None] = mapped_column(ForeignKey("cmdb_ci.id"), nullable=True)
+    contract_id: Mapped[int] = mapped_column(ForeignKey("contract.id"), index=True)  # 冗余，由 ci.contract_id 派生，供 scope_filter/cycle 使用
+    ci_id: Mapped[int] = mapped_column(ForeignKey("cmdb_ci.id"), index=True)  # 服务项目归属服务对象
     project: Mapped[str] = mapped_column(String(64))  # 运维项目枚举
     frequency: Mapped[int] = mapped_column(Integer, default=1)
     unit: Mapped[str] = mapped_column(String(16), default="月")  # 天/周/月/季度/半年/年/不定期

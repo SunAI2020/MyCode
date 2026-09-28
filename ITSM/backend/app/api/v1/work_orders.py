@@ -1,4 +1,6 @@
 """接单 / 工单 / 派单 / 状态流转。"""
+from datetime import date
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
@@ -10,9 +12,24 @@ from app.core.deps import (
     require_role,
     scope_filter,
 )
-from app.models import OrderDispatch, OrderReceive, SysUser, WorkOrder, WorkOrderAssignee
+from app.models import (
+    CmdbCi,
+    Contract,
+    ContractItem,
+    Customer,
+    OrderDispatch,
+    OrderReceive,
+    SysUser,
+    WorkOrder,
+    WorkOrderAssignee,
+    WorkOrderCi,
+    WorkOrderCycle,
+    WorkOrderItem,
+)
 from app.core.security import mask_sensitive, masked_page
 from app.schemas.work_order import (
+    AggregatePreviewIn,
+    AggregateWorkOrderCreate,
     AssigneeHoursIn,
     AssigneeOut,
     DispatchCreate,
@@ -26,6 +43,7 @@ from app.schemas.work_order import (
 )
 from app.schemas.kb import KbArticleOut
 from app.services.audit_service import record
+from app.services.cycle_service import split_cycles
 from app.services.ai_service import summarize_work_order, work_order_to_kb_draft
 from app.services.dispatch_service import record_assignee_hours, transfer_assignee
 from app.services.search_service import index_kb_article
@@ -124,6 +142,134 @@ def create_work_order(
         record(db, user_id=user.id, action="create", resource=f"work_order:{wo.id}", after=str(body.model_dump()))
         db.commit()
     return ok(WorkOrderOut.model_validate(wo).model_dump())
+
+
+def _item_cycles(db: Session, item: ContractItem) -> list[tuple[int, date, date]]:
+    """按合同起止日期 + 服务项目频率/单位即时拆分频次（周期），与 generate_cycles 同源。"""
+    contract = db.get(Contract, item.contract_id)
+    if contract is None or contract.start_date is None or contract.end_date is None:
+        return []
+    return split_cycles(contract.start_date, contract.end_date, item.frequency, item.unit)
+
+
+@router.post("/aggregate/preview")
+def aggregate_cycles_preview(
+    body: AggregatePreviewIn,
+    user: SysUser = Depends(require_role(*WORK_WRITE_ROLE)),
+    db: Session = Depends(get_db),
+):
+    """给定服务项目列表，返回各项目的频次（周期）列表，供前端渲染复选。"""
+    scope = customer_scope_of(user, db)
+    cycles: dict[int, list[dict]] = {}
+    for iid in body.contract_item_ids:
+        item = db.get(ContractItem, iid)
+        if item is None:
+            cycles[iid] = []
+            continue
+        if scope is not None:
+            ci = db.get(CmdbCi, item.ci_id)
+            if ci is None or ci.customer_id != scope:
+                raise HTTPException(status.HTTP_403_FORBIDDEN, "无权访问该服务项目")
+        cycles[iid] = [
+            {"cycle_no": no, "service_start": s.isoformat(), "service_end": e.isoformat()}
+            for no, s, e in _item_cycles(db, item)
+        ]
+    return ok({"cycles": cycles})
+
+
+@router.post("/aggregate")
+def create_aggregate_work_order(
+    body: AggregateWorkOrderCreate,
+    user: SysUser = Depends(require_role(*WORK_WRITE_ROLE)),
+    db: Session = Depends(get_db),
+):
+    customer = db.get(Customer, body.customer_id)
+    if customer is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "客户不存在")
+    scope = customer_scope_of(user, db)
+    if scope is not None and body.customer_id != scope:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "无权为其他客户创建工单")
+
+    ci_set: set[int] = set()
+    for ci_id in body.ci_ids:
+        ci = db.get(CmdbCi, ci_id)
+        if ci is None or ci.customer_id != body.customer_id:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "服务对象不存在或不属于该客户")
+        ci_set.add(ci_id)
+
+    items_by_id: dict[int, ContractItem] = {}
+    for iid in body.contract_item_ids:
+        item = db.get(ContractItem, iid)
+        if item is None or item.ci_id not in ci_set:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "服务项目不存在或不属于所选服务对象")
+        items_by_id[iid] = item
+
+    item_cycle_dates: dict[int, dict[int, tuple[date, date]]] = {}
+    for iid, item in items_by_id.items():
+        item_cycle_dates[iid] = {no: (s, e) for no, s, e in _item_cycles(db, item)}
+
+    cycle_rows: list[tuple[int, int, date, date]] = []
+    seen: set[tuple[int, int]] = set()
+    for c in body.cycles:
+        dates = item_cycle_dates.get(c.contract_item_id)
+        if dates is None:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "频次不属于所选服务项目")
+        if c.cycle_no not in dates:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "频次编号无效")
+        if (c.contract_item_id, c.cycle_no) in seen:
+            continue
+        seen.add((c.contract_item_id, c.cycle_no))
+        s, e = dates[c.cycle_no]
+        cycle_rows.append((c.contract_item_id, c.cycle_no, s, e))
+
+    with work_order_no_scope(db):
+        wo = WorkOrder(
+            no=next_work_order_no(db),
+            type=body.type,
+            customer_id=body.customer_id,
+            priority=body.priority,
+            description=body.description,
+            status="待派单",
+        )
+        db.add(wo)
+        db.flush()
+        for ci_id in body.ci_ids:
+            db.add(WorkOrderCi(work_order_id=wo.id, ci_id=ci_id))
+        for iid in body.contract_item_ids:
+            db.add(WorkOrderItem(work_order_id=wo.id, contract_item_id=iid))
+        for iid, no, s, e in cycle_rows:
+            db.add(WorkOrderCycle(work_order_id=wo.id, contract_item_id=iid, cycle_no=no, service_start=s, service_end=e))
+        record(db, user_id=user.id, action="create_aggregate", resource=f"work_order:{wo.id}", after=str(body.model_dump()))
+        db.commit()
+    return ok(WorkOrderOut.model_validate(wo).model_dump())
+
+
+@router.get("/{wid}/scope")
+def get_work_order_scope(wid: int, user: SysUser = Depends(get_current_user), db: Session = Depends(get_db)):
+    """聚合工单明细：服务对象 / 服务项目 / 频次。"""
+    wo = db.get(WorkOrder, wid)
+    if wo is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "工单不存在")
+    assert_scoped(wo, customer_scope_of(user, db), db)
+    cis = []
+    for r in db.query(WorkOrderCi).filter_by(work_order_id=wid).all():
+        ci = db.get(CmdbCi, r.ci_id)
+        if ci:
+            cis.append({"ci_id": ci.id, "name": ci.name, "type": ci.type})
+    items = []
+    for r in db.query(WorkOrderItem).filter_by(work_order_id=wid).all():
+        item = db.get(ContractItem, r.contract_item_id)
+        if item:
+            items.append({
+                "contract_item_id": item.id, "ci_id": item.ci_id, "project": item.project,
+                "frequency": item.frequency, "unit": item.unit, "price": item.price,
+            })
+    cycles = [
+        {"contract_item_id": r.contract_item_id, "cycle_no": r.cycle_no,
+         "service_start": r.service_start.isoformat(), "service_end": r.service_end.isoformat()}
+        for r in db.query(WorkOrderCycle).filter_by(work_order_id=wid).all()
+    ]
+    return ok({"work_order": WorkOrderOut.model_validate(wo).model_dump(), "cis": cis, "items": items, "cycles": cycles})
 
 
 @router.get("/{wid}")

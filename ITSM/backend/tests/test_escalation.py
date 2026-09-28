@@ -1,7 +1,7 @@
 """SLA 升级记录单测：超时工单生成升级记录 + 去重。"""
 from datetime import date, datetime, timedelta
 
-from app.models import Contract, ContractItem, Customer, Escalation, SlaPolicy, WorkOrder
+from app.models import CmdbCi, Contract, ContractItem, Customer, Escalation, SlaPolicy, WorkOrder
 from app.services.sla_service import scan_sla_escalations
 
 
@@ -18,7 +18,10 @@ def _mk_overdue_wo(db):
     )
     db.add(policy)
     db.flush()
-    item = ContractItem(contract_id=ct.id, project="OA", sla_policy_id=policy.id)
+    ci = CmdbCi(customer_id=c.id, contract_id=ct.id, name="CI")
+    db.add(ci)
+    db.flush()
+    item = ContractItem(contract_id=ct.id, ci_id=ci.id, project="OA", sla_policy_id=policy.id)
     db.add(item)
     db.flush()
     wo = WorkOrder(

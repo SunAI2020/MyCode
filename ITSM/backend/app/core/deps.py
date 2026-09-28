@@ -134,8 +134,6 @@ def scope_filter(q, model, scope: int | None):
         return q
     if model is Customer:
         return q.filter(model.id == scope)
-    if hasattr(model, "customer_id"):
-        return q.filter(model.customer_id == scope)
     if model is WorkOrder:
         q = q.outerjoin(Contract, model.contract_id == Contract.id)
         q = q.outerjoin(OrderReceive, model.receive_id == OrderReceive.id)
@@ -144,6 +142,7 @@ def scope_filter(q, model, scope: int | None):
         q = q.outerjoin(item_contract, ContractItem.contract_id == item_contract.id)
         return q.filter(
             or_(
+                model.customer_id == scope,
                 Contract.customer_id == scope,
                 OrderReceive.customer_id == scope,
                 item_contract.customer_id == scope,
@@ -171,6 +170,8 @@ def scope_filter(q, model, scope: int | None):
                 wo_item_contract.customer_id == scope,
             )
         )
+    if hasattr(model, "customer_id"):
+        return q.filter(model.customer_id == scope)
     return q.join(Contract, model.contract_id == Contract.id).filter(
         Contract.customer_id == scope
     )

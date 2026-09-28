@@ -23,7 +23,14 @@ from app.models.system import (
     SysUser,
     SysUserRole,
 )
-from app.models.work_order import OrderReceive, WorkOrder, WorkOrderAssignee
+from app.models.work_order import (
+    OrderReceive,
+    WorkOrder,
+    WorkOrderAssignee,
+    WorkOrderCi,
+    WorkOrderCycle,
+    WorkOrderItem,
+)
 from app.models.work_calendar import WorkCalendar
 from app.models.workflow import ActionLog, WorkflowRule
 
@@ -47,6 +54,9 @@ __all__ = [
     "OrderDispatch",
     "WorkOrder",
     "WorkOrderAssignee",
+    "WorkOrderCi",
+    "WorkOrderCycle",
+    "WorkOrderItem",
     "Issue",
     "Rectification",
     "RectificationRecord",

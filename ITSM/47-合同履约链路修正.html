@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>47-合同履约链路修正（服务对象→服务项目）</title>
+<style>
+body{font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;max-width:860px;margin:40px auto;padding:0 20px;line-height:1.7;color:#1f2937}
+h1{color:#0a3d91;border-bottom:2px solid #0a3d91;padding-bottom:8px}
+h2{color:#0a3d91;margin-top:28px}
+code{background:#f3f4f6;padding:2px 6px;border-radius:4px;font-family:Consolas,monospace;font-size:0.92em}
+pre{background:#0f2440;color:#cbd5e1;padding:14px;border-radius:8px;overflow:auto;font-size:0.9em}
+li{margin:6px 0}
+</style>
+</head>
+<body>
+<h1>47-合同履约链路修正（服务对象→服务项目）</h1>
+
+<h2>背景</h2>
+<p>原数据模型主从链路不完整：</p>
+<ul>
+<li>客户 → 合同：已有（<code>Contract.customer_id</code>）。</li>
+<li>合同 → 服务对象：缺失，<code>CmdbCi</code> 只挂 <code>customer_id</code>。</li>
+<li>服务对象 → 服务项目：错位，<code>ContractItem</code> 挂的是 <code>contract_id</code>，<code>ci_id</code> 可空。</li>
+</ul>
+<p>修正为目标链路：</p>
+<pre>客户 → 1+ 合同 → 1+ 服务对象(CI) → 1+ 服务项目(原"合同子项"，含服务频次、价格) → 1+ 频次/周期</pre>
+<p>工单为聚合模型（1 客户 + 多服务对象 + 多服务项目 + 多频次，可勾选默认全选），作为后续独立步骤，本次不实现。</p>
+
+<h2>后端</h2>
+<h3>模型 <code>backend/app/models/contract.py</code></h3>
+<ul>
+<li><code>CmdbCi</code>：新增 <code>contract_id</code>（FK→contract.id，NOT NULL，index）；保留 <code>customer_id</code>（冗余，创建时由合同派生，供 <code>scope_filter</code> 直接过滤）。</li>
+<li><code>ContractItem</code>：<code>ci_id</code> 由可空改为必填（挂服务对象）；保留 <code>contract_id</code>（冗余，由 <code>ci.contract_id</code> 派生，供 <code>scope_filter</code> / <code>cycle_service</code> 使用）。</li>
+</ul>
+<h3>Schema <code>backend/app/schemas/contract.py</code></h3>
+<ul>
+<li><code>CmdbCiCreate</code>：加 <code>contract_id</code>（必填），去掉 <code>customer_id</code>（派生）。</li>
+<li><code>CmdbCiUpdate</code>：加 <code>contract_id: int | None</code>。</li>
+<li><code>CmdbCiOut</code>：加 <code>contract_id</code>。</li>
+<li><code>ContractItemCreate</code>：<code>ci_id</code> 改必填，去掉 <code>contract_id</code>（派生）。</li>
+<li><code>ContractItemUpdate</code>：加 <code>ci_id: int | None</code>。</li>
+</ul>
+<h3>API <code>backend/app/api/v1/contracts.py</code></h3>
+<ul>
+<li><code>create_ci</code>：校验合同存在（400「合同不存在」），<code>customer_id = 合同.customer_id</code>。</li>
+<li><code>update_ci</code>：传 <code>contract_id</code> 时校验并重派生 <code>customer_id</code>。</li>
+<li><code>create_item</code>：校验服务对象存在（400「服务对象不存在」），<code>contract_id = ci.contract_id</code>。</li>
+<li><code>update_item</code>：传 <code>ci_id</code> 时校验并重派生 <code>contract_id</code>。</li>
+<li><code>list_items</code>：新增 <code>ci_id</code> 查询参数，支持按服务对象筛选。</li>
+</ul>
+
+<h2>前端 <code>frontend/src/views/Contracts.vue</code></h2>
+<ul>
+<li>标签页顺序：合同 → 服务对象 → 服务项目；「合同子项」改名「服务项目」，「服务对象(CI)」改名「服务对象」。</li>
+<li>CI 弹窗：客户ID 文本输入 → 合同下拉；CI 列表「客户名称」列 → 「合同名称」列。</li>
+<li>服务项目弹窗：合同ID 文本输入 → 服务对象下拉；列表增加「服务对象」列。</li>
+<li>服务项目筛选下拉：选择合同 → 选择服务对象。</li>
+</ul>
+
+<h2>数据库</h2>
+<p>重置（用户已确认）：<code>DROP SCHEMA public CASCADE</code> + <code>alembic upgrade head</code> + <code>app.db.seed</code>。</p>
+
+<h2>验证</h2>
+<p>重置库后，建客户 → 建合同 → 建服务对象(选合同) → 建服务项目(选服务对象) → 生成周期，各列表父级名称正确显示。</p>
+</body>
+</html>

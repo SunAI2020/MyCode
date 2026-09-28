@@ -1,8 +1,7 @@
 """签到打卡：GPS 定位签到 + 拍照留证（移动端服务人员）。"""
-from datetime import date
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, get_db
@@ -14,6 +13,22 @@ from app.utils.response import ok
 router = APIRouter(prefix="/checkins", tags=["签到打卡"])
 
 
+def _local_today_bounds() -> tuple[datetime, datetime]:
+    """本地「今日」的 [00:00, 次日 00:00) 区间，转成 UTC 且去时区。
+
+    created_at 由 server_default=func.now() 生成（SQLite/Postgres 均为 UTC），而
+    date.today() 是本地时间；直接用 func.date(created_at) 比对，会在东八区 00:00~08:00
+    跨天后相差一天。故改用「本地日区间 → UTC」的范围比较。
+    """
+    now = datetime.now().astimezone()  # 本地时区感知
+    start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    end = start + timedelta(days=1)
+    return (
+        start.astimezone(timezone.utc).replace(tzinfo=None),
+        end.astimezone(timezone.utc).replace(tzinfo=None),
+    )
+
+
 @router.post("")
 def create_checkin(
     body: CheckInCreate,
@@ -21,13 +36,14 @@ def create_checkin(
     db: Session = Depends(get_db),
 ):
     """签到/签退（GPS + 照片）。同类型每日一次，重复返回 400。"""
-    today = date.today()
+    start, end = _local_today_bounds()
     dup = (
         db.query(CheckIn)
         .filter(
             CheckIn.user_id == user.id,
             CheckIn.check_type == body.check_type,
-            func.date(CheckIn.created_at) == today,
+            CheckIn.created_at >= start,
+            CheckIn.created_at < end,
         )
         .first()
     )
@@ -54,11 +70,13 @@ def list_checkins(
 @router.get("/today")
 def today(user: SysUser = Depends(get_current_user), db: Session = Depends(get_db)):
     """今日签到状态：返回今日全部打卡记录，移动端据此判断是否已签到/签退。"""
+    start, end = _local_today_bounds()
     rows = (
         db.query(CheckIn)
         .filter(
             CheckIn.user_id == user.id,
-            func.date(CheckIn.created_at) == date.today(),
+            CheckIn.created_at >= start,
+            CheckIn.created_at < end,
         )
         .order_by(CheckIn.id.asc())
         .all()

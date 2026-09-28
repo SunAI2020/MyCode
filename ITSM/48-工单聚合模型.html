@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>48-工单聚合模型</title>
+<style>
+body{font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;max-width:860px;margin:40px auto;padding:0 20px;line-height:1.7;color:#1f2937}
+h1{color:#0a3d91;border-bottom:2px solid #0a3d91;padding-bottom:8px}
+h2{color:#0a3d91;margin-top:28px}
+code{background:#f3f4f6;padding:2px 6px;border-radius:4px;font-family:Consolas,monospace;font-size:0.92em}
+pre{background:#0f2440;color:#cbd5e1;padding:14px;border-radius:8px;overflow:auto;font-size:0.9em}
+li{margin:6px 0}
+</style>
+</head>
+<body>
+<h1>48-工单聚合模型（1 客户 + 多服务对象 + 多服务项目 + 多频次）</h1>
+
+<h2>背景</h2>
+<p>主从链路（客户→合同→服务对象→服务项目）已就绪。本步骤实现工单<strong>聚合创建</strong>：</p>
+<pre>1 张工单 = 1 个客户 + 多个服务对象（可勾选默认全选）+ 多个服务项目（可勾选默认全选）+ 覆盖合同周期的多个频次（可勾选默认全选）</pre>
+<p>现有 <code>WorkOrder</code> 是单值引用，无法表达多选聚合。方案：保留单值字段（简单工单不受影响），新增 <code>customer_id</code> + 三张关联表表达聚合。</p>
+
+<h2>数据模型 <code>models/work_order.py</code></h2>
+<ul>
+<li><code>WorkOrder</code> 加 <code>customer_id</code>（FK→customer.id，nullable）。</li>
+<li>新增三张关联表：<code>WorkOrderCi</code>（服务对象）、<code>WorkOrderItem</code>（服务项目）、<code>WorkOrderCycle</code>（频次快照：cycle_no + 起止日期）。</li>
+</ul>
+
+<h2>迁移 <code>alembic/versions/0020_work_order_aggregate.py</code></h2>
+<p><code>op.add_column</code> 加 <code>customer_id</code> + <code>Base.metadata.create_all</code> 建三张新表。</p>
+
+<h2>隔离 <code>core/deps.py</code></h2>
+<p><code>scope_filter</code> 的 WorkOrder 分支提到 <code>hasattr(customer_id)</code> 之前，OR 里加 <code>model.customer_id == scope</code>。</p>
+
+<h2>Schema / API</h2>
+<ul>
+<li><code>WorkOrderOut</code> 加 <code>customer_id</code>；新增 <code>AggregateCycleIn</code> / <code>AggregateWorkOrderCreate</code> / <code>AggregatePreviewIn</code>。</li>
+<li><code>POST /work-orders/aggregate/preview</code>：用 <code>split_cycles</code> 即时算各服务项目的频次（周期）列表。</li>
+<li><code>POST /work-orders/aggregate</code>：校验客户/服务对象/服务项目/频次归属一致 → 建工单 + 三张关联表。</li>
+<li><code>GET /work-orders/{wid}/scope</code>：返回聚合工单明细。</li>
+</ul>
+
+<h2>前端 <code>views/WorkOrders.vue</code></h2>
+<p>「新增聚合工单」弹窗：客户下拉 → 服务对象复选（默认全选）→ 服务项目复选（默认全选）→ 频次复选（默认全选），级联加载。列表加「客户」列与「查看」明细。</p>
+
+<h2>验证</h2>
+<p>迁移 0020 → pytest 全绿 → 前端创建聚合工单 → 查看明细正确。</p>
+</body>
+</html>

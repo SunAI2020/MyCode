@@ -50,7 +50,10 @@ def test_create_ticket_rejects_cross_tenant_ci(db):
     cb = Customer(name="B")
     db.add(cb)
     db.flush()
-    other_ci = CmdbCi(customer_id=cb.id, name="B系统")
+    ctb = Contract(customer_id=cb.id, name="B合同")
+    db.add(ctb)
+    db.flush()
+    other_ci = CmdbCi(customer_id=cb.id, contract_id=ctb.id, name="B系统")
     db.add(other_ci)
     db.commit()
 
@@ -66,7 +69,10 @@ def test_create_ticket_rejects_cross_contract_item_mismatch(db):
     ctb = Contract(customer_id=ca.id, name="A合同2")  # 同一客户两个不同合同
     db.add_all([cta, ctb])
     db.flush()
-    item_b = ContractItem(contract_id=ctb.id, project="ERP")
+    ci_b = CmdbCi(customer_id=ca.id, contract_id=ctb.id, name="B系统")
+    db.add(ci_b)
+    db.flush()
+    item_b = ContractItem(contract_id=ctb.id, ci_id=ci_b.id, project="ERP")
     db.add(item_b)
     db.commit()
 

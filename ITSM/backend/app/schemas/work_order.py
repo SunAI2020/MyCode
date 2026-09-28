@@ -62,6 +62,7 @@ class WorkOrderOut(BaseModel):
     id: int
     no: str
     type: str
+    customer_id: int | None = None
     receive_id: int | None = None
     dispatch_id: int | None = None
     contract_id: int | None = None
@@ -77,6 +78,26 @@ class WorkOrderOut(BaseModel):
     progress: int
     current_cycle_no: int | None = None
     created_at: datetime | None = None
+
+
+# ---- 工单聚合 ----
+class AggregateCycleIn(BaseModel):
+    contract_item_id: int
+    cycle_no: int
+
+
+class AggregatePreviewIn(BaseModel):
+    contract_item_ids: list[int]
+
+
+class AggregateWorkOrderCreate(BaseModel):
+    customer_id: int
+    ci_ids: list[int] = []
+    contract_item_ids: list[int] = []
+    cycles: list[AggregateCycleIn] = []
+    type: str = "客户工单"
+    priority: str = "中"
+    description: str | None = None
 
 
 # ---- 派单 / 执行人 ----

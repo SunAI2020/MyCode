@@ -1,7 +1,7 @@
 """周期拆分算法单测（对应 §9.2：2次/周跨月均匀、无重复遗漏）。"""
 from datetime import date
 
-from app.models import Contract, ContractItem, Customer, ServiceCycle
+from app.models import CmdbCi, Contract, ContractItem, Customer, ServiceCycle
 from app.services.cycle_service import generate_cycles, split_cycles
 
 
@@ -64,7 +64,10 @@ def test_generate_cycles_rebuild_on_frequency_change(db):
     ct = Contract(customer_id=c.id, name="x", start_date=date(2024, 1, 1), end_date=date(2025, 1, 1))
     db.add(ct)
     db.flush()
-    item = ContractItem(contract_id=ct.id, project="OA", frequency=1, unit="月")
+    ci = CmdbCi(customer_id=c.id, contract_id=ct.id, name="CI")
+    db.add(ci)
+    db.flush()
+    item = ContractItem(contract_id=ct.id, ci_id=ci.id, project="OA", frequency=1, unit="月")
     db.add(item)
     db.commit()
 

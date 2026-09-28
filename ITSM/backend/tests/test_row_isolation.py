@@ -3,7 +3,7 @@ import pytest
 from fastapi import HTTPException
 
 from app.core.deps import assert_scoped, owning_customer_id, scope_filter
-from app.models import Contract, ContractItem, Customer, OrderReceive, WorkOrder
+from app.models import CmdbCi, Contract, ContractItem, Customer, OrderReceive, WorkOrder
 
 
 def test_scope_filter_customer(db):
@@ -82,7 +82,10 @@ def test_owning_customer_id_via_contract_item(db):
     ct = Contract(customer_id=c.id, name="x")
     db.add(ct)
     db.flush()
-    item = ContractItem(contract_id=ct.id, project="OA")
+    ci = CmdbCi(customer_id=c.id, contract_id=ct.id, name="CI")
+    db.add(ci)
+    db.flush()
+    item = ContractItem(contract_id=ct.id, ci_id=ci.id, project="OA")
     db.add(item)
     db.commit()
     wo = WorkOrder(no="WO-2026-0301", type="客户工单", contract_item_id=item.id, contract_id=None)
@@ -100,8 +103,12 @@ def test_scope_filter_work_order_via_contract_item(db):
     ct2 = Contract(customer_id=c2.id, name="B合同")
     db.add_all([ct1, ct2])
     db.flush()
-    item1 = ContractItem(contract_id=ct1.id, project="OA")
-    item2 = ContractItem(contract_id=ct2.id, project="ERP")
+    ci1 = CmdbCi(customer_id=c1.id, contract_id=ct1.id, name="CI1")
+    ci2 = CmdbCi(customer_id=c2.id, contract_id=ct2.id, name="CI2")
+    db.add_all([ci1, ci2])
+    db.flush()
+    item1 = ContractItem(contract_id=ct1.id, ci_id=ci1.id, project="OA")
+    item2 = ContractItem(contract_id=ct2.id, ci_id=ci2.id, project="ERP")
     db.add_all([item1, item2])
     db.commit()
     wo1 = WorkOrder(no="WO-2026-0401", type="客户工单", contract_item_id=item1.id, contract_id=None)

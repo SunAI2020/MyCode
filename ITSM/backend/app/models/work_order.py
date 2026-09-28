@@ -44,6 +44,7 @@ class WorkOrder(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     no: Mapped[str] = mapped_column(String(32), unique=True)  # WO-YYYY-NNNN
     type: Mapped[str] = mapped_column(String(16), default="客户工单")  # 客户工单/驻场工单/内部任务/外包工单
+    customer_id: Mapped[int | None] = mapped_column(ForeignKey("customer.id"), nullable=True, index=True)  # 聚合工单归属客户（简单工单为 NULL）
     receive_id: Mapped[int | None] = mapped_column(ForeignKey("order_receive.id"), nullable=True)
     # dispatch_id 用逻辑引用（避免与 order_dispatch.work_order_id 形成循环外键）
     dispatch_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -77,3 +78,36 @@ class WorkOrderAssignee(Base):
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class WorkOrderCi(Base):
+    """聚合工单——服务对象（多选）。"""
+
+    __tablename__ = "work_order_ci"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    work_order_id: Mapped[int] = mapped_column(ForeignKey("work_order.id"), index=True)
+    ci_id: Mapped[int] = mapped_column(ForeignKey("cmdb_ci.id"), index=True)
+
+
+class WorkOrderItem(Base):
+    """聚合工单——服务项目（多选）。"""
+
+    __tablename__ = "work_order_item"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    work_order_id: Mapped[int] = mapped_column(ForeignKey("work_order.id"), index=True)
+    contract_item_id: Mapped[int] = mapped_column(ForeignKey("contract_item.id"), index=True)
+
+
+class WorkOrderCycle(Base):
+    """聚合工单——频次（服务周期快照，多选）。"""
+
+    __tablename__ = "work_order_cycle"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    work_order_id: Mapped[int] = mapped_column(ForeignKey("work_order.id"), index=True)
+    contract_item_id: Mapped[int] = mapped_column(ForeignKey("contract_item.id"), index=True)
+    cycle_no: Mapped[int] = mapped_column(Integer)
+    service_start: Mapped[date] = mapped_column(Date)
+    service_end: Mapped[date] = mapped_column(Date)

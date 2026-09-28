@@ -37,6 +37,9 @@ export const createWorkOrder = (data: any) => request.post('/work-orders', data)
 export const updateStatus = (id: number, data: any) => request.put(`/work-orders/${id}/status`, data)
 export const dispatch = (id: number, data: any) => request.post(`/work-orders/${id}/dispatch`, data)
 export const transfer = (id: number, data: any) => request.post(`/work-orders/${id}/assignees/transfer`, data)
+export const previewAggregateCycles = (data: any) => request.post('/work-orders/aggregate/preview', data)
+export const createAggregateWorkOrder = (data: any) => request.post('/work-orders/aggregate', data)
+export const getWorkOrderScope = (id: number) => request.get(`/work-orders/${id}/scope`)
 
 // ---- SLA / 周期 / 提醒 ----
 export const listSla = (params: any) => request.get('/sla-policies', { params })

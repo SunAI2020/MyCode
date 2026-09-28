@@ -1,7 +1,7 @@
 """合同履约洞察单测：临近到期 + 履约缺口。"""
 from datetime import date, timedelta
 
-from app.models import Contract, ContractItem, Customer, ServiceCycle
+from app.models import CmdbCi, Contract, ContractItem, Customer, ServiceCycle
 from app.services.ai_service import contract_insight
 
 
@@ -12,7 +12,10 @@ def _mk_item(db):
     ct = Contract(customer_id=c.id, name="x", start_date=date(2026, 1, 1), end_date=date(2027, 1, 1))
     db.add(ct)
     db.flush()
-    item = ContractItem(contract_id=ct.id, project="OA", frequency=1, unit="月")
+    ci = CmdbCi(customer_id=c.id, contract_id=ct.id, name="CI")
+    db.add(ci)
+    db.flush()
+    item = ContractItem(contract_id=ct.id, ci_id=ci.id, project="OA", frequency=1, unit="月")
     db.add(item)
     db.commit()
     return item

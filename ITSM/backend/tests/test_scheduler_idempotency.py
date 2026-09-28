@@ -1,7 +1,7 @@
 """定期工单幂等单测（对应 §9.2：季度频率到点只生成 1 次）。"""
 from datetime import date, timedelta
 
-from app.models import Contract, ContractItem, ServiceCycle, WorkOrder
+from app.models import CmdbCi, Contract, ContractItem, ServiceCycle, WorkOrder
 from app.scheduler.jobs import run_daily_work_order_generation
 
 
@@ -11,7 +11,10 @@ def test_generation_idempotent(db):
     c = Contract(customer_id=1, name="c", start_date=today, end_date=today + timedelta(days=200))
     db.add(c)
     db.flush()
-    item = ContractItem(contract_id=c.id, project="漏洞扫描", frequency=1, unit="quarter")
+    ci = CmdbCi(customer_id=1, contract_id=c.id, name="CI")
+    db.add(ci)
+    db.flush()
+    item = ContractItem(contract_id=c.id, ci_id=ci.id, project="漏洞扫描", frequency=1, unit="quarter")
     db.add(item)
     db.commit()
 
