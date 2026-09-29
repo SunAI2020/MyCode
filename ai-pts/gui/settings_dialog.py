@@ -39,6 +39,25 @@ class SettingsDialog(QDialog):
         rl.addWidget(browse)
         lay.addWidget(report_group)
 
+        env_group = QGroupBox("运行环境")
+        el = QVBoxLayout(env_group)
+        self.runtime_env_combo = QComboBox()
+        self.runtime_env_combo.addItem("外网环境（可连互联网，可调用 AI 大模型）", "internet")
+        self.runtime_env_combo.addItem("纯内网环境（无法连互联网，数据不可外泄）", "intranet")
+        self.runtime_env_combo.addItem("自建大模型环境（调用自建大模型，不能连互联网）", "selfhost")
+        el.addWidget(self.runtime_env_combo)
+        self.selfhost_widget = QWidget()
+        sl = QFormLayout(self.selfhost_widget)
+        self.ai_base_url_edit = QLineEdit()
+        self.ai_base_url_edit.setPlaceholderText("如 http://192.168.1.10:8000/v1")
+        sl.addRow("大模型端点:", self.ai_base_url_edit)
+        self.ai_model_edit = QLineEdit()
+        self.ai_model_edit.setPlaceholderText("如 deepseek-v3 / qwen2.5-72b")
+        sl.addRow("模型名:", self.ai_model_edit)
+        el.addWidget(self.selfhost_widget)
+        self.runtime_env_combo.currentIndexChanged.connect(self._on_env_changed)
+        lay.addWidget(env_group)
+
         api_group = QGroupBox("API 密钥")
         al = QFormLayout(api_group)
         self.api_key_edit = QLineEdit()
@@ -95,11 +114,22 @@ class SettingsDialog(QDialog):
         if d:
             self.report_dir_edit.setText(d)
 
+    def _on_env_changed(self):
+        self.selfhost_widget.setVisible(
+            self.runtime_env_combo.currentData() == "selfhost")
+
     def _load(self):
         prefs = self.settings.get("preferences", {}) or {}
         self.report_dir_edit.setText(self.settings.get("report_dir", ""))
         self.api_key_edit.setText(self.settings.get("api_key", ""))
         self.nvd_api_key_edit.setText(self.settings.get("nvd_api_key", ""))
+        env = self.settings.get("runtime_env", "internet")
+        idx = self.runtime_env_combo.findData(env)
+        if idx >= 0:
+            self.runtime_env_combo.setCurrentIndex(idx)
+        self.ai_base_url_edit.setText(self.settings.get("ai_base_url", ""))
+        self.ai_model_edit.setText(self.settings.get("ai_model", ""))
+        self._on_env_changed()
         mode = prefs.get("scan_mode", "full")
         idx = self.scan_mode_combo.findData(mode)
         if idx >= 0:
@@ -118,6 +148,9 @@ class SettingsDialog(QDialog):
         self.settings["report_dir"] = self.report_dir_edit.text().strip()
         self.settings["api_key"] = self.api_key_edit.text().strip()
         self.settings["nvd_api_key"] = self.nvd_api_key_edit.text().strip()
+        self.settings["runtime_env"] = self.runtime_env_combo.currentData()
+        self.settings["ai_base_url"] = self.ai_base_url_edit.text().strip()
+        self.settings["ai_model"] = self.ai_model_edit.text().strip()
         self.settings["preferences"] = {
             "scan_mode": self.scan_mode_combo.currentData(),
             "ai_analysis_enabled": self.ai_analysis_check.isChecked(),

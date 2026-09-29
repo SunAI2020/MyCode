@@ -39,9 +39,38 @@ ATTACK_TOOLS = {
 }
 
 
+def _docker_image_exists(image: str) -> bool:
+    """检查本地 Docker 是否已拉取指定镜像（不触发 pull；daemon 未运行视为不存在）。"""
+    docker = shutil.which("docker")
+    if not docker:
+        return False
+    try:
+        import subprocess
+        r = subprocess.run([docker, "images", "-q", image],
+                           capture_output=True, text=True, timeout=10)
+        return r.returncode == 0 and bool(r.stdout.strip())
+    except Exception:
+        return False
+
+
 def check_attack_tools():
     """检查攻击链依赖的外部工具；返回缺失工具名列表（仅提示）。"""
-    return [t for t in ATTACK_TOOLS if shutil.which(t) is None]
+    missing = []
+    for t in ATTACK_TOOLS:
+        if t.endswith(".py"):
+            # impacket 工具在 Windows 上装成 .exe（无 .py 后缀）
+            found = bool(shutil.which(t) or shutil.which(t[:-3]))
+        elif t == "msfconsole":
+            # msf 可用 Docker 兜底，但仅当已拉取 metasploit 镜像才算可用
+            # （镜像名与 core/executors/getshell.py 的 MSFGetShellExecutor.DOCKER_IMAGE 一致）
+            found = shutil.which(t) is not None or (
+                shutil.which("docker") is not None
+                and _docker_image_exists("metasploitframework/metasploit-framework"))
+        else:
+            found = shutil.which(t) is not None
+        if not found:
+            missing.append(t)
+    return missing
 
 
 def check_dependencies():

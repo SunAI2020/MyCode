@@ -625,6 +625,7 @@ class MainWindow(QMainWindow):
         self.business_logic_findings: list = []
         self.semantic_enhance: dict = {}
         self.api_key: str = ""
+        self.runtime_env: str = "internet"
         self.current_user: Optional[dict] = None
         self.attack_intensity: str = "中"
         # 执行模式（点击「执行攻击」时弹出下拉框选择）：single / agentic / multi_agent
@@ -635,6 +636,8 @@ class MainWindow(QMainWindow):
         self.scheduled_fired.connect(self._run_scheduled_task)
         # CTEM 修复验证：基线存储（懒加载）
         self._ctem_store = None
+        # 本程序注入过的 Anthropic 环境变量（仅清除自己注入的，避免误删用户外部配置）
+        self._env_injected: set = set()
 
         self.init_ui()
         self.load_settings()
@@ -773,13 +776,13 @@ class MainWindow(QMainWindow):
         self.nav_items = ["目标扫描", "语义验证", "扫描结果", "AI分析", "攻击链规划", "执行攻击", "生成报告", "AI修复建议"]
         # 导航显示文本：六步流程；「扫描结果」「AI修复建议」为查看类，加小图标
         self.nav_labels = {
-            "目标扫描": "第一步：目标扫描",
-            "语义验证": "第二步：语义验证",
+            "目标扫描": "第1步:目标扫描",
+            "语义验证": "第2步:语义验证",
             "扫描结果": "  📄 扫描结果",
-            "AI分析": "第三步：AI分析",
-            "攻击链规划": "第四步：攻击规划",
-            "执行攻击": "第五步：执行攻击",
-            "生成报告": "第六步：生成报告",
+            "AI分析": "第3步:AI分析",
+            "攻击链规划": "第4步:攻击规划",
+            "执行攻击": "第5步:执行攻击",
+            "生成报告": "第6步:生成报告",
             "AI修复建议": "🛡️ AI修复建议",
         }
         for name in self.nav_items:
@@ -957,6 +960,7 @@ class MainWindow(QMainWindow):
             w.setText(
                 f'<span style="color:#000000;">{text}</span>'
                 '<span style="color:#e74c3c;"> ✓</span>')
+            w.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
             w.setStyleSheet("background: transparent; border: none; font-size: 19px;")
             self.nav_list.setItemWidget(item, w)
         else:
@@ -978,7 +982,15 @@ class MainWindow(QMainWindow):
         elif name == "AI修复建议":
             self.tabs.setCurrentIndex(4)
         elif name == "执行攻击":
+            if self._is_busy():
+                QMessageBox.warning(self, "提示", "有任务正在运行，请等待完成后再操作。")
+                return
             self._choose_exec_mode()
+        elif name == "生成报告":
+            if self._is_busy():
+                QMessageBox.warning(self, "提示", "有任务正在运行，请等待完成后再操作。")
+                return
+            self.export_report()
 
     def _choose_exec_mode(self):
         """点击「执行攻击」时弹出选择执行模式对话框（立即执行/取消）。"""
@@ -1020,6 +1032,16 @@ class MainWindow(QMainWindow):
         """统一管理「开始」「停止」按钮可用态。"""
         self.start_btn.setEnabled(not running)
         self.stop_btn.setEnabled(running)
+
+    def _set_busy_progress(self, busy: bool, text: str = ""):
+        """非扫描阶段：进度条切不确定（转圈）模式或复位。"""
+        if busy:
+            self.progress_bar.setRange(0, 0)
+            self.progress_label.setText(text)
+        else:
+            self.progress_bar.setRange(0, 100)
+            self.progress_bar.setValue(0)
+            self.progress_label.setText("")
 
     def _on_start_clicked(self):
         """点击「开始」按钮：执行当前选中导航项对应的动作。"""
@@ -1223,6 +1245,7 @@ class MainWindow(QMainWindow):
         self.semantic_enhance_thread = None
 
         self._set_running(False)
+        self._set_busy_progress(False)
         self.status_bar.showMessage("已停止")
 
     def on_scan_complete(self, result: dict):
@@ -1294,6 +1317,9 @@ class MainWindow(QMainWindow):
     # ================== AI分析相关 ==================
     def start_ai_analysis(self):
         """开始AI分析"""
+        if self.runtime_env == "intranet":
+            QMessageBox.warning(self, "提示", "当前为纯内网环境，无法调用 AI。")
+            return
         if not self.api_key and not self._has_env_api_key():
             self.set_api_key()
             if not self.api_key:
@@ -1308,6 +1334,7 @@ class MainWindow(QMainWindow):
             return
 
         self._set_running(True)
+        self._set_busy_progress(True, "AI 分析中...")
         self.status_bar.showMessage("AI分析中...")
         self.append_log("[*] 开始 AI 分析：对扫描结果进行漏洞优先级排序与攻击路径分析...")
         self.animation.set_scene("version")
@@ -1357,6 +1384,7 @@ class MainWindow(QMainWindow):
         self.ai_recommendations.setPlainText("\n".join(recommendations))
 
         self._set_running(False)
+        self._set_busy_progress(False)
         self.animation.set_scene("done", "AI 分析完成")
         self.append_log("[+] AI 分析完成")
         self.set_stage("AI分析")
@@ -1368,6 +1396,7 @@ class MainWindow(QMainWindow):
         """AI分析错误"""
         QMessageBox.critical(self, "错误", f"AI分析失败: {error}")
         self._set_running(False)
+        self._set_busy_progress(False)
 
     # ================== 语义预验证 ==================
     def start_semantic_verify(self):
@@ -1386,6 +1415,7 @@ class MainWindow(QMainWindow):
             return
 
         self.set_stage("语义验证")  # 高亮移到「第二步：语义验证」
+        self._set_busy_progress(True, "语义预验证中...")
         self.semantic_thread = SemanticVerifyThread(vulns, self._effective_api_key())
         self.semantic_thread.progress.connect(lambda m: self.status_bar.showMessage(m))
         self.semantic_thread.result_ready.connect(self.on_semantic_verify_complete)
@@ -1419,6 +1449,7 @@ class MainWindow(QMainWindow):
     def on_semantic_verify_complete(self, result: dict):
         """语义预验证完成：更新漏洞表第 6 列 + 灰显疑似误报。"""
         self._render_semantic_verify(result.get("vulns", []), result.get("counts", {}))
+        self._set_busy_progress(False)
         self._step_done("语义验证", True)
         self.set_stage("扫描结果")
         self.status_bar.showMessage("语义预验证完成")
@@ -1431,6 +1462,7 @@ class MainWindow(QMainWindow):
             v["verify_status"] = "unverified"
         self._render_semantic_verify(
             vulns, {"confirmed": 0, "rejected": 0, "unverified": len(vulns)})
+        self._set_busy_progress(False)
         self._step_done("语义验证", True)
         self.set_stage("扫描结果")
         self.status_bar.showMessage("语义预验证失败")
@@ -1467,6 +1499,9 @@ class MainWindow(QMainWindow):
 
     def start_attack_plan(self):
         """攻击链规划：仅调用 AI 规划攻击路径，不执行任何攻击。"""
+        if self.runtime_env == "intranet":
+            QMessageBox.warning(self, "提示", "当前为纯内网环境，无法调用 AI。")
+            return
         if not self.api_key and not self._has_env_api_key():
             self.set_api_key()
             if not self.api_key:
@@ -1485,6 +1520,7 @@ class MainWindow(QMainWindow):
             return
 
         self._set_running(True)
+        self._set_busy_progress(True, "攻击规划中...")
         self.status_bar.showMessage("AI 规划攻击路径中...")
         self.append_log("[*] 开始 AI 攻击链规划：分析漏洞与服务，规划攻击策略与工具...")
         self.animation.set_scene("plan")
@@ -1527,6 +1563,7 @@ class MainWindow(QMainWindow):
         self.manual_review_tab.refresh(result)
 
         self._set_running(False)
+        self._set_busy_progress(False)
         self.animation.set_scene("done", "攻击链规划完成")
         self.set_stage("攻击链规划")
         self._step_done("攻击链规划", True)
@@ -1535,6 +1572,9 @@ class MainWindow(QMainWindow):
 
     def start_exploit_chain(self):
         """执行攻击链（AI 规划 + 专项工具执行，执行前整体确认）"""
+        if self.runtime_env == "intranet":
+            QMessageBox.warning(self, "提示", "当前为纯内网环境，无法调用 AI。")
+            return
         if not self.api_key and not self._has_env_api_key():
             self.set_api_key()
             if not self.api_key:
@@ -1598,6 +1638,7 @@ class MainWindow(QMainWindow):
         exec_mode = self.exec_mode
 
         self._set_running(True)
+        self._set_busy_progress(True, "执行攻击中...")
         self.status_bar.showMessage("执行攻击链中...")
         self.animation.set_scene("execute")
         self.set_stage("执行攻击")
@@ -1638,6 +1679,7 @@ class MainWindow(QMainWindow):
         self.manual_review_tab.refresh(result)
 
         self._set_running(False)
+        self._set_busy_progress(False)
         self.animation.set_scene("done", "攻击链执行完成")
         self.set_stage("执行攻击")
         self._step_done("执行攻击", True)
@@ -1649,6 +1691,7 @@ class MainWindow(QMainWindow):
         QMessageBox.critical(self, "错误", f"攻击链执行失败: {error}")
         self.append_log(f"[-] 攻击链执行失败: {error}")
         self._set_running(False)
+        self._set_busy_progress(False)
 
     def _render_attack_detail(self, result: dict):
         """在「攻击详情」标签页渲染攻击链执行结果（步骤/状态/证据/错误）。
@@ -1732,7 +1775,7 @@ class MainWindow(QMainWindow):
             self.target_input.setText(",".join(targets))
 
     def export_report(self):
-        """导出报告（HTML，含完整章节；亦可导出 JSON）"""
+        """生成报告：自动保存 HTML 到首选项目录（文件名含目标与时间），完成后弹窗提示。"""
         if not self.scan_results:
             QMessageBox.warning(self, "警告", "没有可导出的数据")
             return
@@ -1740,12 +1783,19 @@ class MainWindow(QMainWindow):
         report_dir = self._report_dir()
         report_dir.mkdir(parents=True, exist_ok=True)
 
-        # 自动文件名：渗透测试报告_{目标}_{时间}.html（目标做文件安全处理，保存到首选项目录）
+        # 自动文件名：渗透测试报告_{目标}_{时间}.html（去除 Windows 非法文件名字符）
         target_name = str(self._current_target() or "target")
-        safe_target = (target_name.replace(":", "_").replace("/", "_")
-                       .replace("\\", "_").replace(" ", "_"))
-        file_path = report_dir / (
-            f"渗透测试报告_{safe_target}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html")
+        safe_target = target_name
+        for ch in '<>:"/\\|?* \t\r\n':
+            safe_target = safe_target.replace(ch, "_")
+        safe_target = safe_target.strip("_") or "target"
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        file_path = report_dir / f"渗透测试报告_{safe_target}_{timestamp}.html"
+        # 同一秒内重复生成时避免静默覆盖上一份
+        n = 1
+        while file_path.exists():
+            file_path = report_dir / f"渗透测试报告_{safe_target}_{timestamp}_{n}.html"
+            n += 1
 
         self.animation.set_scene("report")
         self.set_stage("生成报告")
@@ -1841,9 +1891,10 @@ class MainWindow(QMainWindow):
         self.progress_bar.setValue(0)
         self.progress_label.setText("")
 
-    @staticmethod
-    def _has_env_api_key() -> bool:
-        """是否已有可用密钥：进程环境变量 或 本机 CC Switch 配置"""
+    def _has_env_api_key(self) -> bool:
+        """是否已有可用密钥：进程环境变量 或 本机 CC Switch 配置（内网环境视为无）。"""
+        if self.runtime_env == "intranet":
+            return False
         if os.environ.get("ANTHROPIC_AUTH_TOKEN") or os.environ.get("ANTHROPIC_API_KEY"):
             return True
         try:
@@ -1859,7 +1910,10 @@ class MainWindow(QMainWindow):
         用户指定「大模型用本机 CC SWITCH 的通道」，而 gui/settings.json 里可能残留
         旧的手动 key，若直接传 create_analyzer 会以最高优先级覆盖 CC Switch。这里在
         CC Switch 可用时返回 None，让 create_analyzer 走 CC Switch 回退链。
+        纯内网环境返回 None（禁用 AI）。
         """
+        if self.runtime_env == "intranet":
+            return None
         if self._has_env_api_key():
             return None
         return self.api_key or None
@@ -1928,8 +1982,30 @@ class MainWindow(QMainWindow):
             self.status_bar.showMessage(f"已登录: {name}", 5000)
 
     def _apply_settings(self):
-        """把设置同步到运行态：API 状态、扫描模式、扫描选项、攻击强度、定时扫描。"""
-        self.api_key = (self.settings or {}).get("api_key", "") or self.api_key
+        """把设置同步到运行态：运行环境、API 状态、扫描模式、扫描选项、攻击强度、定时扫描。"""
+        # 运行环境：外网 / 纯内网 / 自建大模型
+        self.runtime_env = (self.settings or {}).get("runtime_env", "internet")
+        if self.runtime_env == "intranet":
+            self.api_key = ""  # 内网禁用 AI，忽略已保存的 key
+        else:
+            self.api_key = (self.settings or {}).get("api_key", "") or self.api_key
+
+        # 自建大模型：把端点/模型注入环境变量，create_analyzer 回退链会自动拾取
+        base_url = (self.settings or {}).get("ai_base_url") or ""
+        model = (self.settings or {}).get("ai_model") or ""
+        if self.runtime_env == "selfhost" and base_url:
+            os.environ["ANTHROPIC_BASE_URL"] = base_url
+            self._env_injected.add("ANTHROPIC_BASE_URL")
+        elif "ANTHROPIC_BASE_URL" in self._env_injected:
+            # 仅清除本程序注入的值，保留用户经系统环境变量外部配置的同名变量
+            os.environ.pop("ANTHROPIC_BASE_URL", None)
+            self._env_injected.discard("ANTHROPIC_BASE_URL")
+        if self.runtime_env == "selfhost" and model:
+            os.environ["ANTHROPIC_MODEL"] = model
+            self._env_injected.add("ANTHROPIC_MODEL")
+        elif "ANTHROPIC_MODEL" in self._env_injected:
+            os.environ.pop("ANTHROPIC_MODEL", None)
+            self._env_injected.discard("ANTHROPIC_MODEL")
 
         nvd_key = (self.settings or {}).get("nvd_api_key") or ""
         if nvd_key:
@@ -1950,6 +2026,34 @@ class MainWindow(QMainWindow):
                 widget.setChecked(bool(prefs[key]))
         self.attack_intensity = prefs.get("attack_intensity", "中") or "中"
         self._reload_scheduled_tasks()
+        self._refresh_intranet_ui()
+
+    def _refresh_intranet_ui(self):
+        """纯内网环境：置灰依赖 AI/互联网的导航步骤与工具，并加悬停提示（点击兜底在各自方法内）。"""
+        intranet = self.runtime_env == "intranet"
+        tip = "内网环境，本项功能不可用" if intranet else ""
+        for name in ("AI分析", "攻击链规划", "执行攻击"):
+            if name not in self.nav_items:
+                continue
+            item = self.nav_list.item(self.nav_items.index(name))
+            if intranet:
+                item.setFlags(item.flags() & ~Qt.ItemIsEnabled)
+            else:
+                item.setFlags(item.flags() | Qt.ItemIsEnabled)
+            item.setToolTip(tip)
+        for i in range(self.tool_list.count()):
+            if self.tool_list.item(i).text() == "业务逻辑检测":
+                item = self.tool_list.item(i)
+                if intranet:
+                    item.setFlags(item.flags() & ~Qt.ItemIsEnabled)
+                else:
+                    item.setFlags(item.flags() | Qt.ItemIsEnabled)
+                item.setToolTip(tip)
+        # 「业务逻辑」标签页同样依赖 LLM，内网下禁用该 tab（仅置灰工具列表项不彻底）
+        if hasattr(self, "business_logic_tab"):
+            idx = self.tabs.indexOf(self.business_logic_tab)
+            if idx >= 0:
+                self.tabs.setTabEnabled(idx, not intranet)
 
     def _get_task_store(self):
         """懒加载 SQLite 定时任务存储。"""
