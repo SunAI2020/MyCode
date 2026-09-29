@@ -6,6 +6,7 @@ import pytest
 from fastapi import HTTPException, UploadFile
 
 from app.api.v1.contract_archives import confirm_archive, upload_archive
+from app.api.v1.contracts import create_item
 from app.core.config import settings
 from app.models import (
     Contract,
@@ -17,6 +18,7 @@ from app.models import (
     SysUser,
     SysUserRole,
 )
+from app.schemas.contract import ContractItemCreate
 from app.schemas.contract_archive import ContractArchiveConfirm, ServiceItemIn
 from app.services.archive_crypto import decrypt_bytes, encrypt_bytes
 from app.services.contract_extract_service import extract_contract_fields
@@ -297,3 +299,46 @@ def test_confirm_rejects_out_of_scope(db):
     with pytest.raises(HTTPException) as exc:
         confirm_archive(obj.id, body, user=u, db=db)
     assert exc.value.status_code == 403
+
+
+def test_create_item_without_ci_sets_null(db):
+    """服务项目不关联具体系统：ci_id 为空 + 指定项目 → 正常创建，ci_id 为 None。"""
+    u = _mk_user(db)
+    c = Customer(name="客户")
+    db.add(c)
+    db.commit()
+    ct = Contract(customer_id=c.id, type="安全服务", name="项目")
+    db.add(ct)
+    db.commit()
+    body = ContractItemCreate(ci_id=None, contract_id=ct.id, project="漏洞扫描")
+    data = create_item(body, user=u, db=db)["data"]
+    assert data["ci_id"] is None
+    assert data["contract_id"] == ct.id
+    assert data["project"] == "漏洞扫描"
+
+
+def test_create_item_with_ci_derives_contract(db):
+    """关联服务目标时 contract_id 由服务目标派生。"""
+    u = _mk_user(db)
+    c = Customer(name="客户")
+    db.add(c)
+    db.commit()
+    ct = Contract(customer_id=c.id, type="安全服务", name="项目")
+    db.add(ct)
+    db.commit()
+    ci = CmdbCi(customer_id=c.id, contract_id=ct.id, name="OA系统")
+    db.add(ci)
+    db.commit()
+    body = ContractItemCreate(ci_id=ci.id, project="渗透测试")
+    data = create_item(body, user=u, db=db)["data"]
+    assert data["ci_id"] == ci.id
+    assert data["contract_id"] == ct.id
+
+
+def test_create_item_without_ci_requires_contract(db):
+    """不关联系统且未指定项目 → 400。"""
+    u = _mk_user(db)
+    body = ContractItemCreate(ci_id=None, contract_id=None, project="漏洞扫描")
+    with pytest.raises(HTTPException) as exc:
+        create_item(body, user=u, db=db)
+    assert exc.value.status_code == 400

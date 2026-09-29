@@ -26,9 +26,9 @@
         </el-card>
       </el-tab-pane>
 
-      <el-tab-pane label="服务对象" name="ci">
+      <el-tab-pane label="服务目标（系统）" name="ci">
         <el-card>
-          <div class="toolbar"><el-button v-if="canWrite" type="primary" @click="openCi()">新增服务对象</el-button></div>
+          <div class="toolbar"><el-button v-if="canWrite" type="primary" @click="openCi()">新增服务目标（系统）</el-button></div>
           <el-table :data="cis" v-loading="loading">
             <el-table-column prop="id" label="ID" width="60" />
             <el-table-column label="项目名称">
@@ -51,14 +51,14 @@
       <el-tab-pane label="服务项目" name="item">
         <el-card>
           <div class="toolbar">
-            <el-select v-model="itemFilter.ci_id" placeholder="选择服务对象" clearable style="width: 240px" @change="loadItems">
+            <el-select v-model="itemFilter.ci_id" placeholder="选择服务目标（系统）" clearable style="width: 240px" @change="loadItems">
               <el-option v-for="c in cis" :key="c.id" :label="c.name" :value="c.id" />
             </el-select>
             <el-button v-if="canWrite" type="primary" @click="openItem()">新增服务项目</el-button>
           </div>
           <el-table :data="items" v-loading="loading">
             <el-table-column prop="id" label="ID" width="60" />
-            <el-table-column label="服务对象">
+            <el-table-column label="服务目标（系统）">
               <template #default="{ row }">{{ ciNameOf(row) }}</template>
             </el-table-column>
             <el-table-column label="项目名称">
@@ -151,11 +151,17 @@
 
     <!-- 服务项目弹窗 -->
     <el-dialog v-model="itemDlg" :title="itemEditId ? '编辑服务项目' : '新增服务项目'" width="520px">
-      <el-form :model="itemForm" label-width="90px">
-        <el-form-item label="服务对象">
-          <el-select v-model="itemForm.ci_id" style="width: 100%">
-            <el-option v-for="c in cis" :key="c.id" :label="c.name" :value="c.id" />
+      <el-form :model="itemForm" label-width="110px">
+        <el-form-item label="项目名称">
+          <el-select v-model="itemForm.contract_id" style="width: 100%" :disabled="!!itemEditId" @change="onItemContractChange">
+            <el-option v-for="c in contracts" :key="c.id" :label="c.name" :value="c.id" />
           </el-select>
+        </el-form-item>
+        <el-form-item label="服务目标（系统）">
+          <el-checkbox-group v-model="itemForm.ci_ids" class="ci-checkbox-list">
+            <el-checkbox v-for="c in projectCis" :key="c.id" :value="c.id">{{ c.name }}</el-checkbox>
+          </el-checkbox-group>
+          <div v-if="!itemForm.ci_ids.length" class="ci-empty">未选择 → 记作「//」（不关联具体系统）</div>
         </el-form-item>
         <el-form-item label="运维项目">
           <el-select v-model="itemForm.project" style="width: 100%">
@@ -173,8 +179,8 @@
       <template #footer><el-button @click="itemDlg = false">取消</el-button><el-button type="primary" @click="saveItem">保存</el-button></template>
     </el-dialog>
 
-    <!-- 服务对象弹窗 -->
-    <el-dialog v-model="ciDlg" :title="ciEditId ? '编辑服务对象' : '新增服务对象'" width="520px">
+    <!-- 服务目标（系统）弹窗 -->
+    <el-dialog v-model="ciDlg" :title="ciEditId ? '编辑服务目标（系统）' : '新增服务目标（系统）'" width="520px">
       <el-form :model="ciForm" label-width="90px">
         <el-form-item label="项目">
           <el-select v-model="ciForm.contract_id" style="width: 100%">
@@ -249,18 +255,18 @@
         </el-row>
       </el-form>
 
-      <el-divider content-position="left">服务对象</el-divider>
+      <el-divider content-position="left">服务目标（系统）</el-divider>
       <div class="obj-list">
         <div v-for="(o, i) in importForm.service_objects" :key="i" class="obj-row">
-          <el-input v-model="importForm.service_objects[i]" placeholder="服务对象名称" style="width: 300px" />
+          <el-input v-model="importForm.service_objects[i]" placeholder="服务目标（系统）名称" style="width: 300px" />
           <el-button link type="danger" @click="importForm.service_objects.splice(i, 1)">删除</el-button>
         </div>
-        <el-button link type="primary" @click="importForm.service_objects.push('')">+ 添加服务对象</el-button>
+        <el-button link type="primary" @click="importForm.service_objects.push('')">+ 添加服务目标（系统）</el-button>
       </div>
 
       <el-divider content-position="left">服务项目</el-divider>
       <el-table :data="importForm.service_items" size="small" border>
-        <el-table-column label="服务对象" width="150">
+        <el-table-column label="服务目标（系统）" width="150">
           <template #default="{ row }">
             <el-select v-model="row.service_object" clearable placeholder="默认首个" size="small">
               <el-option v-for="o in importForm.service_objects" :key="o" :label="o" :value="o" />
@@ -361,7 +367,11 @@ const contractForm = reactive({
 
 const itemDlg = ref(false)
 const itemEditId = ref<number | null>(null)
-const itemForm = reactive({ ci_id: 1, project: '', frequency: 1, unit: '月', price: null as number | null })
+const itemForm = reactive({
+  contract_id: null as number | null,
+  ci_ids: [] as number[],
+  project: '', frequency: 1, unit: '月', price: null as number | null,
+})
 // 运维项目枚举（与后端 seed 的 project 字典一致）
 const PROJECTS = ['漏洞扫描', '渗透测试', '应急演练', '安全加固', '安全培训', '代码审计', '基线核查', '安全巡检', '安全评估', '应急处置', '重保值守', '攻防演练', '安全防护', '设备巡检', '等保测评', '故障排查']
 
@@ -475,7 +485,7 @@ async function onConfirmImport() {
       service_objects: importForm.service_objects.filter((o: string) => o && o.trim()),
       service_items: importForm.service_items.filter((it: any) => it.project && it.project.trim()),
     })
-    ElMessage.success(importTargetProjectId.value ? '导入完成，已挂到所选项目' : '导入完成，已生成项目与服务对象/项目')
+    ElMessage.success(importTargetProjectId.value ? '导入完成，已挂到所选项目' : '导入完成，已生成项目与服务目标（系统）/项目')
     importDlg.value = false
     loadContracts()
     loadCis()
@@ -517,7 +527,7 @@ function customerNameOf(row: any) {
   return c ? (customerMap.value.get(c.customer_id)?.name ?? '') : ''
 }
 function ciNameOf(row: any) {
-  return ciMap.value.get(row.ci_id)?.name ?? ''
+  return row.ci_id ? (ciMap.value.get(row.ci_id)?.name ?? '') : '//'
 }
 
 // 合同
@@ -585,19 +595,43 @@ async function onDownloadArchive(a: any) {
 }
 
 // 服务项目
+const projectCis = computed(() => cis.value.filter((c) => c.contract_id === itemForm.contract_id))
+function onItemContractChange() {
+  // 新增时切换项目 → 服务目标默认全选该项目全部服务目标
+  if (!itemEditId.value) itemForm.ci_ids = projectCis.value.map((c) => c.id)
+}
 function openItem(row?: any) {
   if (row) {
     itemEditId.value = row.id
-    Object.assign(itemForm, { ci_id: row.ci_id, project: row.project, frequency: row.frequency, unit: row.unit, price: row.price })
+    Object.assign(itemForm, {
+      contract_id: row.contract_id ?? null,
+      ci_ids: row.ci_id ? [row.ci_id] : [],
+      project: row.project, frequency: row.frequency, unit: row.unit, price: row.price,
+    })
   } else {
     itemEditId.value = null
-    Object.assign(itemForm, { ci_id: itemFilter.ci_id || cis.value[0]?.id || 1, project: '', frequency: 1, unit: '月', price: null })
+    Object.assign(itemForm, { contract_id: contracts.value[0]?.id ?? null, ci_ids: [], project: '', frequency: 1, unit: '月', price: null })
+    onItemContractChange()
   }
   itemDlg.value = true
 }
 async function saveItem() {
-  if (itemEditId.value) await updateItem(itemEditId.value, itemForm)
-  else await createItem(itemForm)
+  if (!itemForm.project || !itemForm.project.trim()) {
+    ElMessage.warning('请填写运维项目')
+    return
+  }
+  const base = { project: itemForm.project, frequency: itemForm.frequency, unit: itemForm.unit, price: itemForm.price }
+  if (itemEditId.value) {
+    // 编辑：单条更新，勾选 0 个 → ci_id 置空；勾选多个 → 取第一个
+    await updateItem(itemEditId.value, { ci_id: itemForm.ci_ids[0] ?? null, ...base })
+  } else {
+    // 新增：勾选 N 个 → 批量生成 N 条；全不选 → 1 条（不关联具体系统，记作「//」）
+    if (!itemForm.ci_ids.length) {
+      await createItem({ ci_id: null, contract_id: itemForm.contract_id, ...base })
+    } else {
+      for (const ci_id of itemForm.ci_ids) await createItem({ ci_id, contract_id: itemForm.contract_id, ...base })
+    }
+  }
   ElMessage.success('已保存')
   itemDlg.value = false
   loadItems()
@@ -612,7 +646,7 @@ async function onDeleteItem(row: any) {
   loadItems()
 }
 
-// 服务对象
+// 服务目标（系统）
 function openCi(row?: any) {
   if (row) {
     ciEditId.value = row.id
@@ -631,7 +665,7 @@ async function saveCi() {
   loadCis()
 }
 async function onDeleteCi(row: any) {
-  await ElMessageBox.confirm('确认删除该服务对象？', '提示', { type: 'warning' })
+  await ElMessageBox.confirm('确认删除该服务目标（系统）？', '提示', { type: 'warning' })
   await deleteCi(row.id)
   loadCis()
 }
@@ -647,5 +681,7 @@ onMounted(() => {
 <style scoped>
 .toolbar { display: flex; gap: 12px; margin-bottom: 14px; }
 .obj-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.ci-checkbox-list { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.ci-empty { color: #999; font-size: 12px; margin-top: 4px; }
 .text-preview { margin-top: 8px; max-height: 200px; overflow: auto; white-space: pre-wrap; background: #f5f7fa; padding: 8px; border-radius: 4px; font-size: 12px; color: #666; }
 </style>

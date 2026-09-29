@@ -158,14 +158,25 @@ def create_item(
     user: SysUser = Depends(require_role(*WRITE_ROLE)),
     db: Session = Depends(get_db),
 ):
-    ci = db.get(CmdbCi, body.ci_id)
-    if ci is None:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "服务对象不存在")
     scope = customer_scope_of(user, db)
-    if scope is not None and ci.customer_id != scope:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "无权为其他客户创建服务项目")
+    if body.ci_id is not None:
+        ci = db.get(CmdbCi, body.ci_id)
+        if ci is None:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "服务目标不存在")
+        if scope is not None and ci.customer_id != scope:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "无权为其他客户创建服务项目")
+        contract_id = ci.contract_id
+    else:
+        if body.contract_id is None:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "未关联服务目标时需指定项目")
+        contract = db.get(Contract, body.contract_id)
+        if contract is None:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "项目不存在")
+        if scope is not None and contract.customer_id != scope:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "无权为其他客户创建服务项目")
+        contract_id = contract.id
     data = body.model_dump()
-    data["contract_id"] = ci.contract_id
+    data["contract_id"] = contract_id
     obj = ContractItem(**data)
     db.add(obj)
     db.flush()

@@ -102,7 +102,8 @@ class CmdbCiOut(BaseModel):
 
 # ---- 合同子项 ----
 class ContractItemCreate(BaseModel):
-    ci_id: int
+    ci_id: int | None = None  # 关联服务目标；None = 不针对具体系统（记作「//」）
+    contract_id: int | None = None  # ci_id 为空时需显式指定所属项目
     project: str
     frequency: int = 1
     unit: str = "月"
