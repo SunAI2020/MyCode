@@ -34,10 +34,21 @@ router = APIRouter(prefix="/contract-archives", tags=["合同原件档案"])
 
 WRITE_ROLE = ("sys_admin", "sys_ops")
 
-# 仅这两个可信 MIME 允许内联渲染，其余（含历史异常数据）强制下载
+# 仅这些可信 MIME 允许内联渲染，其余（含历史异常数据）强制下载；图片为安全位图/光栅格式，可内联
 ALLOWED_INLINE_MIME = {
     "application/pdf",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "image/jpeg",
+    "image/png",
+}
+
+# 允许上传的扩展名 → 派生 MIME（不信任客户端 content_type，防伪造 MIME 引发存储型 XSS）
+MIME_BY_EXT = {
+    ".pdf": "application/pdf",
+    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
 }
 
 
@@ -88,10 +99,11 @@ def upload_archive(
     """上传原件 → 抽文本 → LLM 抽取 → 加密写盘 → 建待确认档案行。"""
     filename = (file.filename or "").strip()
     lower = filename.lower()
-    if not (lower.endswith(".pdf") or lower.endswith(".docx")):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "仅支持 PDF / Word(.docx) 文件")
     if lower.endswith(".doc"):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "旧版 .doc 不支持，请另存为 .docx 后重试")
+    ext = os.path.splitext(lower)[1]
+    if ext not in MIME_BY_EXT:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "仅支持 PDF / Word(.docx) / 图片(jpg/png) 文件")
     data = file.file.read()
     if not data:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "文件为空")
@@ -100,12 +112,9 @@ def upload_archive(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, f"文件不能超过 {settings.ARCHIVE_MAX_MB}MB")
 
     # 仅依据已校验扩展名派生 MIME，不信任客户端 content_type（防伪造 MIME 引发存储型 XSS）
-    mime = (
-        "application/pdf" if lower.endswith(".pdf")
-        else "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    )
+    mime = MIME_BY_EXT[ext]
     try:
-        text = extract_text(filename, data)
+        text, mineru_expired = extract_text(filename, data)
     except ValueError as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
     extracted = extract_contract_fields(text)
@@ -137,6 +146,8 @@ def upload_archive(
         "original_filename": filename,
         "file_size": len(data),
         "has_text": bool(text.strip()),
+        # MinerU token 无效/过期（90 天）时置位，前端提示重新获取
+        "mineru_expired": mineru_expired,
         # 未用 LLM 时把纯文本回传，供前端展示辅助人工补录
         "text_preview": (text[:2000] if not extracted.get("llm_used") else None),
     })
@@ -163,13 +174,30 @@ def confirm_archive(
         if obj.customer_id is None and obj.created_by != user.id:
             raise HTTPException(status.HTTP_403_FORBIDDEN, "无权确认他人上传的档案")
 
+    # 挂到已有项目：仅归档原件，不重复生成 客户/服务对象/服务项目
+    if body.contract_id is not None:
+        contract = db.get(Contract, body.contract_id)
+        if contract is None:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "所选项目不存在")
+        if scope is not None and contract.customer_id != scope:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "无权访问该项目")
+        obj.contract_id = contract.id
+        obj.customer_id = contract.customer_id
+        obj.status = "已确认"
+        obj.extracted = json.dumps(body.model_dump(), ensure_ascii=False, default=str)
+        db.flush()
+        record(db, user_id=user.id, action="confirm_contract_archive", resource=f"contract_archive:{aid}", after=f"attach_to_contract:{contract.id}")
+        db.commit()
+        return ok(ContractOut.model_validate(contract).model_dump())
+
     customer = _resolve_customer(db, body, scope)
 
     start, end = parse_period(body.service_period)
+    contract_status = "已到期" if (end is not None and end < date.today()) else "执行中"
     contract = Contract(
         customer_id=customer.id,
         type="安全服务",
-        name=f"{customer.name}服务合同",
+        name=body.name or f"{customer.name}服务合同",
         no=body.contract_no,
         amount=body.amount,
         sign_date=_parse_date(body.sign_date),
@@ -180,7 +208,8 @@ def confirm_archive(
         accept_standard=body.accept_standard,
         delivery_docs=body.delivery_docs,
         acceptance_report_format=body.acceptance_report_format,
-        status="执行中",
+        service_location=body.service_location,
+        status=contract_status,
     )
     db.add(contract)
     db.flush()

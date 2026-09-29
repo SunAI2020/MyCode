@@ -20,6 +20,7 @@ class ContractCreate(BaseModel):
     accept_standard: str | None = None
     delivery_docs: str | None = None
     acceptance_report_format: str | None = None
+    service_location: str | None = None
 
 
 class ContractUpdate(BaseModel):
@@ -37,6 +38,7 @@ class ContractUpdate(BaseModel):
     accept_standard: str | None = None
     delivery_docs: str | None = None
     acceptance_report_format: str | None = None
+    service_location: str | None = None
 
 
 class ContractOut(BaseModel):
@@ -57,7 +59,9 @@ class ContractOut(BaseModel):
     accept_standard: str | None = None
     delivery_docs: str | None = None
     acceptance_report_format: str | None = None
+    service_location: str | None = None
     created_at: datetime | None = None
+    archive_count: int = 0  # 归档的合同原件数量（列表接口填充，供前端灰显无原件项目）
 
 
 # ---- 服务对象 CI ----

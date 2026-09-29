@@ -7,7 +7,8 @@
         <span class="user">{{ auth.user?.name || '管理员' }}</span>
         <template #dropdown>
           <el-dropdown-menu>
-            <el-dropdown-item command="logout">退出登录</el-dropdown-item>
+            <el-dropdown-item command="switch">切换账号</el-dropdown-item>
+            <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
           </el-dropdown-menu>
         </template>
       </el-dropdown>
@@ -46,7 +47,7 @@ onMounted(() => {
 const MENU_ITEMS = [
   { path: '/dashboard', label: '仪表盘', roles: ['sys_admin', 'sys_ops', 'ticket_mgr', 'cs_staff', 'cust_admin', 'cust_service'] },
   { path: '/customers', label: '客户管理', roles: ['sys_admin', 'ticket_mgr'] },
-  { path: '/contracts', label: '合同管理', roles: ['sys_admin', 'ticket_mgr'] },
+  { path: '/contracts', label: '项目管理', roles: ['sys_admin', 'ticket_mgr'] },
   { path: '/work-orders', label: '工单管理', roles: ['sys_admin', 'sys_ops', 'ticket_mgr', 'cs_staff', 'sec_staff', 'cust_admin', 'cust_service'] },
   { path: '/portal', label: '自助门户', roles: ['sys_admin', 'sys_ops', 'ticket_mgr', 'cust_admin', 'cust_service'] },
   { path: '/knowledge', label: '知识库', roles: ['sys_admin', 'sys_ops', 'ticket_mgr', 'cs_staff', 'sec_staff', 'cust_admin', 'cust_service'] },
@@ -61,7 +62,7 @@ const visibleMenu = computed(() => {
 })
 
 function onCommand(cmd: string) {
-  if (cmd === 'logout') {
+  if (cmd === 'switch' || cmd === 'logout') {
     auth.logout()
     router.push('/login')
   }

@@ -1,5 +1,6 @@
 """合同 / 服务对象(CI) / 合同子项 CRUD。"""
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.deps import (
@@ -10,7 +11,7 @@ from app.core.deps import (
     require_role,
     scope_filter,
 )
-from app.models import CmdbCi, CmdbCiDependency, Contract, ContractItem, Customer, SysUser
+from app.models import CmdbCi, CmdbCiDependency, Contract, ContractArchive, ContractItem, Customer, SysUser
 from app.core.security import mask_sensitive, masked_page
 from app.schemas.cmdb import CmdbCiDependencyCreate, CmdbCiDependencyOut
 from app.schemas.contract import (
@@ -46,7 +47,19 @@ def list_contracts(
 ):
     scope = customer_scope_of(user, db)
     q = scope_filter(db.query(Contract), Contract, scope)
-    return ok(masked_page(paginate(q, page, size, ContractOut), scope))
+    result = paginate(q, page, size, ContractOut)
+    # 附上每个项目的合同原件数量，供前端灰显「无原件」项目的查看按钮
+    ids = [it["id"] for it in result["items"]]
+    if ids:
+        counts = dict(
+            db.query(ContractArchive.contract_id, func.count(ContractArchive.id))
+            .filter(ContractArchive.contract_id.in_(ids))
+            .group_by(ContractArchive.contract_id)
+            .all()
+        )
+        for it in result["items"]:
+            it["archive_count"] = counts.get(it["id"], 0)
+    return ok(masked_page(result, scope))
 
 
 @contracts.post("")

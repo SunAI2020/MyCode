@@ -25,6 +25,7 @@ class Contract(Base):
     accept_standard: Mapped[str | None] = mapped_column(Text, nullable=True)  # 验收标准
     delivery_docs: Mapped[str | None] = mapped_column(Text, nullable=True)  # 交付文档
     acceptance_report_format: Mapped[str | None] = mapped_column(Text, nullable=True)  # 验收报告格式
+    service_location: Mapped[str | None] = mapped_column(String(255), nullable=True)  # 服务地点
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

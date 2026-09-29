@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>步骤 50 · 项目管理与多合同归档</title>
+<style>
+body{font-family:"Microsoft YaHei",sans-serif;max-width:960px;margin:2rem auto;line-height:1.7;color:#222;padding:0 1rem}
+h1{border-bottom:2px solid #2c6fbb;padding-bottom:.4rem}
+h2{color:#2c6fbb;margin-top:1.8rem}
+code,pre{background:#f5f7fa;border-radius:4px}
+code{padding:0 .3em}
+pre{padding:.8rem;overflow:auto}
+table{border-collapse:collapse;width:100%;margin:1rem 0}
+th,td{border:1px solid #d0d7de;padding:.4rem .6rem;text-align:left}
+th{background:#f0f3f6}
+.tag{display:inline-block;background:#e8f0fe;color:#1a56b0;border-radius:3px;padding:0 .4em;font-size:.85em;margin-right:.3em}
+</style>
+</head>
+<body>
+<h1>步骤 50 · 项目管理与多合同归档</h1>
+
+<h2>目标</h2>
+<p>将「合同管理」在语义上提升为「项目管理」：把原「合同」实体作为「项目」，其下可归档多份
+合同原件（格式可不同：PDF / Word / 图片 jpg/png），并支持导入时选择挂到已有项目或新建项目。</p>
+<p>纯文案变更 + 两处功能扩展（多格式归档、挂载已有项目），<strong>不改数据库表结构</strong>
+（<code>contract</code> 表即「项目」，<code>contract_archive</code> 表即「合同原件」）。</p>
+
+<h2>关键决策（用户已确认）</h2>
+<ol>
+<li><strong>文件格式</strong>：本次支持 PDF / Word(.docx) + 图片(jpg/png)，图片走 MinerU 云端 OCR；
+<code>.wps</code> 暂不支持（需 LibreOffice 转换，后续单独做）。</li>
+<li><strong>导入归属</strong>：导入时可选「新建项目」或挂到「已有项目」；挂到已有项目时仅归档原件，
+不重复生成服务对象 / 服务项目。</li>
+</ol>
+
+<h2>术语映射（仅 UI 文案，不改代码标识符）</h2>
+<table>
+<tr><th>旧文案</th><th>新文案</th><th>位置</th></tr>
+<tr><td>侧边栏「合同管理」</td><td>项目管理</td><td>MainLayout.vue</td></tr>
+<tr><td>tab「合同」</td><td>项目</td><td>Contracts.vue</td></tr>
+<tr><td>按钮「新增合同」</td><td>新增项目</td><td>Contracts.vue</td></tr>
+<tr><td>列表列「名称」</td><td>项目名称</td><td>Contracts.vue</td></tr>
+<tr><td>列表列「编号」</td><td>合同编号</td><td>Contracts.vue</td></tr>
+<tr><td>弹窗「新增合同/编辑合同」</td><td>新增项目/编辑项目</td><td>Contracts.vue</td></tr>
+<tr><td>弹窗字段「名称」</td><td>项目名称</td><td>Contracts.vue</td></tr>
+<tr><td>「导入合同」</td><td>不变</td><td>Contracts.vue</td></tr>
+</table>
+<p>代码内部标识符（<code>contract</code> / <code>contract_id</code> / <code>/contracts</code> 等）保持不变，
+避免牵动全链路（工单聚合、行级隔离、周期生成等）引用。</p>
+
+<h2>交互流程（变更点）</h2>
+<pre>合同管理页「导入合同」按钮
+  → 文件选择框（.pdf / .docx / .jpg / .jpeg / .png）
+  → POST /contract-archives/upload
+       1) 校验扩展名/大小 → 读字节 → 算 SHA-256
+       2) 抽文本：PDF(pypdf/MinerU) / Word(python-docx) / 图片(MinerU OCR)
+       3) LLM 抽取字段（未配置则规则降级/人工补录）
+       4) Fernet 加密写盘；建 ContractArchive(status=待确认)
+  → 弹窗：新增「目标项目」选择器（默认「新建项目」，可选已有项目）
+  → 确认导入 → POST /contract-archives/{id}/confirm（body 增 contract_id）
+       A) 带 contract_id：仅把原件归档到该项目（不建客户/服务对象/服务项目）
+       B) 不带 contract_id：维持原逻辑（新建 客户→项目→服务对象→服务项目）
+  → 返回项目 → 刷新列表
+「查看合同」→ 弹窗列出该项目下全部合同原件（文件名/大小/下载），支持多份</pre>
+
+<h2>后端改动</h2>
+<ol>
+<li><code>services/contract_extract_service.py</code>：<code>extract_text</code> 增加图片分支；
+抽出 <code>_extract_mineru(data, suffix)</code> 供 PDF/图片共用。</li>
+<li><code>api/v1/contract_archives.py</code>：<code>upload_archive</code> 放行图片、MIME 映射与内联白名单；
+<code>confirm_archive</code> 支持可选 <code>contract_id</code>。</li>
+<li><code>schemas/contract_archive.py</code>：<code>ContractArchiveConfirm</code> 增加 <code>contract_id</code>。</li>
+</ol>
+
+<h2>前端改动</h2>
+<ol>
+<li><code>layouts/MainLayout.vue</code>：菜单「合同管理」→「项目管理」。</li>
+<li><code>views/Contracts.vue</code>：文案替换 + 导入弹窗「目标项目」选择器 + 「查看合同」多份原件弹窗 + accept 扩展图片。</li>
+</ol>
+
+<h2>不改动</h2>
+<ul>
+<li>数据库表结构 / 迁移（<code>contract_archive.contract_id</code> 本就一(项目)对多(原件)）。</li>
+<li>后端 API 路径与其余模块的引用。</li>
+<li>前端路由 <code>path: 'contracts'</code> 与 <code>name: 'contracts'</code>。</li>
+</ul>
+</body>
+</html>

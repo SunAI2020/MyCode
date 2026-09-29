@@ -16,12 +16,15 @@ class ContractArchiveConfirm(BaseModel):
     """确认导入：编辑后的抽取字段 + 可选显式客户。"""
 
     customer_id: int | None = None  # 显式选择已有客户（优先）
+    contract_id: int | None = None  # 挂到已有项目（优先于新建项目）；为空则新建 客户→项目→服务对象→服务项目
+    name: str | None = None  # 合同名称
     customer_name: str | None = None
     contract_no: str | None = None
     sign_date: str | None = None  # YYYY-MM-DD
     amount: float | None = None
     has_onsite: bool | None = None
     service_period: str | None = None
+    service_location: str | None = None
     staff_requirement: str | None = None
     accept_standard: str | None = None
     delivery_docs: str | None = None

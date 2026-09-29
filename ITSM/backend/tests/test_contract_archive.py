@@ -39,10 +39,67 @@ def _mk_archive(db, u):
     return obj
 
 
-def test_mineru_disabled_without_token():
+def test_mineru_disabled_without_token(monkeypatch):
     """未配置 MINERU_TOKEN 时不走云端、不发起网络请求，返回空串。"""
-    from app.services.contract_extract_service import _extract_pdf_mineru
-    assert _extract_pdf_mineru(b"%PDF-1.4 fake") == ""
+    from app.core.config import settings
+    from app.services.contract_extract_service import _extract_mineru
+    monkeypatch.setattr(settings, "MINERU_TOKEN", "")
+    assert _extract_mineru(b"%PDF-1.4 fake", ".pdf") == ""
+
+
+def test_extract_text_image_mineru_expired(monkeypatch):
+    """图片 OCR 遇 MinerU token 过期 → 返回空文本 + mineru_expired=True。"""
+    from app.services import contract_extract_service as ces
+
+    def _raise(data, suffix):
+        raise ces.MineruTokenExpired()
+
+    monkeypatch.setattr(ces, "_extract_mineru", _raise)
+    text, expired = ces.extract_text("合同.png", b"\x89PNG fake")
+    assert text == ""
+    assert expired is True
+
+
+def test_extract_text_pdf_falls_back_on_expired(monkeypatch):
+    """PDF 遇 token 过期仍回退本地 pypdf，并带出 expired 标志。"""
+    from app.services import contract_extract_service as ces
+
+    def _raise(data, suffix):
+        raise ces.MineruTokenExpired()
+
+    monkeypatch.setattr(ces, "_extract_mineru", _raise)
+    monkeypatch.setattr(ces, "_extract_pdf_pypdf", lambda data: "回退文本")
+    text, expired = ces.extract_text("合同.pdf", b"%PDF fake")
+    assert text == "回退文本"
+    assert expired is True
+
+
+def test_rule_extract_xufang_contract():
+    """需方/供方式合同：名称/需方客户/服务对象与项目/验收标准/交付文档/服务地点。"""
+    text = (
+        "太原市数字健康保障中心网络安全设备维保采购项目\n"
+        "服务合同\n"
+        "需方：太原市数字健康保障中心\n"
+        "供方：山西有信网安科技有限公司\n"
+        "供方向需方提供网络安全设备维保及网络安全服务（具体服务内容及服务期等见后附明细）\n"
+        "二、合同总金额:\n"
+        "（小写）：￥409850元\n"
+        "六、交验\n"
+        "1、完成响应文件中约定的全部网络安全维保服务事项。\n"
+        "2、遵循响应文件中约定的技术标准。\n"
+        "5、验收交付文档：(1)网络安全设备维保方案；(2)项目维保记录；\n"
+        "七、需方责任\n"
+        "2、服务地点：太原市万柏林区望景路5号\n"
+    )
+    r = extract_contract_fields(text)
+    assert r["name"] == "太原市数字健康保障中心网络安全设备维保采购项目服务合同"
+    assert r["customer_name"] == "太原市数字健康保障中心"
+    assert r["amount"] == 409850.0
+    assert r["service_location"] == "太原市万柏林区望景路5号"
+    assert r["service_objects"] == ["网络安全设备"]
+    assert [i["project"] for i in r["service_items"]] == ["网络安全设备维保", "网络安全服务"]
+    assert "完成响应文件中约定的全部" in (r["accept_standard"] or "")
+    assert r["delivery_docs"] == "(1)网络安全设备维保方案；(2)项目维保记录；"
 
 
 def test_rule_extract_fallback():
@@ -78,6 +135,7 @@ def test_encrypt_decrypt_roundtrip(tmp_path, monkeypatch):
 
 def test_upload_creates_encrypted_archive(tmp_path, monkeypatch, db):
     monkeypatch.setattr(settings, "UPLOAD_DIR", str(tmp_path))
+    monkeypatch.setattr(settings, "MINERU_TOKEN", "")  # 屏蔽云端，避免单测真实联网
     u = _mk_user(db)
     f = UploadFile(filename="合同A.pdf", file=io.BytesIO(b"%PDF-1.4 fake content"))
     data = upload_archive(file=f, user=u, db=db)["data"]
@@ -162,6 +220,36 @@ def test_confirm_reuses_existing_customer(db):
     ct = db.get(Contract, data["id"])
     assert ct.customer_id == c.id
     assert db.query(Customer).count() == 1  # 未新建客户
+
+
+def test_confirm_attaches_to_existing_contract(db):
+    """带 contract_id 时仅归档原件到已有项目，不重复生成客户/服务对象/服务项目。"""
+    u = _mk_user(db)
+    c = Customer(name="既有客户")
+    db.add(c)
+    db.commit()
+    existing = Contract(customer_id=c.id, type="安全服务", name="既有项目", no="HT-EXIST")
+    db.add(existing)
+    db.commit()
+    obj = _mk_archive(db, u)
+    body = ContractArchiveConfirm(
+        contract_id=existing.id,
+        customer_name="（应被忽略）",
+        service_objects=["不应创建"],
+        service_items=[ServiceItemIn(project="不应创建", frequency=1, unit="月")],
+    )
+    data = confirm_archive(obj.id, body, user=u, db=db)["data"]
+
+    assert data["id"] == existing.id
+    assert db.query(Contract).count() == 1  # 未新建项目
+    assert db.query(Customer).count() == 1  # 未新建客户
+    assert db.query(CmdbCi).filter_by(contract_id=existing.id).count() == 0
+    assert db.query(ContractItem).filter_by(contract_id=existing.id).count() == 0
+
+    obj2 = db.get(ContractArchive, obj.id)
+    assert obj2.status == "已确认"
+    assert obj2.contract_id == existing.id
+    assert obj2.customer_id == c.id
 
 
 def test_confirm_rejects_foreign_archive(db):
