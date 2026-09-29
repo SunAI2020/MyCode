@@ -21,7 +21,8 @@ services:
     image: redis:7-alpine
     container_name: itsm-redis
     ports:
-      - "127.0.0.1:6379:6379"
+      # 6379 已被兄弟项目 ccms-redis 占用，ITSM 改用 6380 避免端口冲突
+      - "127.0.0.1:6380:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
