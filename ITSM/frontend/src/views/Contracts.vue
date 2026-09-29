@@ -157,7 +157,7 @@
             <el-option v-for="c in contracts" :key="c.id" :label="c.name" :value="c.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="服务目标（系统）">
+        <el-form-item label="服务目标（系统）" label-position="top" class="ci-form-item">
           <el-checkbox-group v-model="itemForm.ci_ids" class="ci-checkbox-list">
             <el-checkbox v-for="c in projectCis" :key="c.id" :value="c.id">{{ c.name }}</el-checkbox>
           </el-checkbox-group>
@@ -681,7 +681,10 @@ onMounted(() => {
 <style scoped>
 .toolbar { display: flex; gap: 12px; margin-bottom: 14px; }
 .obj-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.ci-checkbox-list { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.ci-checkbox-list { display: flex; flex-direction: column; gap: 4px; }
 .ci-empty { color: #999; font-size: 12px; margin-top: 4px; }
+/* 与「项目名称」label（右对齐、宽 110px、右内边距 12px）的「项」字左缘对齐：110 - 12 - 4 字宽 */
+.ci-form-item :deep(.el-form-item__label),
+.ci-form-item :deep(.el-form-item__content) { margin-left: calc(110px - 12px - 4em); }
 .text-preview { margin-top: 8px; max-height: 200px; overflow: auto; white-space: pre-wrap; background: #f5f7fa; padding: 8px; border-radius: 4px; font-size: 12px; color: #666; }
 </style>
