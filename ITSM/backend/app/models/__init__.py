@@ -7,6 +7,7 @@ from app.models.compliance import (
     ComplianceCheck,
     ComplianceEvidence,
     ComplianceRequirement,
+    ComplianceRequirementTemplate,
     DutyReport,
 )
 from app.models.contract import CmdbCi, CmdbCiDependency, Contract, ContractArchive, ContractItem
@@ -56,6 +57,7 @@ __all__ = [
     "ComplianceEvidence",
     "ComplianceCheck",
     "DutyReport",
+    "ComplianceRequirementTemplate",
     "Contract",
     "CmdbCi",
     "CmdbCiDependency",

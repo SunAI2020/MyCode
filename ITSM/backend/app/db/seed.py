@@ -10,6 +10,7 @@ import secrets
 from sqlalchemy.orm import Session
 
 from app.core.security import hash_password
+from app.db.regulatory_templates import seed_templates
 from app.db.session import SessionLocal
 from app.models import KbArticle, SlaPolicy, SysDict, SysRole, SysUser, SysUserRole
 
@@ -121,8 +122,11 @@ def seed() -> None:
             role = db.query(SysRole).filter_by(code="sys_admin").first()
             db.add(SysUserRole(user_id=admin.id, role_id=role.id))
 
+        added_tpl = seed_templates(db)
         db.commit()
         print("seed 完成：8 角色 / 37 字典项 / 3 SLA 模板 / 3 知识条目 / 1 管理员(admin)")
+        if added_tpl:
+            print(f"  监管要求模板库：新增 {added_tpl} 条（等保2.0/密码测评/数据安全/公安部176号令）")
         if admin_pwd:
             print(f"  admin 初始密码：{admin_pwd}（请登录后立即修改）")
     finally:

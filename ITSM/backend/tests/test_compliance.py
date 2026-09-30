@@ -6,6 +6,7 @@ from app.models import (
     ComplianceCheck,
     ComplianceEvidence,
     ComplianceRequirement,
+    ComplianceRequirementTemplate,
     Contract,
     ContractItem,
     Customer,
@@ -14,6 +15,7 @@ from app.models import (
     Rectification,
     WorkOrder,
 )
+from app.db.regulatory_templates import TEMPLATES, seed_templates
 from app.services.evidence_service import (
     collect,
     collect_for_approval,
@@ -347,3 +349,16 @@ def test_verify_chain_detects_tamper(db):
     result = verify_chain(db, req.id)
     assert result["intact"] is False
     assert first.id in result["broken_ids"]
+
+
+def test_seed_templates(db):
+    """监管要求模板库：内置四大标准模板，seed 幂等。"""
+    n = seed_templates(db)
+    db.commit()
+    assert n == len(TEMPLATES)
+    assert db.query(ComplianceRequirementTemplate).count() == len(TEMPLATES)
+    # 重复 seed 不新增
+    assert seed_templates(db) == 0
+    # 覆盖四大标准
+    sources = {s for (s,) in db.query(ComplianceRequirementTemplate.reg_source).distinct().all()}
+    assert sources == {"等保2.0", "密码测评", "数据安全", "公安部176号令"}

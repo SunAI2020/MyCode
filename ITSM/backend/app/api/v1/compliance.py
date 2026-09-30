@@ -16,6 +16,7 @@ from app.models import (
     ComplianceCheck,
     ComplianceEvidence,
     ComplianceRequirement,
+    ComplianceRequirementTemplate,
     Contract,
     ContractItem,
     Customer,
@@ -33,8 +34,10 @@ from app.schemas.compliance import (
     ComplianceRequirementCreate,
     ComplianceRequirementOut,
     ComplianceRequirementUpdate,
+    ComplianceTemplateOut,
     DutyReportCreate,
     DutyReportOut,
+    TemplateApplyIn,
 )
 from app.services.audit_service import record
 from app.services.compliance_service import build_report_snapshot, compute_metrics
@@ -396,3 +399,72 @@ def sign_report(rid: int, user: SysUser = Depends(require_role(*ROLE)), db: Sess
     record(db, user_id=user.id, action="sign", resource=f"duty_report:{rid}")
     db.commit()
     return ok(DutyReportOut.model_validate(obj).model_dump())
+
+
+# ---- 监管要求模板库 ----
+@router.get("/templates")
+def list_templates(
+    reg_source: str | None = Query(None),
+    category: str | None = Query(None),
+    domain: str | None = Query(None),
+    user: SysUser = Depends(require_role(*ROLE)),
+    db: Session = Depends(get_db),
+):
+    """监管要求模板库：等保2.0 / 密码测评 / 数据安全 / 公安部176号令。"""
+    q = db.query(ComplianceRequirementTemplate)
+    if reg_source is not None:
+        q = q.filter(ComplianceRequirementTemplate.reg_source == reg_source)
+    if category is not None:
+        q = q.filter(ComplianceRequirementTemplate.category == category)
+    if domain is not None:
+        q = q.filter(ComplianceRequirementTemplate.domain == domain)
+    rows = q.order_by(ComplianceRequirementTemplate.sort_order, ComplianceRequirementTemplate.id).all()
+    return ok([ComplianceTemplateOut.model_validate(t).model_dump() for t in rows])
+
+
+@router.post("/templates/{tid}/apply")
+def apply_template(
+    tid: int,
+    body: TemplateApplyIn,
+    user: SysUser = Depends(require_role(*ROLE)),
+    db: Session = Depends(get_db),
+):
+    """把模板实例化为某客户的合规要求。"""
+    tpl = db.get(ComplianceRequirementTemplate, tid)
+    if tpl is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "模板不存在")
+    if db.get(Customer, body.customer_id) is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "客户不存在")
+    scope = customer_scope_of(user, db)
+    if scope is not None and body.customer_id != scope:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "无权为其他客户应用模板")
+    _validate_requirement_refs(db, body.customer_id, body.project_id, "监管", None)
+    # 保留标题作为可读标签，并据此去重（同一模板对同一客户重复应用不重复建）
+    clause = f"{tpl.title}：{tpl.clause}"
+    existing = (
+        db.query(ComplianceRequirement)
+        .filter(
+            ComplianceRequirement.customer_id == body.customer_id,
+            ComplianceRequirement.project_id == body.project_id,
+            ComplianceRequirement.source_type == "监管",
+            ComplianceRequirement.reg_source == tpl.reg_source,
+            ComplianceRequirement.clause == clause,
+        )
+        .first()
+    )
+    if existing is not None:
+        return ok(ComplianceRequirementOut.model_validate(existing).model_dump())
+    obj = ComplianceRequirement(
+        customer_id=body.customer_id,
+        project_id=body.project_id,
+        source_type="监管",
+        reg_source=tpl.reg_source,
+        category=tpl.category,
+        clause=clause,
+        status="启用",
+    )
+    db.add(obj)
+    db.flush()
+    record(db, user_id=user.id, action="apply_template", resource=f"compliance_requirement:{obj.id}", after=str(body.model_dump()))
+    db.commit()
+    return ok(ComplianceRequirementOut.model_validate(obj).model_dump())

@@ -110,6 +110,29 @@
           </el-table>
         </el-card>
       </el-tab-pane>
+
+      <el-tab-pane label="监管模板库" name="template">
+        <el-card>
+          <div class="toolbar">
+            <el-select v-model="tplSource" placeholder="全部标准" clearable style="width: 180px" @change="loadTemplates">
+              <el-option v-for="v in TPL_SOURCES" :key="v" :label="v" :value="v" />
+            </el-select>
+            <el-button type="primary" @click="loadTemplates">刷新</el-button>
+          </div>
+          <el-table :data="templates" v-loading="loading">
+            <el-table-column prop="reg_source" label="标准" width="130" />
+            <el-table-column prop="domain" label="领域" width="140" show-overflow-tooltip />
+            <el-table-column prop="title" label="条款标题" width="170" show-overflow-tooltip />
+            <el-table-column prop="clause" label="要求原文" show-overflow-tooltip />
+            <el-table-column prop="category" label="维度" width="70" />
+            <el-table-column label="操作" width="90">
+              <template #default="{ row }">
+                <el-button link type="primary" @click="openApplyTemplate(row)">应用</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-card>
+      </el-tab-pane>
     </el-tabs>
 
     <!-- 新增/编辑要求 -->
@@ -238,6 +261,18 @@
         </el-table>
       </template>
     </el-drawer>
+
+    <!-- 应用模板 -->
+    <el-dialog v-model="applyTplDlg" :title="`应用模板 · ${applyTpl?.title || ''}`" width="480px">
+      <el-form :model="applyTplForm" label-width="90px">
+        <el-form-item label="客户" required>
+          <el-select v-model="applyTplForm.customer_id" style="width: 100%" placeholder="选择客户">
+            <el-option v-for="c in customers" :key="c.id" :label="c.name" :value="c.id" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer><el-button @click="applyTplDlg = false">取消</el-button><el-button type="primary" :loading="applyTplLoading" @click="saveApplyTemplate">应用</el-button></template>
+    </el-dialog>
   </div>
 </template>
 
@@ -252,6 +287,7 @@ import {
   listRequirements, createRequirement, updateRequirement, deleteRequirement,
   listEvidence, addEvidence, verifyEvidenceChain, createCheck, listChecks, updateCheck,
   listCustomers, complianceOverview, createReport, listReports, getReport, signReport,
+  listTemplates, applyTemplate,
 } from '@/api'
 
 echarts.use([BarChart, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer])
@@ -259,6 +295,7 @@ echarts.use([BarChart, GridComponent, LegendComponent, TooltipComponent, CanvasR
 const CATEGORIES = ['技术', '组织', '制度', '台账', '流程']
 const SOURCE_TYPES = ['监管', '合同义务', '服务项目']
 const CHECK_TYPES = ['巡查', '自查', '攻防校验', '复测']
+const TPL_SOURCES = ['等保2.0', '密码测评', '数据安全', '公安部176号令']
 
 const tab = ref('requirement')
 const loading = ref(false)
@@ -300,6 +337,13 @@ const reportDlg = ref(false)
 const reportForm = reactive<any>({ customer_id: null, period_start: null, period_end: null })
 const reportViewDlg = ref(false)
 const reportDetail = ref<any>({ id: 0, content: null })
+
+const tplSource = ref('')
+const templates = ref<any[]>([])
+const applyTplDlg = ref(false)
+const applyTpl = ref<any>(null)
+const applyTplForm = reactive<any>({ customer_id: null })
+const applyTplLoading = ref(false)
 
 function customerName(id: number) {
   return customers.value.find((c) => c.id === id)?.name || `#${id}`
@@ -431,8 +475,43 @@ function renderChart() {
 }
 
 function onTabChange(name: string | number) {
-  if (name === 'overview') loadOverview()
+  if (name === 'requirement') loadRequirements()
+  else if (name === 'overview') loadOverview()
   else if (name === 'report') loadReports()
+  else if (name === 'template') loadTemplates()
+}
+
+async function loadTemplates() {
+  loading.value = true
+  try {
+    const params: any = {}
+    if (tplSource.value) params.reg_source = tplSource.value
+    templates.value = (await listTemplates(params)).data
+  } finally {
+    loading.value = false
+  }
+}
+
+function openApplyTemplate(row: any) {
+  applyTpl.value = row
+  applyTplForm.customer_id = null
+  applyTplDlg.value = true
+}
+
+async function saveApplyTemplate() {
+  if (!applyTplForm.customer_id) return ElMessage.warning('请选择客户')
+  if (applyTplLoading.value) return
+  applyTplLoading.value = true
+  try {
+    await applyTemplate(applyTpl.value!.id, { customer_id: applyTplForm.customer_id })
+    ElMessage.success('已应用模板为合规要求')
+    applyTplDlg.value = false
+    loadRequirements()
+  } catch {
+    ElMessage.error('应用模板失败')
+  } finally {
+    applyTplLoading.value = false
+  }
 }
 
 async function loadReports() {

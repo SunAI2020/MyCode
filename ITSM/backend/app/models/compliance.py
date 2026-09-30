@@ -5,7 +5,7 @@
 """
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -104,3 +104,18 @@ class DutyReport(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+
+
+class ComplianceRequirementTemplate(Base):
+    """监管要求模板库（全局，无客户归属）：等保2.0 / 密码测评 / 数据安全 / 公安部176号令。"""
+
+    __tablename__ = "compliance_requirement_template"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    reg_source: Mapped[str] = mapped_column(String(32), index=True)  # 等保2.0/密码测评/数据安全/公安部176号令
+    domain: Mapped[str] = mapped_column(String(64))  # 标准领域，如 安全物理环境/数据分类分级
+    title: Mapped[str] = mapped_column(String(128))  # 条款标题
+    clause: Mapped[str] = mapped_column(Text)  # 要求原文
+    category: Mapped[str] = mapped_column(String(16), default="技术")  # 技术/组织/制度/台账/流程
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+    is_builtin: Mapped[bool] = mapped_column(Boolean, default=True)

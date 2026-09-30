@@ -131,3 +131,20 @@ class DutyReportOut(BaseModel):
     sign: str
     created_by: int | None = None
     created_at: datetime | None = None
+
+
+# ---- 监管要求模板 ----
+class ComplianceTemplateOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    reg_source: str
+    domain: str
+    title: str
+    clause: str
+    category: str
+
+
+class TemplateApplyIn(BaseModel):
+    customer_id: int
+    project_id: int | None = None

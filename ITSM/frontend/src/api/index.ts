@@ -105,3 +105,5 @@ export const createReport = (data: any) => request.post('/compliance/reports', d
 export const listReports = (params: any) => request.get('/compliance/reports', { params })
 export const getReport = (id: number) => request.get(`/compliance/reports/${id}`)
 export const signReport = (id: number) => request.post(`/compliance/reports/${id}/sign`)
+export const listTemplates = (params: any) => request.get('/compliance/templates', { params })
+export const applyTemplate = (id: number, data: any) => request.post(`/compliance/templates/${id}/apply`, data)
