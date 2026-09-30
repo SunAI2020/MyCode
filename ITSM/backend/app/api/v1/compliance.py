@@ -16,6 +16,8 @@ from app.models import (
     ComplianceCheck,
     ComplianceEvidence,
     ComplianceRequirement,
+    Contract,
+    ContractItem,
     Customer,
     DutyReport,
     Issue,
@@ -36,7 +38,7 @@ from app.schemas.compliance import (
 )
 from app.services.audit_service import record
 from app.services.compliance_service import build_report_snapshot, compute_metrics
-from app.services.evidence_service import collect
+from app.services.evidence_service import collect, verify_chain
 from app.utils.pagination import paginate
 from app.utils.response import ok
 from app.utils.wo_no import next_work_order_no, work_order_no_scope
@@ -45,6 +47,23 @@ router = APIRouter(prefix="/compliance", tags=["合规运营"])
 
 ROLE = ("sys_admin", "sys_ops", "ticket_mgr", "sec_staff")
 ADMIN = ("sys_admin", "sys_ops")
+
+
+def _validate_requirement_refs(
+    db: Session, customer_id: int, project_id: int | None, source_type: str, source_id: int | None
+) -> None:
+    """校验合规要求的外键引用与客户归属一致（防跨租户 IDOR）。"""
+    if project_id is not None:
+        contract = db.get(Contract, project_id)
+        if contract is None or contract.customer_id != customer_id:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "项目（合同）不存在或不属于该客户")
+    if source_type == "服务项目" and source_id is not None:
+        item = db.get(ContractItem, source_id)
+        if item is None:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "服务项目不存在")
+        contract = db.get(Contract, item.contract_id)
+        if contract is None or contract.customer_id != customer_id:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "服务项目不属于该客户")
 
 
 # ---- 合规要求 ----
@@ -83,6 +102,7 @@ def create_requirement(
     scope = customer_scope_of(user, db)
     if scope is not None and body.customer_id != scope:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "无权为其他客户创建合规要求")
+    _validate_requirement_refs(db, body.customer_id, body.project_id, body.source_type, body.source_id)
     obj = ComplianceRequirement(**body.model_dump())
     db.add(obj)
     db.flush()
@@ -113,6 +133,7 @@ def update_requirement(
     assert_scoped(obj, customer_scope_of(user, db), db)
     for k, v in body.model_dump(exclude_unset=True).items():
         setattr(obj, k, v)
+    _validate_requirement_refs(db, obj.customer_id, obj.project_id, obj.source_type, obj.source_id)
     db.flush()
     record(db, user_id=user.id, action="update", resource=f"compliance_requirement:{rid}", after=str(body.model_dump(exclude_unset=True)))
     db.commit()
@@ -173,6 +194,16 @@ def list_evidence(rid: int, user: SysUser = Depends(require_role(*ROLE)), db: Se
     return ok([ComplianceEvidenceOut.model_validate(e).model_dump() for e in q.all()])
 
 
+@router.get("/requirements/{rid}/evidence/verify")
+def verify_evidence_chain(rid: int, user: SysUser = Depends(require_role(*ROLE)), db: Session = Depends(get_db)):
+    """验证某合规要求下证据哈希链完整性（P4 防篡改）。"""
+    req = db.get(ComplianceRequirement, rid)
+    if req is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "合规要求不存在")
+    assert_scoped(req, customer_scope_of(user, db), db)
+    return ok(verify_chain(db, rid))
+
+
 # ---- 合规核验 ----
 @router.post("/requirements/{rid}/checks")
 def create_check(
@@ -227,6 +258,12 @@ def update_check(
     assert_scoped(req, customer_scope_of(user, db), db)
     for k, v in body.model_dump(exclude_unset=True).items():
         setattr(obj, k, v)
+
+    # 证据归属校验：只能挂接同要求下的证据（防跨租户/跨要求）
+    if body.evidence_id is not None:
+        ev = db.get(ComplianceEvidence, body.evidence_id)
+        if ev is None or ev.requirement_id != obj.requirement_id:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "证据不属于该合规要求")
 
     # 核验状态机：结果=通过 → 已核验；不通过/部分 → 有缺口 + 自动建整改问题（闭环收编）
     if body.result == "通过":

@@ -155,6 +155,7 @@
           <el-input v-model="evForm.note" placeholder="证据说明" style="width: 220px" />
         </el-form-item>
         <el-button type="primary" @click="saveEvidence">上传证据</el-button>
+        <el-button type="warning" plain @click="verifyChain">验证链</el-button>
       </el-form>
       <el-timeline>
         <el-timeline-item v-for="e in evidence" :key="e.id" :timestamp="e.occurred_at" placement="top">
@@ -185,11 +186,6 @@
     <!-- 提交核验结果 -->
     <el-dialog v-model="checkUpdateDlg" :title="`提交核验结果 · #${checkUpdateId}`" width="480px">
       <el-form :model="checkUpdateForm" label-width="90px">
-        <el-form-item label="状态">
-          <el-select v-model="checkUpdateForm.status" style="width: 100%">
-            <el-option v-for="v in ['进行中', '已核验', '有缺口', '已闭环']" :key="v" :label="v" :value="v" />
-          </el-select>
-        </el-form-item>
         <el-form-item label="结果">
           <el-select v-model="checkUpdateForm.result" style="width: 100%" clearable placeholder="通过/不通过/部分">
             <el-option v-for="v in ['通过', '不通过', '部分']" :key="v" :label="v" :value="v" />
@@ -254,7 +250,7 @@ import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/compon
 import { CanvasRenderer } from 'echarts/renderers'
 import {
   listRequirements, createRequirement, updateRequirement, deleteRequirement,
-  listEvidence, addEvidence, createCheck, listChecks, updateCheck,
+  listEvidence, addEvidence, verifyEvidenceChain, createCheck, listChecks, updateCheck,
   listCustomers, complianceOverview, createReport, listReports, getReport, signReport,
 } from '@/api'
 
@@ -291,7 +287,7 @@ const checkForm = reactive<any>({ check_type: '巡查', check_date: null, note: 
 const checks = ref<any[]>([])
 const checkUpdateDlg = ref(false)
 const checkUpdateId = ref<number | null>(null)
-const checkUpdateForm = reactive<any>({ status: '已核验', result: null, note: '' })
+const checkUpdateForm = reactive<any>({ result: null, note: '' })
 
 const ovCustomer = ref<number | null>(null)
 const metrics = ref<any>({ total: 0, covered: 0, verified: 0, at_risk: 0, coverage_rate: 0, closure_rate: 0, traceability_rate: 0, by_category: [] })
@@ -374,6 +370,12 @@ async function saveEvidence() {
   loadEvidence()
 }
 
+async function verifyChain() {
+  const r = (await verifyEvidenceChain(evidenceReqId.value!)).data
+  if (r.intact) ElMessage.success(`哈希链完整（${r.total} 条证据）`)
+  else ElMessage.error(`哈希链被篡改：记录 ${r.broken_ids.join(', ')}`)
+}
+
 function openCheck(row: any) {
   checkReqId.value = row.id
   Object.assign(checkForm, { check_type: '巡查', check_date: null, note: '' })
@@ -388,7 +390,7 @@ async function saveCheck() {
 
 function openCheckUpdate(row: any) {
   checkUpdateId.value = row.id
-  Object.assign(checkUpdateForm, { status: row.status, result: row.result, note: row.note || '' })
+  Object.assign(checkUpdateForm, { result: row.result, note: row.note || '' })
   checkUpdateDlg.value = true
 }
 async function saveCheckUpdate() {

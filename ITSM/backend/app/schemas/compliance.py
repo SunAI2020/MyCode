@@ -79,9 +79,7 @@ class ComplianceCheckCreate(BaseModel):
 
 class ComplianceCheckUpdate(BaseModel):
     check_type: str | None = None
-    status: str | None = None  # 未覆盖/进行中/已核验/有缺口/已闭环
-    result: str | None = None  # 通过/不通过/部分
-    issue_id: int | None = None
+    result: str | None = None  # 通过/不通过/部分（status 由状态机派生，不可直接设）
     evidence_id: int | None = None
     assignee: int | None = None
     check_date: date | None = None

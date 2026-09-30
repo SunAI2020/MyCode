@@ -21,6 +21,7 @@ from app.services.evidence_service import (
     collect_for_delivery,
     collect_for_rectification,
     collect_for_work_order,
+    verify_chain,
 )
 from app.services.compliance_service import build_report_snapshot, compute_metrics
 from app.services.issue_service import submit_round
@@ -299,3 +300,50 @@ def test_build_report_snapshot(db):
     assert snap["requirements"][0]["check_status"] == "未覆盖"
     assert len(snap["evidence"]) == 1
     assert snap["period"] == {"start": None, "end": None}
+
+
+def test_evidence_hash_chain(db):
+    """P4：每条证据链式链接，prev_hash 指向上一条 chain_hash。"""
+    req = ComplianceRequirement(customer_id=1, clause="要求A")
+    db.add(req)
+    db.commit()
+    e1 = collect(db, requirement_id=req.id, source_type="人工", content_hash="h1")
+    db.commit()
+    e2 = collect(db, requirement_id=req.id, source_type="人工", content_hash="h2")
+    db.commit()
+
+    assert e1.prev_hash is None
+    assert e1.chain_hash is not None
+    assert e2.prev_hash == e1.chain_hash
+    assert e2.chain_hash != e1.chain_hash
+
+
+def test_verify_chain_intact(db):
+    req = ComplianceRequirement(customer_id=1, clause="要求A")
+    db.add(req)
+    db.commit()
+    collect(db, requirement_id=req.id, source_type="人工", content_hash="h1")
+    collect(db, requirement_id=req.id, source_type="人工", content_hash="h2")
+    db.commit()
+
+    result = verify_chain(db, req.id)
+    assert result["intact"] is True
+    assert result["total"] == 2
+    assert result["broken_ids"] == []
+
+
+def test_verify_chain_detects_tamper(db):
+    req = ComplianceRequirement(customer_id=1, clause="要求A")
+    db.add(req)
+    db.commit()
+    collect(db, requirement_id=req.id, source_type="人工", content_hash="h1")
+    collect(db, requirement_id=req.id, source_type="人工", content_hash="h2")
+    db.commit()
+
+    first = db.query(ComplianceEvidence).order_by(ComplianceEvidence.id.asc()).first()
+    first.content_hash = "TAMPERED"
+    db.commit()
+
+    result = verify_chain(db, req.id)
+    assert result["intact"] is False
+    assert first.id in result["broken_ids"]

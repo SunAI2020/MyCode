@@ -46,6 +46,8 @@ class ComplianceEvidence(Base):
     evidence_type: Mapped[str] = mapped_column(String(8), default="自动")  # 自动/人工
     file_ref: Mapped[str | None] = mapped_column(String(255), nullable=True)  # 人工上传文件引用
     content_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)  # SHA-256 防篡改
+    prev_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)  # 上一条证据的 chain_hash（P4 哈希链）
+    chain_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)  # 链式哈希（P4 防篡改）
     operator_id: Mapped[int | None] = mapped_column(
         ForeignKey("sys_user.id"), nullable=True
     )  # 产生证据的操作人

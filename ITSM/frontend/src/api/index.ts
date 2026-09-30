@@ -96,6 +96,7 @@ export const updateRequirement = (id: number, data: any) => request.put(`/compli
 export const deleteRequirement = (id: number) => request.delete(`/compliance/requirements/${id}`)
 export const listEvidence = (rid: number) => request.get(`/compliance/requirements/${rid}/evidence`)
 export const addEvidence = (rid: number, data: any) => request.post(`/compliance/requirements/${rid}/evidence`, data)
+export const verifyEvidenceChain = (rid: number) => request.get(`/compliance/requirements/${rid}/evidence/verify`)
 export const createCheck = (rid: number, data: any) => request.post(`/compliance/requirements/${rid}/checks`, data)
 export const listChecks = (params: any) => request.get('/compliance/checks', { params })
 export const updateCheck = (id: number, data: any) => request.put(`/compliance/checks/${id}`, data)

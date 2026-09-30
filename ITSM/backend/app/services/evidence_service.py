@@ -15,6 +15,7 @@ from app.models import (
     ComplianceEvidence,
     ComplianceRequirement,
     Contract,
+    ContractItem,
     Delivery,
     Issue,
     WorkOrder,
@@ -25,6 +26,31 @@ from app.models import (
 def _hash(source_type: str, source_id: int) -> str:
     """自动证据的内容哈希：源实体标识的 SHA-256（防篡改锚点）。"""
     return hashlib.sha256(f"{source_type}:{source_id}".encode("utf-8")).hexdigest()
+
+
+def _chain_hash(
+    prev_hash: str | None, content_hash: str | None, source_type: str, source_id: int | None
+) -> str:
+    """链式哈希：SHA256(prev_hash | content_hash | source_type | source_id)。"""
+    payload = "|".join(
+        [
+            prev_hash or "",
+            content_hash or "",
+            source_type or "",
+            str(source_id) if source_id is not None else "",
+        ]
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _latest_chain_hash(db: Session, requirement_id: int) -> str | None:
+    row = (
+        db.query(ComplianceEvidence.chain_hash)
+        .filter(ComplianceEvidence.requirement_id == requirement_id)
+        .order_by(ComplianceEvidence.id.desc())
+        .first()
+    )
+    return row[0] if row else None
 
 
 def collect(
@@ -39,7 +65,11 @@ def collect(
     note: str | None = None,
     occurred_at: datetime | None = None,
 ) -> ComplianceEvidence:
-    """生成一条合规证据（不 commit）。"""
+    """生成一条合规证据（不 commit）。P4：按同要求下上一条证据做链式哈希防篡改。"""
+    if occurred_at is None:
+        occurred_at = datetime.now()
+    prev_hash = _latest_chain_hash(db, requirement_id)
+    chain_hash = _chain_hash(prev_hash, content_hash, source_type, source_id)
     ev = ComplianceEvidence(
         requirement_id=requirement_id,
         source_type=source_type,
@@ -47,12 +77,31 @@ def collect(
         evidence_type=evidence_type,
         operator_id=operator_id,
         content_hash=content_hash,
+        prev_hash=prev_hash,
+        chain_hash=chain_hash,
         note=note,
+        occurred_at=occurred_at,
     )
-    if occurred_at is not None:
-        ev.occurred_at = occurred_at
     db.add(ev)
     return ev
+
+
+def verify_chain(db: Session, requirement_id: int) -> dict:
+    """验证某合规要求下证据哈希链是否完整。返回 {intact, total, broken_ids}。"""
+    rows = (
+        db.query(ComplianceEvidence)
+        .filter(ComplianceEvidence.requirement_id == requirement_id)
+        .order_by(ComplianceEvidence.id.asc())
+        .all()
+    )
+    prev = None
+    broken_ids: list[int] = []
+    for e in rows:
+        expected = _chain_hash(prev, e.content_hash, e.source_type, e.source_id)
+        if e.chain_hash != expected:
+            broken_ids.append(e.id)
+        prev = e.chain_hash
+    return {"intact": not broken_ids, "total": len(rows), "broken_ids": broken_ids}
 
 
 def collect_for_work_order(db: Session, work_order: WorkOrder, operator_id: int | None = None) -> int:
@@ -65,11 +114,23 @@ def collect_for_work_order(db: Session, work_order: WorkOrder, operator_id: int 
     if not item_ids:
         return 0
 
+    # 归集服务项目所属客户，作为租户过滤（防止跨客户误采集证据）
+    customer_ids = {
+        cid
+        for (cid,) in db.query(Contract.customer_id)
+        .join(ContractItem, ContractItem.contract_id == Contract.id)
+        .filter(ContractItem.id.in_(item_ids))
+        .all()
+    }
+    if not customer_ids:
+        return 0
+
     reqs = (
         db.query(ComplianceRequirement)
         .filter(
             ComplianceRequirement.source_type == "服务项目",
             ComplianceRequirement.source_id.in_(item_ids),
+            ComplianceRequirement.customer_id.in_(customer_ids),
             ComplianceRequirement.status == "启用",
         )
         .all()
