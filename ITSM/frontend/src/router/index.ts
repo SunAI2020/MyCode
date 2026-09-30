@@ -17,6 +17,7 @@ const router = createRouter({
         { path: 'knowledge', name: 'knowledge', component: () => import('@/views/Knowledge.vue') },
         { path: 'workflows', name: 'workflows', component: () => import('@/views/Workflows.vue') },
         { path: 'sla', name: 'sla', component: () => import('@/views/Sla.vue') },
+        { path: 'compliance', name: 'compliance', component: () => import('@/views/Compliance.vue') },
       ],
     },
   ],

@@ -3,6 +3,12 @@ from app.models.approval import Approval
 from app.models.customer import Customer
 from app.models.change_order import ChangeOrder
 from app.models.checkin import CheckIn
+from app.models.compliance import (
+    ComplianceCheck,
+    ComplianceEvidence,
+    ComplianceRequirement,
+    DutyReport,
+)
 from app.models.contract import CmdbCi, CmdbCiDependency, Contract, ContractArchive, ContractItem
 from app.models.delivery import Delivery
 from app.models.escalation import Escalation
@@ -46,6 +52,10 @@ __all__ = [
     "Customer",
     "ChangeOrder",
     "CheckIn",
+    "ComplianceRequirement",
+    "ComplianceEvidence",
+    "ComplianceCheck",
+    "DutyReport",
     "Contract",
     "CmdbCi",
     "CmdbCiDependency",

@@ -12,6 +12,7 @@ from app.schemas.change_order import (
 )
 from app.services.audit_service import record
 from app.services.change_service import set_conflict_flag, transition_status
+from app.services.evidence_service import collect_for_change_order
 from app.utils.pagination import paginate
 from app.utils.response import ok
 
@@ -92,6 +93,9 @@ def update_change_order_status(
     except ValueError as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
     set_conflict_flag(db, obj)
+    # 合规证据自动采集：变更完成 → 匹配所属客户/项目的合规要求生成证据（步骤 51）
+    if body.status == "已完成":
+        collect_for_change_order(db, obj, operator_id=user.id)
     record(db, user_id=user.id, action="update_status", resource=f"change_order:{cid}", after=body.status)
     db.commit()
     return ok(ChangeOrderOut.model_validate(obj).model_dump())

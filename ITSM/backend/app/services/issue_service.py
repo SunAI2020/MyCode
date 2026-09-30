@@ -4,7 +4,9 @@ from datetime import date
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.models import Issue, Rectification, RectificationRecord
+from app.models import ComplianceCheck, Issue, Rectification, RectificationRecord
+
+from app.services.evidence_service import collect_for_rectification
 
 
 def create_rectification(
@@ -47,6 +49,8 @@ def submit_round(
     if effect == "通过":
         rect.status = "已通过"
         _maybe_close_issue(db, rect.issue_id)
+        # 合规证据自动采集：整改通过 → 匹配 issue 挂接的合规要求生成证据（步骤 51）
+        collect_for_rectification(db, rect, operator_id=executor)
     else:
         rect.status = "整改中"  # 不通过/部分完成 → 继续下一轮
     db.flush()
@@ -66,3 +70,26 @@ def _maybe_close_issue(db: Session, issue_id: int) -> None:
         issue = db.get(Issue, issue_id)
         if issue is not None:
             issue.status = "已关闭"
+            _maybe_close_compliance_check(db, issue)
+
+
+def _maybe_close_compliance_check(db: Session, issue: Issue) -> None:
+    """合规闭环回写：该合规要求关联的 issue 全部关闭 → 核验置「已闭环」（步骤 51）。"""
+    if issue.requirement_id is None:
+        return
+    open_issues = (
+        db.query(Issue)
+        .filter(Issue.requirement_id == issue.requirement_id, Issue.status != "已关闭")
+        .count()
+    )
+    if open_issues == 0:
+        checks = (
+            db.query(ComplianceCheck)
+            .filter(
+                ComplianceCheck.requirement_id == issue.requirement_id,
+                ComplianceCheck.status == "有缺口",
+            )
+            .all()
+        )
+        for c in checks:
+            c.status = "已闭环"

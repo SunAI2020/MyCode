@@ -14,6 +14,7 @@ from app.models import (
     SysUser,
     WorkOrder,
 )
+from app.services.compliance_service import compute_metrics
 from app.utils.response import ok
 
 router = APIRouter(prefix="/dashboard", tags=["数据看板"])
@@ -59,5 +60,6 @@ def dashboard(user: SysUser = Depends(require_role(*ROLE)), db: Session = Depend
                 {"user_id": uid, "name": name, "total_score": float(s)}
                 for uid, name, s in perf_top
             ],
+            "compliance": compute_metrics(db),
         }
     )

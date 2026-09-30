@@ -10,6 +10,7 @@ class IssueCreate(BaseModel):
     description: str
     attachments: str | None = None
     similar_ids: str | None = None
+    requirement_id: int | None = None
 
 
 class IssueUpdate(BaseModel):
@@ -18,6 +19,7 @@ class IssueUpdate(BaseModel):
     description: str | None = None
     attachments: str | None = None
     similar_ids: str | None = None
+    requirement_id: int | None = None
 
 
 class IssueOut(BaseModel):
@@ -25,6 +27,7 @@ class IssueOut(BaseModel):
 
     id: int
     work_order_id: int
+    requirement_id: int | None = None
     type: str
     level: str
     description: str

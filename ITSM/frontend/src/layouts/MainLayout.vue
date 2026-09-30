@@ -53,6 +53,7 @@ const MENU_ITEMS = [
   { path: '/knowledge', label: '知识库', roles: ['sys_admin', 'sys_ops', 'ticket_mgr', 'cs_staff', 'sec_staff', 'cust_admin', 'cust_service'] },
   { path: '/workflows', label: '工作流', roles: ['sys_admin', 'ticket_mgr'] },
   { path: '/sla', label: 'SLA / 周期', roles: ['sys_admin', 'sys_ops', 'ticket_mgr'] },
+  { path: '/compliance', label: '合规运营', roles: ['sys_admin', 'sys_ops', 'ticket_mgr', 'sec_staff'] },
 ]
 
 const visibleMenu = computed(() => {

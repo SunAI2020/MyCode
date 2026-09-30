@@ -14,6 +14,7 @@ from app.core.deps import (
 from app.models import Contract, Delivery, SysUser, WorkOrder
 from app.schemas.delivery import DeliveryCreate, DeliveryOut, DeliveryUpdate
 from app.services.audit_service import record
+from app.services.evidence_service import collect_for_delivery
 from app.utils.pagination import paginate
 from app.utils.response import ok
 
@@ -119,6 +120,8 @@ def sign_delivery(did: int, user: SysUser = Depends(require_role(*SIGN_ROLE)), d
         raise HTTPException(status.HTTP_404_NOT_FOUND, "交付不存在")
     assert_scoped(obj, customer_scope_of(user, db), db)
     obj.sign = "已签署"
+    # 合规证据自动采集：交付签署 → 匹配所属客户/项目的合规要求生成证据（步骤 51）
+    collect_for_delivery(db, obj, operator_id=user.id)
     db.flush()
     record(db, user_id=user.id, action="sign", resource=f"delivery:{did}")
     db.commit()

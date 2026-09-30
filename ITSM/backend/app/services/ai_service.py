@@ -8,6 +8,8 @@ from datetime import date, timedelta
 from sqlalchemy import func
 
 from app.models import (
+    ComplianceEvidence,
+    ComplianceRequirement,
     Contract,
     ContractItem,
     EngineerSkill,
@@ -181,4 +183,26 @@ def contract_insight(db, today: date | None = None) -> list[dict]:
                     "gap": len(expected) - int(generated),
                 }
             )
+
+    # 合规覆盖缺口（步骤 51）：启用中的合规要求尚未关联任何履约证据
+    uncovered = (
+        db.query(ComplianceRequirement)
+        .outerjoin(ComplianceEvidence, ComplianceEvidence.requirement_id == ComplianceRequirement.id)
+        .filter(
+            ComplianceRequirement.status == "启用",
+            ComplianceEvidence.id.is_(None),
+        )
+        .all()
+    )
+    for r in uncovered:
+        insights.append(
+            {
+                "type": "合规覆盖缺口",
+                "contract_id": r.project_id,
+                "customer_id": r.customer_id,
+                "requirement_id": r.id,
+                "clause": r.clause,
+                "category": r.category,
+            }
+        )
     return insights

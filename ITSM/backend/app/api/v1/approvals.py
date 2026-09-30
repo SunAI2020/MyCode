@@ -8,6 +8,7 @@ from app.core.deps import get_db, require_role
 from app.models import Approval, ChangeOrder, Outsourcing, SysUser, WorkOrder
 from app.schemas.approval import ApprovalCreate, ApprovalDecision, ApprovalOut
 from app.services.audit_service import record
+from app.services.evidence_service import collect_for_approval
 from app.services.workflow_service import allowed_targets, assert_transition, log_transition
 from app.utils.pagination import paginate
 from app.utils.response import ok
@@ -110,6 +111,8 @@ def approve(
     appr.approver_id = user.id
     appr.decision_note = body.note
     appr.decided_at = datetime.now(timezone.utc)
+    # 合规证据自动采集：审批通过 → 按审批对象归集后匹配合规要求生成证据（步骤 51）
+    collect_for_approval(db, appr, operator_id=user.id)
     record(db, user_id=user.id, action="approve", resource=f"approval:{aid}", after="已通过")
     db.commit()
     return ok(ApprovalOut.model_validate(appr).model_dump())

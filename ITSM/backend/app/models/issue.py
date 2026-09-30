@@ -12,6 +12,9 @@ class Issue(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     work_order_id: Mapped[int] = mapped_column(ForeignKey("work_order.id"), index=True)
+    requirement_id: Mapped[int | None] = mapped_column(
+        ForeignKey("compliance_requirement.id"), nullable=True, index=True
+    )  # 合规要求挂接（步骤 51：合规缺口→问题→整改→核验 闭环）
     type: Mapped[str] = mapped_column(String(32), default="安全漏洞")  # 安全漏洞/配置缺陷/基线不合规/风险隐患
     level: Mapped[str] = mapped_column(String(8), default="中")  # 高/中/低
     description: Mapped[str] = mapped_column(Text)

@@ -46,6 +46,7 @@ from app.services.audit_service import record
 from app.services.cycle_service import split_cycles
 from app.services.ai_service import summarize_work_order, work_order_to_kb_draft
 from app.services.dispatch_service import record_assignee_hours, transfer_assignee
+from app.services.evidence_service import collect_for_work_order
 from app.services.search_service import index_kb_article
 from app.services.workflow_service import assert_transition, log_transition
 from app.utils.pagination import paginate
@@ -309,6 +310,9 @@ def update_status(
             to_status=body.status,
             operator_id=user.id,
         )
+    # 合规证据自动采集：工单完成 → 匹配服务项目对应合规要求生成证据（步骤 51）
+    if body.status == "已完成":
+        collect_for_work_order(db, wo, operator_id=user.id)
     db.flush()
     record(db, user_id=user.id, action="update_status", resource=f"work_order:{wid}", before=before, after=body.status)
     db.commit()

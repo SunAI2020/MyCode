@@ -5,6 +5,9 @@ import axios from 'axios'
 export const login = (data: { username: string; password: string }) => request.post('/auth/login', data)
 export const getMe = () => request.get('/auth/me')
 
+// ---- 数据看板 ----
+export const getDashboard = () => request.get('/dashboard')
+
 // ---- 客户 ----
 export const listCustomers = (params: any) => request.get('/customers', { params })
 export const createCustomer = (data: any) => request.post('/customers', data)
@@ -85,3 +88,19 @@ export const workflowTransitions = () => request.get('/workflow-rules/transition
 export const createWorkflowRule = (data: any) => request.post('/workflow-rules', data)
 export const updateWorkflowRule = (id: number, data: any) => request.put(`/workflow-rules/${id}`, data)
 export const deleteWorkflowRule = (id: number) => request.delete(`/workflow-rules/${id}`)
+
+// ---- 合规运营 ----
+export const listRequirements = (params: any) => request.get('/compliance/requirements', { params })
+export const createRequirement = (data: any) => request.post('/compliance/requirements', data)
+export const updateRequirement = (id: number, data: any) => request.put(`/compliance/requirements/${id}`, data)
+export const deleteRequirement = (id: number) => request.delete(`/compliance/requirements/${id}`)
+export const listEvidence = (rid: number) => request.get(`/compliance/requirements/${rid}/evidence`)
+export const addEvidence = (rid: number, data: any) => request.post(`/compliance/requirements/${rid}/evidence`, data)
+export const createCheck = (rid: number, data: any) => request.post(`/compliance/requirements/${rid}/checks`, data)
+export const listChecks = (params: any) => request.get('/compliance/checks', { params })
+export const updateCheck = (id: number, data: any) => request.put(`/compliance/checks/${id}`, data)
+export const complianceOverview = (params: any) => request.get('/compliance/overview', { params })
+export const createReport = (data: any) => request.post('/compliance/reports', data)
+export const listReports = (params: any) => request.get('/compliance/reports', { params })
+export const getReport = (id: number) => request.get(`/compliance/reports/${id}`)
+export const signReport = (id: number) => request.post(`/compliance/reports/${id}/sign`)
