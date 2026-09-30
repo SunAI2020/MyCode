@@ -45,6 +45,11 @@ class ServiceCycleOut(BaseModel):
     status: str
     auto_generated: bool
     created_at: datetime | None = None
+    # 富化字段（列表接口填充，便于直接展示）
+    customer_name: str | None = None  # 客户名称
+    project_name: str | None = None  # 项目名称（合同名）
+    ci_name: str | None = None  # 服务目标（系统）
+    item_project: str | None = None  # 服务项目
 
 
 class ServiceReminderOut(BaseModel):

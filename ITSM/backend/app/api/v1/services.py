@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_db, require_role
-from app.models import ServiceCycle, ServiceReminder, SlaPolicy, SysUser
+from app.models import CmdbCi, Contract, ContractItem, Customer, ServiceCycle, ServiceReminder, SlaPolicy, SysUser
 from app.schemas.service import (
     ServiceCycleOut,
     ServiceReminderOut,
@@ -94,7 +94,33 @@ def list_cycles(
     user: SysUser = Depends(require_role(*READ_ROLE)),
     db: Session = Depends(get_db),
 ):
-    return ok(paginate(db.query(ServiceCycle), page, size, ServiceCycleOut))
+    data = paginate(db.query(ServiceCycle).order_by(ServiceCycle.id.desc()), page, size, ServiceCycleOut)
+    # 富化 客户名称 / 项目名称 / 服务目标（系统）/ 服务项目
+    item_ids = [it["contract_item_id"] for it in data["items"]]
+    if item_ids:
+        rows = (
+            db.query(
+                ContractItem.id,
+                Contract.name,
+                Customer.name,
+                CmdbCi.name,
+                ContractItem.project,
+            )
+            .join(Contract, ContractItem.contract_id == Contract.id)
+            .join(Customer, Contract.customer_id == Customer.id)
+            .outerjoin(CmdbCi, ContractItem.ci_id == CmdbCi.id)
+            .filter(ContractItem.id.in_(item_ids))
+            .all()
+        )
+        m = {r[0]: r for r in rows}
+        for it in data["items"]:
+            r = m.get(it["contract_item_id"])
+            if r is not None:
+                it["project_name"] = r[1]
+                it["customer_name"] = r[2]
+                it["ci_name"] = r[3]
+                it["item_project"] = r[4]
+    return ok(data)
 
 
 # ---- 服务提醒（读；生成在步骤五） ----

@@ -48,10 +48,17 @@ def create_issue(
 def list_issues(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
+    type: str | None = Query(None),
+    status: str | None = Query(None),
     user: SysUser = Depends(require_role(*ROLE)),
     db: Session = Depends(get_db),
 ):
-    return ok(paginate(db.query(Issue), page, size, IssueOut))
+    q = db.query(Issue)
+    if type is not None:
+        q = q.filter(Issue.type == type)
+    if status is not None:
+        q = q.filter(Issue.status == status)
+    return ok(paginate(q.order_by(Issue.id.desc()), page, size, IssueOut))
 
 
 @router.get("/issues/{iid}")

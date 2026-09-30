@@ -49,11 +49,13 @@ const MENU_ITEMS = [
   { path: '/customers', label: '客户管理', roles: ['sys_admin', 'ticket_mgr'] },
   { path: '/contracts', label: '项目管理', roles: ['sys_admin', 'ticket_mgr'] },
   { path: '/work-orders', label: '工单管理', roles: ['sys_admin', 'sys_ops', 'ticket_mgr', 'cs_staff', 'sec_staff', 'cust_admin', 'cust_service'] },
+  { path: '/personnel', label: '人员管理', roles: ['sys_admin', 'sys_ops', 'ticket_mgr'] },
+  { path: '/sla', label: 'SLA/周期管理', roles: ['sys_admin', 'sys_ops', 'ticket_mgr'] },
+  { path: '/issues', label: '安全隐患管理', roles: ['sys_admin', 'sys_ops', 'ticket_mgr', 'sec_staff'] },
+  { path: '/compliance', label: '合规运营', roles: ['sys_admin', 'sys_ops', 'ticket_mgr', 'sec_staff'] },
   { path: '/portal', label: '自助门户', roles: ['sys_admin', 'sys_ops', 'ticket_mgr', 'cust_admin', 'cust_service'] },
   { path: '/knowledge', label: '知识库', roles: ['sys_admin', 'sys_ops', 'ticket_mgr', 'cs_staff', 'sec_staff', 'cust_admin', 'cust_service'] },
   { path: '/workflows', label: '工作流', roles: ['sys_admin', 'ticket_mgr'] },
-  { path: '/sla', label: 'SLA / 周期', roles: ['sys_admin', 'sys_ops', 'ticket_mgr'] },
-  { path: '/compliance', label: '合规运营', roles: ['sys_admin', 'sys_ops', 'ticket_mgr', 'sec_staff'] },
 ]
 
 const visibleMenu = computed(() => {

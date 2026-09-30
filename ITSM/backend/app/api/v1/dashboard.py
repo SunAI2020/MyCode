@@ -8,6 +8,7 @@ from app.models import (
     Contract,
     Customer,
     Delivery,
+    Issue,
     KbArticle,
     Outsourcing,
     Performance,
@@ -61,5 +62,11 @@ def dashboard(user: SysUser = Depends(require_role(*ROLE)), db: Session = Depend
                 for uid, name, s in perf_top
             ],
             "compliance": compute_metrics(db),
+            "issues": {
+                "total": db.query(func.count(Issue.id)).scalar() or 0,
+                "by_status": dict(db.query(Issue.status, func.count(Issue.id)).group_by(Issue.status).all()),
+                "by_type": dict(db.query(Issue.type, func.count(Issue.id)).group_by(Issue.type).all()),
+                "by_level": dict(db.query(Issue.level, func.count(Issue.id)).group_by(Issue.level).all()),
+            },
         }
     )

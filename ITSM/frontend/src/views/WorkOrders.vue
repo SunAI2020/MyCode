@@ -15,11 +15,14 @@
         <el-table-column prop="status" label="状态" width="90" />
         <el-table-column prop="priority" label="优先级" width="80" />
         <el-table-column prop="progress" label="进度" width="80" />
+        <el-table-column label="执行人" width="130">
+          <template #default="{ row }">{{ (row.assignee_names || []).join('、') || '—' }}</template>
+        </el-table-column>
         <el-table-column prop="current_cycle_no" label="周期" width="70" />
         <el-table-column label="操作" width="210">
           <template #default="{ row }">
             <el-button v-if="row.customer_id" link type="info" @click="openScope(row)">查看</el-button>
-            <el-button link type="primary" @click="openDispatch(row)">派单</el-button>
+            <el-button v-if="canDispatch" link type="primary" @click="openDispatch(row)">派单</el-button>
             <el-button link type="success" @click="openStatus(row)">流转</el-button>
           </template>
         </el-table-column>
@@ -120,11 +123,13 @@
         <el-form-item label="执行人">
           <div class="assignee-list">
             <div v-for="(a, i) in dispatchForm.assignees" :key="i" class="assignee-row">
-              <el-input v-model.number="a.user_id" placeholder="用户ID" style="width: 130px" />
+              <el-select v-model="a.user_id" placeholder="选择执行人" filterable style="width: 180px">
+                <el-option v-for="u in users" :key="u.id" :label="u.name" :value="u.id" />
+              </el-select>
               <el-input v-model.number="a.workload_ratio" placeholder="比例%" style="width: 110px" />
               <el-button link type="danger" @click="dispatchForm.assignees.splice(i, 1)">删除</el-button>
             </div>
-            <el-button link type="primary" @click="dispatchForm.assignees.push({ user_id: 1, workload_ratio: 100 })">+ 添加执行人</el-button>
+            <el-button link type="primary" @click="dispatchForm.assignees.push({ user_id: null, workload_ratio: 100 })">+ 添加执行人</el-button>
           </div>
         </el-form-item>
       </el-form>
@@ -147,7 +152,11 @@ import {
   listWorkOrders, createWorkOrder, updateStatus, dispatch,
   listCustomers, listCis, listItems,
   previewAggregateCycles, createAggregateWorkOrder, getWorkOrderScope,
+  listUsers,
 } from '@/api'
+import { useAuthStore } from '@/stores/auth'
+
+const auth = useAuthStore()
 
 const rows = ref<any[]>([])
 const total = ref(0)
@@ -157,6 +166,12 @@ const query = reactive({ page: 1, size: 10 })
 const customers = ref<any[]>([])
 const cis = ref<any[]>([])
 const items = ref<any[]>([])
+const users = ref<any[]>([])
+// 仅可派单角色（后端 dispatch 白名单）加载执行人并显示派单入口
+const canDispatch = computed(() => {
+  const codes = (auth.user?.roles || []).map((r: any) => r.code)
+  return ['sys_admin', 'sys_ops', 'ticket_mgr'].some((c) => codes.includes(c))
+})
 const customerMap = computed(() => new Map(customers.value.map((c) => [c.id, c])))
 const itemProjectMap = computed(() => {
   const m: Record<number, string> = {}
@@ -169,7 +184,7 @@ const createForm = reactive({ receive_id: null as number | null, type: '客户�
 
 const dispatchDlg = ref(false)
 const dispatchTarget = ref<number | null>(null)
-const dispatchForm = reactive({ dispatch_type: '内部', assignees: [{ user_id: 1, workload_ratio: 100 }] as any[] })
+const dispatchForm = reactive({ dispatch_type: '内部', assignees: [{ user_id: null, workload_ratio: 100 }] as any[] })
 
 const statusDlg = ref(false)
 const statusTarget = ref<number | null>(null)
@@ -221,11 +236,13 @@ async function onCreate() {
 function openDispatch(row: any) {
   dispatchTarget.value = row.id
   dispatchForm.dispatch_type = '内部'
-  dispatchForm.assignees = [{ user_id: 1, workload_ratio: 100 }]
+  dispatchForm.assignees = [{ user_id: users.value[0]?.id ?? null, workload_ratio: 100 }]
   dispatchDlg.value = true
 }
 async function onDispatch() {
-  await dispatch(dispatchTarget.value!, dispatchForm)
+  const assignees = dispatchForm.assignees.filter((a: any) => a.user_id != null)
+  if (!assignees.length) return ElMessage.warning('请至少选择一名执行人')
+  await dispatch(dispatchTarget.value!, { dispatch_type: dispatchForm.dispatch_type, assignees })
   ElMessage.success('派单完成')
   dispatchDlg.value = false
   load()
@@ -329,6 +346,13 @@ async function openScope(row: any) {
 onMounted(async () => {
   load()
   customers.value = (await listCustomers({ page: 1, size: 100 })).data.items
+  if (canDispatch.value) {
+    try {
+      users.value = (await listUsers()).data
+    } catch {
+      // 无人员管理权限时静默降级：执行人下拉为空，派单入口已按角色隐藏
+    }
+  }
 })
 </script>
 

@@ -24,11 +24,16 @@
         <el-card>
           <el-table :data="cycles" v-loading="loading">
             <el-table-column prop="id" label="ID" width="60" />
-            <el-table-column prop="contract_item_id" label="子项ID" width="80" />
+            <el-table-column prop="customer_name" label="客户名称" width="130" />
+            <el-table-column prop="project_name" label="项目名称" width="130" />
+            <el-table-column prop="ci_name" label="服务目标（系统）" width="140" show-overflow-tooltip />
+            <el-table-column prop="item_project" label="服务项目" width="120" />
             <el-table-column prop="cycle_no" label="期次" width="70" />
-            <el-table-column prop="service_start" label="开始" width="120" />
-            <el-table-column prop="service_end" label="结束" width="120" />
-            <el-table-column prop="status" label="状态" width="90" />
+            <el-table-column prop="service_start" label="开始" width="110" />
+            <el-table-column prop="service_end" label="结束" width="110" />
+            <el-table-column label="状态" width="90">
+              <template #default="{ row }">{{ STATUS_MAP[row.status] || row.status }}</template>
+            </el-table-column>
             <el-table-column prop="auto_generated" label="自动生成" width="90" />
           </el-table>
         </el-card>
@@ -71,6 +76,7 @@ import { listSla, createSla, updateSla, deleteSla, listCycles, listReminders } f
 
 const tab = ref('sla')
 const loading = ref(false)
+const STATUS_MAP: Record<string, string> = { pending: '待执行', started: '进行中', done: '已完成' }
 const slas = ref<any[]>([])
 const cycles = ref<any[]>([])
 const reminders = ref<any[]>([])

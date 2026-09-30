@@ -8,6 +8,15 @@ export const getMe = () => request.get('/auth/me')
 // ---- 数据看板 ----
 export const getDashboard = () => request.get('/dashboard')
 
+// ---- 人员管理 ----
+export const listUsers = () => request.get('/users')
+export const createUser = (data: any) => request.post('/users', data)
+export const updateUser = (id: number, data: any) => request.put(`/users/${id}`, data)
+export const deleteUser = (id: number) => request.delete(`/users/${id}`)
+
+// ---- 安全隐患（问题整改）----
+export const listIssues = (params: any) => request.get('/issues', { params })
+
 // ---- 客户 ----
 export const listCustomers = (params: any) => request.get('/customers', { params })
 export const createCustomer = (data: any) => request.post('/customers', data)

@@ -109,7 +109,22 @@ def list_work_orders(
 ):
     q = db.query(WorkOrder)
     q = scope_filter(q, WorkOrder, customer_scope_of(user, db))
-    return ok(paginate(q, page, size, WorkOrderOut))
+    data = paginate(q, page, size, WorkOrderOut)
+    # 富化执行人姓名（work_order_assignee → sys_user.name）
+    ids = [it["id"] for it in data["items"]]
+    if ids:
+        rows = (
+            db.query(WorkOrderAssignee.work_order_id, SysUser.name)
+            .join(SysUser, WorkOrderAssignee.user_id == SysUser.id)
+            .filter(WorkOrderAssignee.work_order_id.in_(ids), WorkOrderAssignee.is_active.is_(True))
+            .all()
+        )
+        names: dict[int, list[str]] = {}
+        for wid, name in rows:
+            names.setdefault(wid, []).append(name)
+        for it in data["items"]:
+            it["assignee_names"] = names.get(it["id"], [])
+    return ok(data)
 
 
 @router.post("")

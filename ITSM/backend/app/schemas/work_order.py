@@ -78,6 +78,7 @@ class WorkOrderOut(BaseModel):
     progress: int
     current_cycle_no: int | None = None
     created_at: datetime | None = None
+    assignee_names: list[str] = []  # 执行人姓名（列表接口 enrich，便于直接展示）
 
 
 # ---- 工单聚合 ----
