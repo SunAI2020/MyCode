@@ -129,18 +129,25 @@ async function openPerm() {
     if (permRoles.value.length) await selectRole(permRoles.value[0].code)
   } catch { /* 加载失败不阻断 */ }
 }
+let permReqSeq = 0
 async function selectRole(code: string) {
   activeRole.value = code
+  const seq = ++permReqSeq
   try {
-    activePerms.value = (await getRolePermissions(code)).data
+    const perms = (await getRolePermissions(code)).data
+    if (seq === permReqSeq) activePerms.value = perms // 仅应用最新一次请求，防快速切换竞态
   } catch {
-    activePerms.value = []
+    if (seq === permReqSeq) activePerms.value = []
   }
 }
 async function savePerm() {
   if (!activeRole.value) return
-  await updateRolePermissions(activeRole.value, { permission_codes: activePerms.value })
-  ElMessage.success('已保存权限矩阵')
+  try {
+    await updateRolePermissions(activeRole.value, { permission_codes: activePerms.value })
+    ElMessage.success('已保存权限矩阵')
+  } catch {
+    // 后端拒绝（如 sys_admin 自锁保护）时由响应拦截器统一提示，此处仅避免未捕获异常
+  }
 }
 
 async function load() {

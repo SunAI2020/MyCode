@@ -42,22 +42,30 @@ def _pie(rows) -> list[dict]:
 
 
 def _stacked(data_map: dict, series_order: list[str], top: int = 10) -> dict:
-    """{category: {series_name: value}} → {categories, series}，按总数降序取 Top N。"""
+    """{category: {series_name: value}} → {categories, series}，按总数降序取 Top N。
+
+    只保留图中实际出现过的叠加维度（series），未出现的状态不在图例中标出。
+    """
     scored = sorted(data_map.items(), key=lambda kv: -sum(kv[1].values()))
     categories = [c for c, _ in scored[:top]]
+    present = {sname for m in data_map.values() for sname in m}
     series = [
         {"name": sname, "data": [data_map.get(c, {}).get(sname, 0) for c in categories]}
-        for sname in series_order
+        for sname in series_order if sname in present
     ]
     return {"categories": categories, "series": series}
 
 
 def _compliance_by_customer(db: Session) -> dict:
-    """按 customer × category 聚合合规要求总数 / 已覆盖 / 风险敞口。"""
+    """按 customer × category 聚合合规要求总数 / 已覆盖 / 风险敞口。
+
+    风险敞口以「最新一次核验状态」为准（避免历史「有缺口」行高估）；
+    从未核验或最新状态 ∈ {未覆盖, 进行中, 有缺口} 均计为风险。
+    """
     reqs = db.query(ComplianceRequirement).filter(ComplianceRequirement.status == "启用").all()
     req_ids = [r.id for r in reqs]
     covered: set[int] = set()
-    check_rows = []
+    latest: dict[int, str] = {}
     if req_ids:
         covered = {
             r[0]
@@ -66,14 +74,15 @@ def _compliance_by_customer(db: Session) -> dict:
             .distinct()
             .all()
         }
-        check_rows = (
+        for rid, st in (
             db.query(ComplianceCheck.requirement_id, ComplianceCheck.status)
             .filter(ComplianceCheck.requirement_id.in_(req_ids))
+            .order_by(ComplianceCheck.id)
             .all()
-        )
-    at_risk = {rid for rid, st in check_rows if st in ("未覆盖", "有缺口")}
-    checked = {rid for rid, _ in check_rows}
+        ):
+            latest[rid] = st  # 升序遍历，最后写入即最新一次核验状态
 
+    risk_status = {"未覆盖", "进行中", "有缺口"}
     customers = {c.id: c.name for c in db.query(Customer).all()}
     agg: dict = {}
     for r in reqs:
@@ -83,7 +92,8 @@ def _compliance_by_customer(db: Session) -> dict:
         slot["total"] += 1
         if r.id in covered:
             slot["covered"] += 1
-        if r.id not in checked or r.id in at_risk:
+        st = latest.get(r.id)
+        if st is None or st in risk_status:
             slot["at_risk"] += 1
     return agg
 

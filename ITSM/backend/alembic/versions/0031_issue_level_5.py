@@ -22,5 +22,5 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     t = sa.table("issue", sa.column("level", sa.String(8)))
-    for old, new in (("高危", "高"), ("中危", "中"), ("低危", "低")):
+    for old, new in (("高危", "高"), ("中危", "中"), ("低危", "低"), ("严重", "高"), ("信息", "低")):
         op.execute(t.update().where(t.c.level == old).values(level=new))
