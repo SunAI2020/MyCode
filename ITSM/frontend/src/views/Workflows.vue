@@ -7,7 +7,7 @@
           <el-option label="变更单" value="change_order" />
           <el-option label="外包" value="outsourcing" />
         </el-select>
-        <el-button type="primary" @click="openCreate">新增规则</el-button>
+        <el-button v-if="canWrite" type="primary" @click="openCreate">新增规则</el-button>
       </div>
 
       <h3 class="sec">有效状态流转（默认 ∪ DB 规则）</h3>
@@ -33,8 +33,8 @@
         </el-table-column>
         <el-table-column label="操作" width="140">
           <template #default="{ row }">
-            <el-button link type="primary" @click="onToggle(row)">{{ row.enabled ? '停用' : '启用' }}</el-button>
-            <el-button link type="danger" @click="onDelete(row)">删除</el-button>
+            <el-button v-if="canWrite" link type="primary" @click="onToggle(row)">{{ row.enabled ? '停用' : '启用' }}</el-button>
+            <el-button v-if="canWrite" link type="danger" @click="onDelete(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -60,9 +60,13 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { listWorkflowRules, workflowTransitions, createWorkflowRule, updateWorkflowRule, deleteWorkflowRule } from '@/api'
+import { useAuthStore } from '@/stores/auth'
+
+const auth = useAuthStore()
+const canWrite = computed(() => auth.hasPermission('workflow:write'))
 
 const entity = ref('work_order')
 const transitions = ref<any>({})

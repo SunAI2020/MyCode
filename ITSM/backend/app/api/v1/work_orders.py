@@ -9,6 +9,7 @@ from app.core.deps import (
     customer_scope_of,
     get_current_user,
     get_db,
+    require_permission,
     require_role,
     scope_filter,
 )
@@ -53,8 +54,6 @@ from app.utils.pagination import paginate
 from app.utils.response import ok
 from app.utils.wo_no import next_work_order_no, work_order_no_scope
 
-WORK_WRITE_ROLE = ("sys_admin", "sys_ops", "ticket_mgr")
-
 receives = APIRouter(prefix="/receives", tags=["接单"])
 router = APIRouter(prefix="/work-orders", tags=["工单"])
 
@@ -75,7 +74,7 @@ def list_receives(
 @receives.post("")
 def create_receive(
     body: OrderReceiveCreate,
-    user: SysUser = Depends(require_role(*WORK_WRITE_ROLE)),
+    user: SysUser = Depends(require_permission("work_order:write")),
     db: Session = Depends(get_db),
 ):
     scope = customer_scope_of(user, db)
@@ -130,7 +129,7 @@ def list_work_orders(
 @router.post("")
 def create_work_order(
     body: WorkOrderCreate,
-    user: SysUser = Depends(require_role(*WORK_WRITE_ROLE)),
+    user: SysUser = Depends(require_permission("work_order:write")),
     db: Session = Depends(get_db),
 ):
     receive = None
@@ -171,7 +170,7 @@ def _item_cycles(db: Session, item: ContractItem) -> list[tuple[int, date, date]
 @router.post("/aggregate/preview")
 def aggregate_cycles_preview(
     body: AggregatePreviewIn,
-    user: SysUser = Depends(require_role(*WORK_WRITE_ROLE)),
+    user: SysUser = Depends(require_permission("work_order:write")),
     db: Session = Depends(get_db),
 ):
     """给定服务项目列表，返回各项目的频次（周期）列表，供前端渲染复选。"""
@@ -196,7 +195,7 @@ def aggregate_cycles_preview(
 @router.post("/aggregate")
 def create_aggregate_work_order(
     body: AggregateWorkOrderCreate,
-    user: SysUser = Depends(require_role(*WORK_WRITE_ROLE)),
+    user: SysUser = Depends(require_permission("work_order:write")),
     db: Session = Depends(get_db),
 ):
     customer = db.get(Customer, body.customer_id)
@@ -338,7 +337,7 @@ def update_status(
 def dispatch(
     wid: int,
     body: DispatchCreate,
-    user: SysUser = Depends(require_role(*WORK_WRITE_ROLE)),
+    user: SysUser = Depends(require_permission("work_order:write")),
     db: Session = Depends(get_db),
 ):
     wo = db.get(WorkOrder, wid)
@@ -392,7 +391,7 @@ def dispatch(
 def transfer(
     wid: int,
     body: TransferIn,
-    user: SysUser = Depends(require_role(*WORK_WRITE_ROLE)),
+    user: SysUser = Depends(require_permission("work_order:write")),
     db: Session = Depends(get_db),
 ):
     wo = db.get(WorkOrder, wid)
@@ -413,7 +412,7 @@ def record_hours(
     wid: int,
     uid: int,
     body: AssigneeHoursIn,
-    user: SysUser = Depends(require_role(*WORK_WRITE_ROLE)),
+    user: SysUser = Depends(require_permission("work_order:write")),
     db: Session = Depends(get_db),
 ):
     """记录执行人实际工时（换岗后新执行人续接完成时回填），可选离岗。"""
@@ -431,7 +430,7 @@ def record_hours(
 
 
 @router.post("/{wid}/summary")
-def summarize(wid: int, user: SysUser = Depends(require_role(*WORK_WRITE_ROLE)), db: Session = Depends(get_db)):
+def summarize(wid: int, user: SysUser = Depends(require_permission("work_order:write")), db: Session = Depends(get_db)):
     """工单执行摘要（AI 生成，无 LLM 时降级模板摘要）。"""
     wo = db.get(WorkOrder, wid)
     if wo is None:
@@ -441,7 +440,7 @@ def summarize(wid: int, user: SysUser = Depends(require_role(*WORK_WRITE_ROLE)),
 
 
 @router.post("/{wid}/to-kb")
-def to_kb(wid: int, user: SysUser = Depends(require_role(*WORK_WRITE_ROLE)), db: Session = Depends(get_db)):
+def to_kb(wid: int, user: SysUser = Depends(require_permission("work_order:write")), db: Session = Depends(get_db)):
     """工单转知识草稿（status=草稿，审核后入库）。"""
     wo = db.get(WorkOrder, wid)
     if wo is None:

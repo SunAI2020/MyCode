@@ -16,6 +16,13 @@ export const useAuthStore = defineStore('auth', () => {
   function roles(): string[] {
     return (user.value?.roles || []).map((r: any) => r.code)
   }
+  function permissions(): string[] {
+    return user.value?.permissions || []
+  }
+  function hasPermission(code: string): boolean {
+    if (roles().includes('sys_admin')) return true
+    return permissions().includes(code)
+  }
   async function fetchMe() {
     const res = await getMe()
     setUser(res.data)
@@ -27,5 +34,5 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('token')
   }
 
-  return { token, user, setToken, setUser, roles, fetchMe, logout }
+  return { token, user, setToken, setUser, roles, permissions, hasPermission, fetchMe, logout }
 })

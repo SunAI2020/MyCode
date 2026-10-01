@@ -12,18 +12,70 @@ from sqlalchemy.orm import Session
 from app.core.security import hash_password
 from app.db.regulatory_templates import seed_templates
 from app.db.session import SessionLocal
-from app.models import KbArticle, SlaPolicy, SysDict, SysRole, SysUser, SysUserRole
+from app.models import KbArticle, SlaPolicy, SysDict, SysPermission, SysRole, SysRolePermission, SysUser, SysUserRole
 
 ROLES = [
     ("sys_admin", "系统管理员", "platform"),
     ("sys_ops", "系统运维人员", "platform"),
     ("ticket_mgr", "工单管理人员", "platform"),
     ("cs_staff", "客服人员", "platform"),
-    ("sec_staff", "安服人员", "platform"),
+    ("sec_staff", "工程师", "platform"),
     ("cust_admin", "客户系统管理员", "customer"),
     ("cust_service", "客户服务管理人员", "customer"),
     ("outsource", "外包人员", "platform"),  # 外包账号（§9.3 隔离）
 ]
+
+# (code, name, type)  权限点：type = menu(菜单/模块可见) / action(写操作)
+PERMISSIONS = [
+    ("dashboard", "仪表盘", "menu"),
+    ("customers", "客户管理", "menu"),
+    ("contracts", "项目管理", "menu"),
+    ("work_orders", "工单管理", "menu"),
+    ("personnel", "人员管理", "menu"),
+    ("sla", "SLA/周期管理", "menu"),
+    ("issues", "安全隐患管理", "menu"),
+    ("compliance", "合规运营", "menu"),
+    ("portal", "自助门户", "menu"),
+    ("knowledge", "知识库", "menu"),
+    ("workflows", "工作流", "menu"),
+    ("user:write", "人员增删改", "action"),
+    ("role:write", "角色/权限矩阵配置", "action"),
+    ("customer:write", "客户增改", "action"),
+    ("customer:delete", "客户删除", "action"),
+    ("contract:write", "合同/子项/CI 增改", "action"),
+    ("contract:delete", "合同/子项/CI 删除", "action"),
+    ("work_order:write", "工单创建/派单/转派", "action"),
+    ("issue:write", "隐患增改/整改", "action"),
+    ("issue:delete", "隐患删除", "action"),
+    ("compliance:write", "合规台账/证据/报告增改", "action"),
+    ("compliance:delete", "合规要求删除", "action"),
+    ("kb:write", "知识库增改", "action"),
+    ("kb:delete", "知识库删除", "action"),
+    ("workflow:write", "工作流规则增删改", "action"),
+    ("sla:write", "SLA 增改", "action"),
+    ("sla:delete", "SLA 删除", "action"),
+    ("approval:write", "审批同意/驳回", "action"),
+]
+
+_MENU_ALL = ["dashboard", "customers", "contracts", "work_orders", "personnel", "sla", "issues", "compliance", "portal", "knowledge", "workflows"]
+
+# 角色默认权限矩阵（role_code -> permission codes），逐条翻译现有 require_role 白名单与前端 MENU_ITEMS，
+# 保证首次 seed 后行为与现状等价。
+ROLE_PERMISSIONS = {
+    "sys_admin": [code for code, _, _ in PERMISSIONS],
+    "sys_ops": [
+        "dashboard", "work_orders", "personnel", "sla", "issues", "compliance", "portal", "knowledge",
+        "user:write", "customer:write", "contract:write", "work_order:write",
+        "issue:write", "issue:delete", "compliance:write", "compliance:delete",
+        "kb:write", "kb:delete", "sla:write",
+    ],
+    "ticket_mgr": _MENU_ALL + ["work_order:write", "issue:write", "compliance:write", "kb:write", "approval:write"],
+    "cs_staff": ["dashboard", "work_orders", "knowledge"],
+    "sec_staff": ["work_orders", "issues", "compliance", "knowledge", "issue:write", "compliance:write"],
+    "cust_admin": ["dashboard", "work_orders", "portal", "knowledge"],
+    "cust_service": ["dashboard", "work_orders", "portal", "knowledge"],
+    "outsource": [],
+}
 
 # (category, code, name)
 DICTS = [
@@ -90,8 +142,30 @@ def seed() -> None:
     db: Session = SessionLocal()
     try:
         for code, name, scope in ROLES:
-            if not db.query(SysRole).filter_by(code=code).first():
+            role = db.query(SysRole).filter_by(code=code).first()
+            if role is None:
                 db.add(SysRole(code=code, name=name, scope=scope))
+            else:
+                role.name = name  # 角色显示名以 seed 为准，幂等更新
+
+        for pcode, pname, ptype in PERMISSIONS:
+            if not db.query(SysPermission).filter_by(code=pcode).first():
+                db.add(SysPermission(code=pcode, name=pname, type=ptype))
+
+        # 角色默认权限矩阵：仅首次初始化（整表为空）时播种，避免覆盖管理员后续通过权限界面做的修改
+        # （含把某角色权限清空的「锁定」操作）
+        db.flush()
+        perm_by_code = {p.code: p.id for p in db.query(SysPermission).all()}
+        role_by_code = {r.code: r.id for r in db.query(SysRole).all()}
+        if db.query(SysRolePermission.id).first() is None:
+            for rcode, pcodes in ROLE_PERMISSIONS.items():
+                rid = role_by_code.get(rcode)
+                if rid is None:
+                    continue
+                for pc in pcodes:
+                    pid = perm_by_code.get(pc)
+                    if pid is not None:
+                        db.add(SysRolePermission(role_id=rid, permission_id=pid))
 
         for category, code, name in DICTS:
             if not db.query(SysDict).filter_by(category=category, code=code).first():
@@ -124,7 +198,7 @@ def seed() -> None:
 
         added_tpl = seed_templates(db)
         db.commit()
-        print("seed 完成：8 角色 / 37 字典项 / 3 SLA 模板 / 3 知识条目 / 1 管理员(admin)")
+        print("seed 完成：8 角色 / 28 权限点 / 37 字典项 / 3 SLA 模板 / 3 知识条目 / 1 管理员(admin)")
         if added_tpl:
             print(f"  监管要求模板库：新增 {added_tpl} 条（等保2.0/密码测评/数据安全/公安部176号令）")
         if admin_pwd:

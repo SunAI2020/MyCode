@@ -7,8 +7,8 @@
           <el-option v-for="c in ['漏洞', '整改方案', '故障手册', 'SOP', '驻场规范', '其他']" :key="c" :label="c" :value="c" />
         </el-select>
         <el-button type="primary" @click="load">查询</el-button>
-        <el-button @click="openCreate">新增条目</el-button>
-        <el-button type="warning" @click="onReindex">ES 回填</el-button>
+        <el-button v-if="canWrite" @click="openCreate">新增条目</el-button>
+        <el-button v-if="canDelete" type="warning" @click="onReindex">ES 回填</el-button>
       </div>
       <el-table :data="rows" v-loading="loading">
         <el-table-column prop="title" label="标题" min-width="220" />
@@ -17,7 +17,7 @@
         <el-table-column prop="view_count" label="浏览" width="80" />
         <el-table-column label="操作" width="90">
           <template #default="{ row }">
-            <el-button link type="danger" @click="onDelete(row)">删除</el-button>
+            <el-button v-if="canDelete" link type="danger" @click="onDelete(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -55,9 +55,14 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { listArticles, createArticle, deleteArticle, askKb, reindexKb } from '@/api'
+import { useAuthStore } from '@/stores/auth'
+
+const auth = useAuthStore()
+const canWrite = computed(() => auth.hasPermission('kb:write'))
+const canDelete = computed(() => auth.hasPermission('kb:delete'))
 
 const rows = ref<any[]>([])
 const total = ref(0)

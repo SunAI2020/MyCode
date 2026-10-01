@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, get_db, require_role
+from app.core.deps import get_current_user, get_db, require_permission, require_role
 from app.models import Issue, Rectification, RectificationRecord, SysUser, WorkOrder
 from app.schemas.issue import (
     IssueCreate,
@@ -20,7 +20,6 @@ from app.utils.pagination import paginate
 from app.utils.response import ok
 
 ROLE = ("sys_admin", "sys_ops", "ticket_mgr", "sec_staff")
-ADMIN = ("sys_admin", "sys_ops")
 
 router = APIRouter(tags=["问题整改"])
 
@@ -30,7 +29,7 @@ router = APIRouter(tags=["问题整改"])
 def create_issue(
     wid: int,
     body: IssueCreate,
-    user: SysUser = Depends(require_role(*ROLE)),
+    user: SysUser = Depends(require_permission("issue:write")),
     db: Session = Depends(get_db),
 ):
     wo = db.get(WorkOrder, wid)
@@ -73,7 +72,7 @@ def get_issue(iid: int, user: SysUser = Depends(require_role(*ROLE)), db: Sessio
 def update_issue(
     iid: int,
     body: IssueUpdate,
-    user: SysUser = Depends(require_role(*ROLE)),
+    user: SysUser = Depends(require_permission("issue:write")),
     db: Session = Depends(get_db),
 ):
     obj = db.get(Issue, iid)
@@ -89,7 +88,7 @@ def update_issue(
 
 
 @router.delete("/issues/{iid}")
-def delete_issue(iid: int, user: SysUser = Depends(require_role(*ADMIN)), db: Session = Depends(get_db)):
+def delete_issue(iid: int, user: SysUser = Depends(require_permission("issue:delete")), db: Session = Depends(get_db)):
     obj = db.get(Issue, iid)
     if obj is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "问题不存在")
@@ -104,7 +103,7 @@ def delete_issue(iid: int, user: SysUser = Depends(require_role(*ADMIN)), db: Se
 def create_rect(
     iid: int,
     body: RectificationCreate,
-    user: SysUser = Depends(require_role(*ROLE)),
+    user: SysUser = Depends(require_permission("issue:write")),
     db: Session = Depends(get_db),
 ):
     try:
@@ -138,7 +137,7 @@ def get_rect(rid: int, user: SysUser = Depends(require_role(*ROLE)), db: Session
 def update_rect(
     rid: int,
     body: RectificationUpdate,
-    user: SysUser = Depends(require_role(*ROLE)),
+    user: SysUser = Depends(require_permission("issue:write")),
     db: Session = Depends(get_db),
 ):
     obj = db.get(Rectification, rid)
@@ -156,7 +155,7 @@ def update_rect(
 def submit_round_endpoint(
     rid: int,
     body: RoundIn,
-    user: SysUser = Depends(require_role(*ROLE)),
+    user: SysUser = Depends(require_permission("issue:write")),
     db: Session = Depends(get_db),
 ):
     if body.effect not in ("通过", "不通过", "部分完成"):

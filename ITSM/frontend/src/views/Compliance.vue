@@ -13,7 +13,7 @@
             <el-select v-model="filterSourceType" placeholder="全部来源" clearable style="width: 140px" @change="loadRequirements">
               <el-option v-for="v in SOURCE_TYPES" :key="v" :label="v" :value="v" />
             </el-select>
-            <el-button type="primary" @click="openRequirement()">新增要求</el-button>
+            <el-button v-if="canWrite" type="primary" @click="openRequirement()">新增要求</el-button>
           </div>
           <el-table :data="requirements" v-loading="loading">
             <el-table-column prop="id" label="ID" width="60" />
@@ -28,9 +28,9 @@
             <el-table-column label="操作" width="240">
               <template #default="{ row }">
                 <el-button link type="primary" @click="openEvidence(row)">证据</el-button>
-                <el-button link type="success" @click="openCheck(row)">核验</el-button>
-                <el-button link type="primary" @click="openRequirement(row)">编辑</el-button>
-                <el-button link type="danger" @click="onDeleteRequirement(row)">删除</el-button>
+                <el-button v-if="canWrite" link type="success" @click="openCheck(row)">核验</el-button>
+                <el-button v-if="canWrite" link type="primary" @click="openRequirement(row)">编辑</el-button>
+                <el-button v-if="canDelete" link type="danger" @click="onDeleteRequirement(row)">删除</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -56,7 +56,7 @@
             <el-table-column prop="check_date" label="核验日期" width="120" />
             <el-table-column label="操作" width="120">
               <template #default="{ row }">
-                <el-button link type="primary" @click="openCheckUpdate(row)">提交结果</el-button>
+                <el-button v-if="canWrite" link type="primary" @click="openCheckUpdate(row)">提交结果</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -88,7 +88,7 @@
             <el-select v-model="repCustomer" placeholder="全部客户" clearable style="width: 180px" @change="loadReports">
               <el-option v-for="c in customers" :key="c.id" :label="c.name" :value="c.id" />
             </el-select>
-            <el-button type="primary" @click="openReportCreate">生成报告</el-button>
+            <el-button v-if="canWrite" type="primary" @click="openReportCreate">生成报告</el-button>
           </div>
           <el-table :data="reports" v-loading="loading">
             <el-table-column prop="id" label="ID" width="60" />
@@ -104,7 +104,7 @@
             <el-table-column label="操作" width="140">
               <template #default="{ row }">
                 <el-button link type="primary" @click="openReport(row)">查看</el-button>
-                <el-button link type="success" v-if="row.sign !== '已签署'" @click="onSignReport(row)">签署</el-button>
+                <el-button link type="success" v-if="canWrite && row.sign !== '已签署'" @click="onSignReport(row)">签署</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -127,7 +127,7 @@
             <el-table-column prop="category" label="维度" width="70" />
             <el-table-column label="操作" width="90">
               <template #default="{ row }">
-                <el-button link type="primary" @click="openApplyTemplate(row)">应用</el-button>
+                <el-button v-if="canWrite" link type="primary" @click="openApplyTemplate(row)">应用</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -177,7 +177,7 @@
         <el-form-item label="说明">
           <el-input v-model="evForm.note" placeholder="证据说明" style="width: 220px" />
         </el-form-item>
-        <el-button type="primary" @click="saveEvidence">上传证据</el-button>
+        <el-button v-if="canWrite" type="primary" @click="saveEvidence">上传证据</el-button>
         <el-button type="warning" plain @click="verifyChain">验证链</el-button>
       </el-form>
       <el-timeline>
@@ -277,7 +277,7 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import * as echarts from 'echarts/core'
 import { BarChart } from 'echarts/charts'
@@ -289,8 +289,13 @@ import {
   listCustomers, complianceOverview, createReport, listReports, getReport, signReport,
   listTemplates, applyTemplate,
 } from '@/api'
+import { useAuthStore } from '@/stores/auth'
 
 echarts.use([BarChart, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer])
+
+const auth = useAuthStore()
+const canWrite = computed(() => auth.hasPermission('compliance:write'))
+const canDelete = computed(() => auth.hasPermission('compliance:delete'))
 
 const CATEGORIES = ['技术', '组织', '制度', '台账', '流程']
 const SOURCE_TYPES = ['监管', '合同义务', '服务项目']

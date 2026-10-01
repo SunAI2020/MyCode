@@ -4,15 +4,22 @@ echo ==================================================
 echo    IT运维集中管控平台  一键启动
 echo ==================================================
 
-echo [1/3] 启动数据库（PostgreSQL / Redis / Elasticsearch）...
+echo [1/4] 启动数据库（PostgreSQL / Redis / Elasticsearch）...
 docker compose up -d
 timeout /t 5 /nobreak >nul
 
-echo [2/3] 启动后端（新窗口，端口 8000，默认仅本机访问）...
+echo [2/4] migrate DB schema + seed (idempotent)...
+cd /d %~dp0backend
+python -m alembic upgrade head
+python -m app.db.seed
+cd /d %~dp0
+
+
+echo [3/4] 启动后端（新窗口，端口 8000，默认仅本机访问）...
 REM 如需手机局域网访问，把 127.0.0.1 改成 0.0.0.0（生产云服务器切勿对公网开放 8000）
 start "ITSM后端" cmd /k "cd /d %~dp0backend && python -m uvicorn app.main:app --host 127.0.0.1 --port 8000"
 
-echo [3/3] 启动前端（新窗口，端口 5173）...
+echo [4/4] 启动前端（新窗口，端口 5173）...
 start "ITSM前端" cmd /k "cd /d %~dp0frontend && npm run dev"
 
 echo.

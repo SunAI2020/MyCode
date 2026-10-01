@@ -43,25 +43,24 @@ onMounted(() => {
   if (!auth.user) auth.fetchMe().catch(() => {})
 })
 
-// 菜单 × 角色白名单（§20 权限矩阵）；sys_admin 显示全部
+// 菜单 × 权限点（menu 权限点，来自后端角色权限矩阵）；sys_admin 显示全部
 const MENU_ITEMS = [
-  { path: '/dashboard', label: '仪表盘', roles: ['sys_admin', 'sys_ops', 'ticket_mgr', 'cs_staff', 'cust_admin', 'cust_service'] },
-  { path: '/customers', label: '客户管理', roles: ['sys_admin', 'ticket_mgr'] },
-  { path: '/contracts', label: '项目管理', roles: ['sys_admin', 'ticket_mgr'] },
-  { path: '/work-orders', label: '工单管理', roles: ['sys_admin', 'sys_ops', 'ticket_mgr', 'cs_staff', 'sec_staff', 'cust_admin', 'cust_service'] },
-  { path: '/personnel', label: '人员管理', roles: ['sys_admin', 'sys_ops', 'ticket_mgr'] },
-  { path: '/sla', label: 'SLA/周期管理', roles: ['sys_admin', 'sys_ops', 'ticket_mgr'] },
-  { path: '/issues', label: '安全隐患管理', roles: ['sys_admin', 'sys_ops', 'ticket_mgr', 'sec_staff'] },
-  { path: '/compliance', label: '合规运营', roles: ['sys_admin', 'sys_ops', 'ticket_mgr', 'sec_staff'] },
-  { path: '/portal', label: '自助门户', roles: ['sys_admin', 'sys_ops', 'ticket_mgr', 'cust_admin', 'cust_service'] },
-  { path: '/knowledge', label: '知识库', roles: ['sys_admin', 'sys_ops', 'ticket_mgr', 'cs_staff', 'sec_staff', 'cust_admin', 'cust_service'] },
-  { path: '/workflows', label: '工作流', roles: ['sys_admin', 'ticket_mgr'] },
+  { path: '/dashboard', label: '仪表盘', perm: 'dashboard' },
+  { path: '/customers', label: '客户管理', perm: 'customers' },
+  { path: '/contracts', label: '项目管理', perm: 'contracts' },
+  { path: '/work-orders', label: '工单管理', perm: 'work_orders' },
+  { path: '/personnel', label: '人员管理', perm: 'personnel' },
+  { path: '/sla', label: 'SLA/周期管理', perm: 'sla' },
+  { path: '/issues', label: '安全隐患管理', perm: 'issues' },
+  { path: '/compliance', label: '合规运营', perm: 'compliance' },
+  { path: '/portal', label: '自助门户', perm: 'portal' },
+  { path: '/knowledge', label: '知识库', perm: 'knowledge' },
+  { path: '/workflows', label: '工作流', perm: 'workflows' },
 ]
 
 const visibleMenu = computed(() => {
-  const roles = (auth.user?.roles || []).map((r: any) => r.code)
-  if (!roles.length || roles.includes('sys_admin')) return MENU_ITEMS
-  return MENU_ITEMS.filter((m) => m.roles.some((r) => roles.includes(r)))
+  if (!auth.user) return MENU_ITEMS // 用户信息未加载时先显示全部，避免闪烁
+  return MENU_ITEMS.filter((m) => auth.hasPermission(m.perm))
 })
 
 function onCommand(cmd: string) {

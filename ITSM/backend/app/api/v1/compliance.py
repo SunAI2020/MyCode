@@ -9,6 +9,7 @@ from app.core.deps import (
     customer_scope_of,
     get_current_user,
     get_db,
+    require_permission,
     require_role,
     scope_filter,
 )
@@ -49,7 +50,6 @@ from app.utils.wo_no import next_work_order_no, work_order_no_scope
 router = APIRouter(prefix="/compliance", tags=["合规运营"])
 
 ROLE = ("sys_admin", "sys_ops", "ticket_mgr", "sec_staff")
-ADMIN = ("sys_admin", "sys_ops")
 
 
 def _validate_requirement_refs(
@@ -97,7 +97,7 @@ def list_requirements(
 @router.post("/requirements")
 def create_requirement(
     body: ComplianceRequirementCreate,
-    user: SysUser = Depends(require_role(*ROLE)),
+    user: SysUser = Depends(require_permission("compliance:write")),
     db: Session = Depends(get_db),
 ):
     if db.get(Customer, body.customer_id) is None:
@@ -127,7 +127,7 @@ def get_requirement(rid: int, user: SysUser = Depends(require_role(*ROLE)), db: 
 def update_requirement(
     rid: int,
     body: ComplianceRequirementUpdate,
-    user: SysUser = Depends(require_role(*ROLE)),
+    user: SysUser = Depends(require_permission("compliance:write")),
     db: Session = Depends(get_db),
 ):
     obj = db.get(ComplianceRequirement, rid)
@@ -144,7 +144,7 @@ def update_requirement(
 
 
 @router.delete("/requirements/{rid}")
-def delete_requirement(rid: int, user: SysUser = Depends(require_role(*ADMIN)), db: Session = Depends(get_db)):
+def delete_requirement(rid: int, user: SysUser = Depends(require_permission("compliance:delete")), db: Session = Depends(get_db)):
     obj = db.get(ComplianceRequirement, rid)
     if obj is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "合规要求不存在")
@@ -160,7 +160,7 @@ def delete_requirement(rid: int, user: SysUser = Depends(require_role(*ADMIN)), 
 def add_evidence(
     rid: int,
     body: ComplianceEvidenceCreate,
-    user: SysUser = Depends(require_role(*ROLE)),
+    user: SysUser = Depends(require_permission("compliance:write")),
     db: Session = Depends(get_db),
 ):
     req = db.get(ComplianceRequirement, rid)
@@ -212,7 +212,7 @@ def verify_evidence_chain(rid: int, user: SysUser = Depends(require_role(*ROLE))
 def create_check(
     rid: int,
     body: ComplianceCheckCreate,
-    user: SysUser = Depends(require_role(*ROLE)),
+    user: SysUser = Depends(require_permission("compliance:write")),
     db: Session = Depends(get_db),
 ):
     req = db.get(ComplianceRequirement, rid)
@@ -251,7 +251,7 @@ def list_checks(
 def update_check(
     cid: int,
     body: ComplianceCheckUpdate,
-    user: SysUser = Depends(require_role(*ROLE)),
+    user: SysUser = Depends(require_permission("compliance:write")),
     db: Session = Depends(get_db),
 ):
     obj = db.get(ComplianceCheck, cid)
@@ -289,7 +289,7 @@ def update_check(
                     work_order_id=wo.id,
                     requirement_id=req.id,
                     type="基线不合规",
-                    level="高",
+                    level="高危",
                     description=req.clause,
                 )
                 db.add(issue)
@@ -326,7 +326,7 @@ def overview(
 @router.post("/reports")
 def create_report(
     body: DutyReportCreate,
-    user: SysUser = Depends(require_role(*ROLE)),
+    user: SysUser = Depends(require_permission("compliance:write")),
     db: Session = Depends(get_db),
 ):
     """生成履职报告：聚合覆盖矩阵 + 证据清单 + 量化指标，快照存入 content_json。"""
@@ -388,7 +388,7 @@ def get_report(rid: int, user: SysUser = Depends(require_role(*ROLE)), db: Sessi
 
 
 @router.post("/reports/{rid}/sign")
-def sign_report(rid: int, user: SysUser = Depends(require_role(*ROLE)), db: Session = Depends(get_db)):
+def sign_report(rid: int, user: SysUser = Depends(require_permission("compliance:write")), db: Session = Depends(get_db)):
     obj = db.get(DutyReport, rid)
     if obj is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "履职报告不存在")
@@ -426,7 +426,7 @@ def list_templates(
 def apply_template(
     tid: int,
     body: TemplateApplyIn,
-    user: SysUser = Depends(require_role(*ROLE)),
+    user: SysUser = Depends(require_permission("compliance:write")),
     db: Session = Depends(get_db),
 ):
     """把模板实例化为某客户的合规要求。"""

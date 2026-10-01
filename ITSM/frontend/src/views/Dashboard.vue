@@ -1,95 +1,56 @@
 <template>
   <div>
-    <el-row :gutter="16">
-      <el-col :span="8" v-for="c in cards" :key="c.label">
-        <el-card shadow="hover">
-          <div class="kpi">
-            <div class="num">{{ c.value }}</div>
-            <div class="label">{{ c.label }}</div>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
-
-    <h3 class="sec-title">合规运营</h3>
-    <el-row :gutter="16">
-      <el-col :span="6" v-for="c in complianceCards" :key="c.label">
-        <el-card shadow="hover">
-          <div class="kpi">
-            <div class="num">{{ c.value }}</div>
-            <div class="label">{{ c.label }}</div>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
-
-    <h3 class="sec-title">安全隐患整改</h3>
-    <el-row :gutter="16">
-      <el-col :span="6" v-for="c in issueCards" :key="c.label">
-        <el-card shadow="hover">
-          <div class="kpi">
-            <div class="num">{{ c.value }}</div>
-            <div class="label">{{ c.label }}</div>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
-    <el-card shadow="hover">
-      <div ref="issueChartRef" class="chart"></div>
-    </el-card>
+    <template v-for="(section, si) in sections" :key="section.title">
+      <h3 class="sec-title">{{ section.title }}</h3>
+      <el-row :gutter="16">
+        <el-col :span="6" v-for="(c, ci) in section.charts" :key="c">
+          <el-card shadow="hover" class="chart-card">
+            <div :ref="(el) => setRef(el, si * 4 + ci)" class="chart"></div>
+          </el-card>
+        </el-col>
+      </el-row>
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { nextTick, onMounted, ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import * as echarts from 'echarts/core'
-import { PieChart } from 'echarts/charts'
-import { LegendComponent, TooltipComponent } from 'echarts/components'
+import { PieChart, BarChart } from 'echarts/charts'
+import { LegendComponent, TooltipComponent, GridComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import { getDashboard } from '@/api'
 
-echarts.use([PieChart, LegendComponent, TooltipComponent, CanvasRenderer])
+echarts.use([PieChart, BarChart, LegendComponent, TooltipComponent, GridComponent, CanvasRenderer])
 
-const cards = ref([
-  { label: '客户', value: 0 },
-  { label: '合同', value: 0 },
-  { label: '工单', value: 0 },
-])
+const sections = [
+  { title: '基本情况', charts: ['客户', '项目', '工单', '人员'] },
+  { title: '执行情况', charts: ['服务项目', '安全隐患', '整改情况', '人员绩效'] },
+  { title: '合规运营', charts: ['合规要求', '核验情况', '合规覆盖率', '风险敞口'] },
+]
 
-const complianceCards = ref([
-  { label: '合规要求', value: 0 },
-  { label: '覆盖率', value: '0.0%' },
-  { label: '闭环率', value: '0.0%' },
-  { label: '风险敞口', value: 0 },
-])
+const chartRefs = ref<HTMLDivElement[]>([])
+const charts: echarts.ECharts[] = []
 
-const issueCards = ref([
-  { label: '隐患总数', value: 0 },
-  { label: '待整改', value: 0 },
-  { label: '整改中', value: 0 },
-  { label: '已关闭', value: 0 },
-])
-
-const issueChartRef = ref<HTMLDivElement | null>(null)
-let issueChart: echarts.ECharts | null = null
-
-function pct(v: number) {
-  return `${((v ?? 0) * 100).toFixed(1)}%`
+function setRef(el: unknown, i: number) {
+  if (el) chartRefs.value[i] = el as HTMLDivElement
 }
 
-function renderIssueChart(byStatus: Record<string, number>) {
-  if (!issueChartRef.value) return
-  if (!issueChart) issueChart = echarts.init(issueChartRef.value)
-  const data = Object.entries(byStatus || {}).map(([name, value]) => ({ name, value }))
-  issueChart.setOption({
-    tooltip: { trigger: 'item' },
+function renderPie(i: number, title: string, data: { name: string; value: number }[]) {
+  const el = chartRefs.value[i]
+  if (!el) return
+  if (!charts[i]) charts[i] = echarts.init(el)
+  charts[i].setOption({
+    title: { text: title, left: 'center', top: 4, textStyle: { fontSize: 13 } },
+    tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
     legend: { bottom: 0 },
     series: [
       {
-        name: '整改进度',
         type: 'pie',
-        radius: ['40%', '65%'],
-        center: ['50%', '45%'],
+        radius: ['45%', '70%'], // 带缺口（环形）
+        center: ['50%', '48%'],
+        roseType: 'area', // 面积玫瑰，模拟立体
+        itemStyle: { borderRadius: 4, borderColor: '#fff', borderWidth: 2, shadowBlur: 12, shadowColor: 'rgba(0,0,0,0.25)' },
         label: { formatter: '{b}: {c}' },
         data: data.length ? data : [{ name: '暂无数据', value: 0 }],
       },
@@ -97,30 +58,40 @@ function renderIssueChart(byStatus: Record<string, number>) {
   })
 }
 
+function renderStacked(i: number, title: string, d: { categories: string[]; series: { name: string; data: number[] }[] }, pct = false) {
+  const el = chartRefs.value[i]
+  if (!el) return
+  if (!charts[i]) charts[i] = echarts.init(el)
+  charts[i].setOption({
+    title: { text: title, left: 'center', top: 4, textStyle: { fontSize: 13 } },
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    legend: { bottom: 0 },
+    grid: { left: 8, right: 16, top: 32, bottom: 46, containLabel: true },
+    xAxis: { type: 'value', axisLabel: { formatter: pct ? '{value}%' : '{value}' } },
+    yAxis: { type: 'category', data: d.categories },
+    series: d.series.map((s) => ({ name: s.name, type: 'bar', stack: 'total', barMaxWidth: 18, data: s.data })),
+  })
+}
+
 onMounted(async () => {
   const d = (await getDashboard()).data
-  cards.value[0].value = d.customers ?? 0
-  cards.value[1].value = d.contracts?.total ?? 0
-  cards.value[2].value = d.work_orders?.total ?? 0
-  const comp = d.compliance || {}
-  complianceCards.value[0].value = comp.total ?? 0
-  complianceCards.value[1].value = pct(comp.coverage_rate)
-  complianceCards.value[2].value = pct(comp.closure_rate)
-  complianceCards.value[3].value = comp.at_risk ?? 0
-  const issues = d.issues || {}
-  issueCards.value[0].value = issues.total ?? 0
-  issueCards.value[1].value = issues.by_status?.['待整改'] ?? 0
-  issueCards.value[2].value = issues.by_status?.['整改中'] ?? 0
-  issueCards.value[3].value = issues.by_status?.['已关闭'] ?? 0
-  await nextTick()
-  renderIssueChart(issues.by_status || {})
+  renderPie(0, '客户（行业）', d.customers_by_industry || [])
+  renderPie(1, '项目（状态）', d.contracts_by_status || [])
+  renderPie(2, '工单（状态）', d.work_orders_by_status || [])
+  renderStacked(3, '人员接单（近一年）', d.engineer_workload || { categories: [], series: [] })
+  renderStacked(4, '服务项目工单', d.project_workload || { categories: [], series: [] })
+  renderStacked(5, '安全隐患（CVE 分级）', d.issue_by_type_level || { categories: [], series: [] })
+  renderStacked(6, '整改情况', d.issue_by_type_status || { categories: [], series: [] })
+  renderStacked(7, '人员绩效', d.performance_by_engineer || { categories: [], series: [] })
+  renderStacked(8, '合规要求（出处×维度）', d.compliance_by_reg_source || { categories: [], series: [] })
+  renderStacked(9, '核验情况（单位）', d.check_by_customer || { categories: [], series: [] })
+  renderStacked(10, '合规覆盖率（单位）', d.coverage_by_customer || { categories: [], series: [] }, true)
+  renderStacked(11, '风险敞口（单位）', d.risk_by_customer || { categories: [], series: [] })
 })
 </script>
 
 <style scoped>
-.kpi { text-align: center; padding: 12px 0; }
-.num { font-size: 32px; font-weight: 700; color: #0a4fc0; }
-.label { color: #5b6470; margin-top: 4px; }
-.sec-title { margin: 20px 0 12px; font-size: 15px; color: #303133; }
+.sec-title { margin: 20px 0 12px; font-size: 15px; color: #303133; border-left: 4px solid #0a3d91; padding-left: 8px; }
+.chart-card { margin-bottom: 8px; }
 .chart { height: 300px; }
 </style>

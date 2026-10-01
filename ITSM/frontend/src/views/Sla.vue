@@ -3,7 +3,7 @@
     <el-tabs v-model="tab">
       <el-tab-pane label="SLA 策略" name="sla">
         <el-card>
-          <div class="toolbar"><el-button type="primary" @click="openSla()">新增策略</el-button></div>
+          <div class="toolbar"><el-button v-if="canWrite" type="primary" @click="openSla()">新增策略</el-button></div>
           <el-table :data="slas" v-loading="loading">
             <el-table-column prop="id" label="ID" width="60" />
             <el-table-column prop="name" label="名称" />
@@ -12,8 +12,8 @@
             <el-table-column prop="resolve_limit" label="解决时限" width="100" />
             <el-table-column label="操作" width="150">
               <template #default="{ row }">
-                <el-button link type="primary" @click="openSla(row)">编辑</el-button>
-                <el-button link type="danger" @click="onDeleteSla(row)">删除</el-button>
+                <el-button v-if="canWrite" link type="primary" @click="openSla(row)">编辑</el-button>
+                <el-button v-if="canDelete" link type="danger" @click="onDeleteSla(row)">删除</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -70,9 +70,14 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { listSla, createSla, updateSla, deleteSla, listCycles, listReminders } from '@/api'
+import { useAuthStore } from '@/stores/auth'
+
+const auth = useAuthStore()
+const canWrite = computed(() => auth.hasPermission('sla:write'))
+const canDelete = computed(() => auth.hasPermission('sla:delete'))
 
 const tab = ref('sla')
 const loading = ref(false)

@@ -18,7 +18,7 @@ ACCOUNTS = [
     ("ops", "系统运维人员", "sys_ops", False),
     ("ticketmgr", "工单管理人员", "ticket_mgr", False),
     ("cs", "客服人员", "cs_staff", False),
-    ("sec", "安服人员", "sec_staff", False),
+    ("sec", "工程师", "sec_staff", False),
     ("custadmin", "客户系统管理员", "cust_admin", True),
     ("custsvc", "客户服务管理人员", "cust_service", True),
     ("outsource", "外包人员", "outsource", False),

@@ -15,7 +15,7 @@ from app.core.deps import (
     customer_scope_of,
     get_current_user,
     get_db,
-    require_role,
+    require_permission,
 )
 from app.models import Contract, ContractArchive, ContractItem, CmdbCi, Customer, SysUser
 from app.schemas.contract import ContractOut
@@ -31,8 +31,6 @@ from app.utils.pagination import paginate
 from app.utils.response import ok
 
 router = APIRouter(prefix="/contract-archives", tags=["合同原件档案"])
-
-WRITE_ROLE = ("sys_admin", "sys_ops")
 
 # 仅这些可信 MIME 允许内联渲染，其余（含历史异常数据）强制下载；图片为安全位图/光栅格式，可内联
 ALLOWED_INLINE_MIME = {
@@ -93,7 +91,7 @@ def _resolve_customer(db: Session, body: ContractArchiveConfirm, scope: int | No
 @router.post("/upload")
 def upload_archive(
     file: UploadFile,
-    user: SysUser = Depends(require_role(*WRITE_ROLE)),
+    user: SysUser = Depends(require_permission("contract:write")),
     db: Session = Depends(get_db),
 ):
     """上传原件 → 抽文本 → LLM 抽取 → 加密写盘 → 建待确认档案行。"""
@@ -157,7 +155,7 @@ def upload_archive(
 def confirm_archive(
     aid: int,
     body: ContractArchiveConfirm,
-    user: SysUser = Depends(require_role(*WRITE_ROLE)),
+    user: SysUser = Depends(require_permission("contract:write")),
     db: Session = Depends(get_db),
 ):
     """按编辑后的抽取字段自动生成全链路，并把档案归档到该合同。"""

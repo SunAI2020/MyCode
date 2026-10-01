@@ -3,7 +3,7 @@
     <el-card>
       <div class="toolbar">
         <el-input v-model="query.name" placeholder="按名称搜索" style="width: 220px" clearable @keyup.enter="load" />
-        <el-button type="primary" @click="openCreate">新增客户</el-button>
+        <el-button v-if="canWrite" type="primary" @click="openCreate">新增客户</el-button>
       </div>
       <el-table :data="rows" v-loading="loading">
         <el-table-column prop="id" label="ID" width="70" />
@@ -13,8 +13,8 @@
         <el-table-column prop="contact" label="联系人" />
         <el-table-column label="操作" width="150">
           <template #default="{ row }">
-            <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
-            <el-button link type="danger" @click="onDelete(row)">删除</el-button>
+            <el-button v-if="canWrite" link type="primary" @click="openEdit(row)">编辑</el-button>
+            <el-button v-if="canDelete" link type="danger" @click="onDelete(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -48,9 +48,14 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { listCustomers, createCustomer, updateCustomer, deleteCustomer } from '@/api'
+import { useAuthStore } from '@/stores/auth'
+
+const auth = useAuthStore()
+const canWrite = computed(() => auth.hasPermission('customer:write'))
+const canDelete = computed(() => auth.hasPermission('customer:delete'))
 
 const rows = ref<any[]>([])
 const total = ref(0)

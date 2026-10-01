@@ -7,7 +7,7 @@ from app.core.deps import (
     customer_scope_of,
     get_current_user,
     get_db,
-    require_role,
+    require_permission,
     scope_filter,
 )
 from app.models import Customer, SysUser
@@ -35,7 +35,7 @@ def list_customers(
 @router.post("")
 def create_customer(
     body: CustomerCreate,
-    user: SysUser = Depends(require_role("sys_admin", "sys_ops")),
+    user: SysUser = Depends(require_permission("customer:write")),
     db: Session = Depends(get_db),
 ):
     if db.query(Customer).filter(Customer.name == body.name).first():
@@ -66,7 +66,7 @@ def get_customer(
 def update_customer(
     cid: int,
     body: CustomerUpdate,
-    user: SysUser = Depends(require_role("sys_admin", "sys_ops")),
+    user: SysUser = Depends(require_permission("customer:write")),
     db: Session = Depends(get_db),
 ):
     obj = db.get(Customer, cid)
@@ -84,7 +84,7 @@ def update_customer(
 @router.delete("/{cid}")
 def delete_customer(
     cid: int,
-    user: SysUser = Depends(require_role("sys_admin")),
+    user: SysUser = Depends(require_permission("customer:delete")),
     db: Session = Depends(get_db),
 ):
     obj = db.get(Customer, cid)

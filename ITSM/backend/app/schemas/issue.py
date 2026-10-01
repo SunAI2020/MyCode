@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict
 
 class IssueCreate(BaseModel):
     type: str = "安全漏洞"
-    level: str = "中"
+    level: str = "中危"
     description: str
     attachments: str | None = None
     similar_ids: str | None = None

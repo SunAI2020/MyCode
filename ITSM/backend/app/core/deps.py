@@ -17,7 +17,9 @@ from app.models import (
     Delivery,
     OrderReceive,
     OutsourceUser,
+    SysPermission,
     SysRole,
+    SysRolePermission,
     SysUser,
     SysUserRole,
     WorkOrder,
@@ -115,6 +117,47 @@ def require_role(*allowed: str):
     def _dep(user: SysUser = Depends(get_current_user), db: Session = Depends(get_db)) -> SysUser:
         roles = {r.code for r in role_rows_of(user, db)}
         if not roles & set(allowed):
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "权限不足")
+        return user
+
+    return _dep
+
+
+def _perm_codes_of_role_ids(db: Session, role_ids: list[int]) -> set[str]:
+    """给定角色 id 集合，返回其聚合的权限点 code 集合。"""
+    if not role_ids:
+        return set()
+    perm_rows = (
+        db.query(SysRolePermission.permission_id)
+        .filter(SysRolePermission.role_id.in_(role_ids))
+        .all()
+    )
+    perm_ids = {row[0] for row in perm_rows}
+    if not perm_ids:
+        return set()
+    rows = db.query(SysPermission.code).filter(SysPermission.id.in_(perm_ids)).all()
+    return {row[0] for row in rows}
+
+
+def permission_codes_of(user: SysUser, db: Session) -> set[str]:
+    """用户全部权限点 code（user → roles → sys_role_permission → sys_permission）。"""
+    role_ids = [r.id for r in role_rows_of(user, db)]
+    return _perm_codes_of_role_ids(db, role_ids)
+
+
+def require_permission(*allowed: str):
+    """权限点校验依赖：当前用户须持有 allowed 中至少一个权限点，否则 403。
+
+    sys_admin 短路放行（视同拥有全部权限点）；其余按「角色 → 权限点」集合求交集判断。
+    """
+
+    def _dep(user: SysUser = Depends(get_current_user), db: Session = Depends(get_db)) -> SysUser:
+        role_rows = role_rows_of(user, db)
+        roles = {r.code for r in role_rows}
+        if "sys_admin" in roles:
+            return user
+        role_ids = [r.id for r in role_rows]
+        if not _perm_codes_of_role_ids(db, role_ids) & set(allowed):
             raise HTTPException(status.HTTP_403_FORBIDDEN, "权限不足")
         return user
 

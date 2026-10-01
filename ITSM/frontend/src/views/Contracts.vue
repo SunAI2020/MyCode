@@ -348,13 +348,10 @@ const items = ref<any[]>([])
 const cis = ref<any[]>([])
 const itemFilter = reactive({ ci_id: null as number | null })
 
-// 写/删权限与后端 WRITE_ROLE(sys_admin,sys_ops) / 删除(sys_admin) 对齐，避免 ticket_mgr 看到按钮却 403
+// 写/删权限按权限点裁剪（与后端 contract:write / contract:delete 对齐）
 const auth = useAuthStore()
-const canWrite = computed(() => {
-  const r = auth.roles()
-  return r.includes('sys_admin') || r.includes('sys_ops')
-})
-const canDelete = computed(() => auth.roles().includes('sys_admin'))
+const canWrite = computed(() => auth.hasPermission('contract:write'))
+const canDelete = computed(() => auth.hasPermission('contract:delete'))
 
 const contractDlg = ref(false)
 const contractEditId = ref<number | null>(null)

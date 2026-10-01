@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, require_role
+from app.core.deps import get_db, require_permission, require_role
 from app.models import Approval, ChangeOrder, Outsourcing, SysUser, WorkOrder
 from app.schemas.approval import ApprovalCreate, ApprovalDecision, ApprovalOut
 from app.services.audit_service import record
@@ -93,7 +93,7 @@ def _apply(db: Session, approval: Approval, to_status: str, operator_id: int) ->
 def approve(
     aid: int,
     body: ApprovalDecision,
-    user: SysUser = Depends(require_role(*APPROVAL_ROLE)),
+    user: SysUser = Depends(require_permission("approval:write")),
     db: Session = Depends(get_db),
 ):
     appr = db.get(Approval, aid)
@@ -122,7 +122,7 @@ def approve(
 def reject(
     aid: int,
     body: ApprovalDecision,
-    user: SysUser = Depends(require_role(*APPROVAL_ROLE)),
+    user: SysUser = Depends(require_permission("approval:write")),
     db: Session = Depends(get_db),
 ):
     appr = db.get(Approval, aid)

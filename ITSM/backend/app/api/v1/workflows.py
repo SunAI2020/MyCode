@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, require_role
+from app.core.deps import get_db, require_permission, require_role
 from app.models import SysUser, WorkflowRule
 from app.schemas.workflow import WorkflowRuleCreate, WorkflowRuleOut, WorkflowRuleUpdate
 from app.services.audit_service import record
@@ -11,7 +11,6 @@ from app.utils.pagination import paginate
 from app.utils.response import ok
 
 READ_ROLE = ("sys_admin", "sys_ops", "ticket_mgr")
-WRITE_ROLE = ("sys_admin",)
 
 router = APIRouter(prefix="/workflow-rules", tags=["工作流"])
 
@@ -48,7 +47,7 @@ def list_rules(
 @router.post("")
 def create_rule(
     body: WorkflowRuleCreate,
-    user: SysUser = Depends(require_role(*WRITE_ROLE)),
+    user: SysUser = Depends(require_permission("workflow:write")),
     db: Session = Depends(get_db),
 ):
     obj = WorkflowRule(**body.model_dump())
@@ -63,7 +62,7 @@ def create_rule(
 def update_rule(
     rid: int,
     body: WorkflowRuleUpdate,
-    user: SysUser = Depends(require_role(*WRITE_ROLE)),
+    user: SysUser = Depends(require_permission("workflow:write")),
     db: Session = Depends(get_db),
 ):
     obj = db.get(WorkflowRule, rid)
@@ -78,7 +77,7 @@ def update_rule(
 
 
 @router.delete("/{rid}")
-def delete_rule(rid: int, user: SysUser = Depends(require_role(*WRITE_ROLE)), db: Session = Depends(get_db)):
+def delete_rule(rid: int, user: SysUser = Depends(require_permission("workflow:write")), db: Session = Depends(get_db)):
     obj = db.get(WorkflowRule, rid)
     if obj is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "工作流规则不存在")

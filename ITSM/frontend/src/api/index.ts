@@ -14,6 +14,12 @@ export const createUser = (data: any) => request.post('/users', data)
 export const updateUser = (id: number, data: any) => request.put(`/users/${id}`, data)
 export const deleteUser = (id: number) => request.delete(`/users/${id}`)
 
+// ---- 权限管理（角色权限矩阵）----
+export const listPermissions = () => request.get('/permissions')
+export const listRoles = () => request.get('/permissions/roles')
+export const getRolePermissions = (code: string) => request.get(`/permissions/roles/${code}/permissions`)
+export const updateRolePermissions = (code: string, data: any) => request.put(`/permissions/roles/${code}/permissions`, data)
+
 // ---- 安全隐患（问题整改）----
 export const listIssues = (params: any) => request.get('/issues', { params })
 

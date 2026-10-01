@@ -8,7 +8,7 @@ from app.core.deps import (
     customer_scope_of,
     get_current_user,
     get_db,
-    require_role,
+    require_permission,
     scope_filter,
 )
 from app.models import CmdbCi, CmdbCiDependency, Contract, ContractArchive, ContractItem, Customer, SysUser
@@ -29,8 +29,6 @@ from app.services.audit_service import record
 from app.services.cycle_service import generate_cycles
 from app.utils.pagination import paginate
 from app.utils.response import ok
-
-WRITE_ROLE = ("sys_admin", "sys_ops")
 
 contracts = APIRouter(prefix="/contracts", tags=["合同"])
 items = APIRouter(prefix="/contract-items", tags=["合同子项"])
@@ -65,7 +63,7 @@ def list_contracts(
 @contracts.post("")
 def create_contract(
     body: ContractCreate,
-    user: SysUser = Depends(require_role(*WRITE_ROLE)),
+    user: SysUser = Depends(require_permission("contract:write")),
     db: Session = Depends(get_db),
 ):
     if db.get(Customer, body.customer_id) is None:
@@ -95,7 +93,7 @@ def get_contract(cid: int, user: SysUser = Depends(get_current_user), db: Sessio
 def update_contract(
     cid: int,
     body: ContractUpdate,
-    user: SysUser = Depends(require_role(*WRITE_ROLE)),
+    user: SysUser = Depends(require_permission("contract:write")),
     db: Session = Depends(get_db),
 ):
     obj = db.get(Contract, cid)
@@ -118,7 +116,7 @@ def update_contract(
 
 
 @contracts.delete("/{cid}")
-def delete_contract(cid: int, user: SysUser = Depends(require_role("sys_admin")), db: Session = Depends(get_db)):
+def delete_contract(cid: int, user: SysUser = Depends(require_permission("contract:delete")), db: Session = Depends(get_db)):
     obj = db.get(Contract, cid)
     if obj is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "合同不存在")
@@ -155,7 +153,7 @@ def list_items(
 @items.post("")
 def create_item(
     body: ContractItemCreate,
-    user: SysUser = Depends(require_role(*WRITE_ROLE)),
+    user: SysUser = Depends(require_permission("contract:write")),
     db: Session = Depends(get_db),
 ):
     scope = customer_scope_of(user, db)
@@ -199,7 +197,7 @@ def get_item(iid: int, user: SysUser = Depends(get_current_user), db: Session = 
 def update_item(
     iid: int,
     body: ContractItemUpdate,
-    user: SysUser = Depends(require_role(*WRITE_ROLE)),
+    user: SysUser = Depends(require_permission("contract:write")),
     db: Session = Depends(get_db),
 ):
     obj = db.get(ContractItem, iid)
@@ -224,7 +222,7 @@ def update_item(
 
 
 @items.delete("/{iid}")
-def delete_item(iid: int, user: SysUser = Depends(require_role("sys_admin")), db: Session = Depends(get_db)):
+def delete_item(iid: int, user: SysUser = Depends(require_permission("contract:delete")), db: Session = Depends(get_db)):
     obj = db.get(ContractItem, iid)
     if obj is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "子项不存在")
@@ -237,7 +235,7 @@ def delete_item(iid: int, user: SysUser = Depends(require_role("sys_admin")), db
 @items.post("/{iid}/cycles/generate")
 def generate_item_cycles(
     iid: int,
-    user: SysUser = Depends(require_role(*WRITE_ROLE)),
+    user: SysUser = Depends(require_permission("contract:write")),
     db: Session = Depends(get_db),
 ):
     try:
@@ -268,7 +266,7 @@ def list_cis(
 @cis.post("")
 def create_ci(
     body: CmdbCiCreate,
-    user: SysUser = Depends(require_role(*WRITE_ROLE)),
+    user: SysUser = Depends(require_permission("contract:write")),
     db: Session = Depends(get_db),
 ):
     contract = db.get(Contract, body.contract_id)
@@ -301,7 +299,7 @@ def get_ci(iid: int, user: SysUser = Depends(get_current_user), db: Session = De
 def update_ci(
     iid: int,
     body: CmdbCiUpdate,
-    user: SysUser = Depends(require_role(*WRITE_ROLE)),
+    user: SysUser = Depends(require_permission("contract:write")),
     db: Session = Depends(get_db),
 ):
     obj = db.get(CmdbCi, iid)
@@ -328,7 +326,7 @@ def update_ci(
 
 
 @cis.delete("/{iid}")
-def delete_ci(iid: int, user: SysUser = Depends(require_role("sys_admin")), db: Session = Depends(get_db)):
+def delete_ci(iid: int, user: SysUser = Depends(require_permission("contract:delete")), db: Session = Depends(get_db)):
     obj = db.get(CmdbCi, iid)
     if obj is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "服务对象不存在")
@@ -345,7 +343,7 @@ dependencies = APIRouter(prefix="/cmdb-ci-dependencies", tags=["依赖拓扑"])
 @dependencies.post("")
 def create_dependency(
     body: CmdbCiDependencyCreate,
-    user: SysUser = Depends(require_role(*WRITE_ROLE)),
+    user: SysUser = Depends(require_permission("contract:write")),
     db: Session = Depends(get_db),
 ):
     src = db.get(CmdbCi, body.source_ci_id)
@@ -364,7 +362,7 @@ def create_dependency(
 
 
 @dependencies.delete("/{did}")
-def delete_dependency(did: int, user: SysUser = Depends(require_role(*WRITE_ROLE)), db: Session = Depends(get_db)):
+def delete_dependency(did: int, user: SysUser = Depends(require_permission("contract:write")), db: Session = Depends(get_db)):
     obj = db.get(CmdbCiDependency, did)
     if obj is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "依赖不存在")

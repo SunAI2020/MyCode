@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, require_role
+from app.core.deps import get_db, require_permission, require_role
 from app.models import CmdbCi, Contract, ContractItem, Customer, ServiceCycle, ServiceReminder, SlaPolicy, SysUser
 from app.schemas.service import (
     ServiceCycleOut,
@@ -15,7 +15,6 @@ from app.services.audit_service import record
 from app.utils.pagination import paginate
 from app.utils.response import ok
 
-WRITE_ROLE = ("sys_admin", "sys_ops")
 READ_ROLE = ("sys_admin", "sys_ops", "ticket_mgr")
 
 sla = APIRouter(prefix="/sla-policies", tags=["SLA 策略"])
@@ -37,7 +36,7 @@ def list_policies(
 @sla.post("")
 def create_policy(
     body: SlaPolicyCreate,
-    user: SysUser = Depends(require_role(*WRITE_ROLE)),
+    user: SysUser = Depends(require_permission("sla:write")),
     db: Session = Depends(get_db),
 ):
     obj = SlaPolicy(**body.model_dump())
@@ -60,7 +59,7 @@ def get_policy(pid: int, user: SysUser = Depends(require_role(*READ_ROLE)), db: 
 def update_policy(
     pid: int,
     body: SlaPolicyUpdate,
-    user: SysUser = Depends(require_role(*WRITE_ROLE)),
+    user: SysUser = Depends(require_permission("sla:write")),
     db: Session = Depends(get_db),
 ):
     obj = db.get(SlaPolicy, pid)
@@ -76,7 +75,7 @@ def update_policy(
 
 
 @sla.delete("/{pid}")
-def delete_policy(pid: int, user: SysUser = Depends(require_role("sys_admin")), db: Session = Depends(get_db)):
+def delete_policy(pid: int, user: SysUser = Depends(require_permission("sla:delete")), db: Session = Depends(get_db)):
     obj = db.get(SlaPolicy, pid)
     if obj is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "SLA 策略不存在")

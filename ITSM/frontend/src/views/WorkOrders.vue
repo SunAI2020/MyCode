@@ -2,8 +2,8 @@
   <div>
     <el-card>
       <div class="toolbar">
-        <el-button type="primary" @click="openCreate">新增工单</el-button>
-        <el-button type="primary" @click="openAggregate">新增聚合工单</el-button>
+        <el-button v-if="canDispatch" type="primary" @click="openCreate">新增工单</el-button>
+        <el-button v-if="canDispatch" type="primary" @click="openAggregate">新增聚合工单</el-button>
       </div>
       <el-table :data="rows" v-loading="loading">
         <el-table-column prop="no" label="工单号" width="150" />
@@ -167,11 +167,8 @@ const customers = ref<any[]>([])
 const cis = ref<any[]>([])
 const items = ref<any[]>([])
 const users = ref<any[]>([])
-// 仅可派单角色（后端 dispatch 白名单）加载执行人并显示派单入口
-const canDispatch = computed(() => {
-  const codes = (auth.user?.roles || []).map((r: any) => r.code)
-  return ['sys_admin', 'sys_ops', 'ticket_mgr'].some((c) => codes.includes(c))
-})
+// 写权限点（工单创建/派单/转派，与后端 work_order:write 对齐）
+const canDispatch = computed(() => auth.hasPermission('work_order:write'))
 const customerMap = computed(() => new Map(customers.value.map((c) => [c.id, c])))
 const itemProjectMap = computed(() => {
   const m: Record<number, string> = {}

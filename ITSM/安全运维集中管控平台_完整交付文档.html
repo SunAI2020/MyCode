@@ -941,11 +941,11 @@ SLA 契约(sla_policy) → 工单 → 升级(escalation)</pre>
     <tr><td>4</td><td><strong>客服人员</strong></td><td>只读：查看仪表盘、工单进度、查看并联系服务人员；<strong>无权修改工单</strong></td></tr>
     <tr><td>5</td><td><strong>客户系统管理员</strong></td><td>查看/管理己方各合同下的工单进度；<strong>不可修改履约中的合同内容与合同价格</strong></td></tr>
     <tr><td>6</td><td><strong>客户服务管理人员</strong></td><td>查看己方工单；追加合同、追加系统、追加工单、安排临时工单、调整工单时限、服务质量评价、投诉/反馈问题</td></tr>
-    <tr><td>7</td><td><strong>安服人员</strong></td><td>查看自己的工单；接收任务与催单提醒；按要求填写表单和工作日志</td></tr>
+    <tr><td>7</td><td><strong>工程师</strong></td><td>查看自己的工单；接收任务与催单提醒；按要求填写表单和工作日志</td></tr>
   </table>
   <h3>20.2 权限矩阵（简化）</h3>
   <table>
-    <tr><th>操作</th><th>系统管理员</th><th>系统运维</th><th>工单管理</th><th>客服</th><th>客户管理员</th><th>客户服务管理</th><th>安服人员</th></tr>
+    <tr><th>操作</th><th>系统管理员</th><th>系统运维</th><th>工单管理</th><th>客服</th><th>客户管理员</th><th>客户服务管理</th><th>工程师</th></tr>
     <tr><td>分配权限</td><td>✅</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
     <tr><td>接单/派单/变更价格/时限</td><td>✅</td><td>—</td><td>✅</td><td>—</td><td>—</td><td>（追加/调整时限）部分</td><td>—</td></tr>
     <tr><td>查看仪表盘/进度</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td><td>✅（本客户）</td><td>✅（本客户）</td><td>✅（本人）</td></tr>
@@ -1034,9 +1034,9 @@ SLA 契约(sla_policy) → 工单 → 升级(escalation)</pre>
     <text class="sml" x="42" y="446">追加/临时/评价</text>
     <text class="sml" x="42" y="460">客户侧</text>
 
-    <!-- 7 安服人员 -->
+    <!-- 7 工程师 -->
     <rect class="node process" x="30" y="472" width="180" height="64" rx="0"/>
-    <text class="lbl" x="42" y="494">7 安服人员</text>
+    <text class="lbl" x="42" y="494">7 工程师</text>
     <text class="sml" x="42" y="510">自己的工单</text>
     <text class="sml" x="42" y="524">平台侧</text>
 
@@ -1053,7 +1053,7 @@ SLA 契约(sla_policy) → 工单 → 升级(escalation)</pre>
     <text class="dash" x="269" y="380">—</text><text class="dash" x="387" y="380">—</text><text class="check" x="505" y="380">✅</text><text class="check" x="623" y="380" fill="#dc2626">✗</text><text class="dash" x="741" y="380">—</text><text class="dash" x="865" y="380">—</text>
     <!-- row6 客户服务管理 -->
     <text class="dash" x="269" y="444">—</text><text class="check" x="387" y="444">部分</text><text class="check" x="505" y="444">✅</text><text class="check" x="623" y="444">部分</text><text class="dash" x="741" y="444">—</text><text class="check" x="865" y="444">✅</text>
-    <!-- row7 安服人员 -->
+    <!-- row7 工程师 -->
     <text class="dash" x="269" y="508">—</text><text class="dash" x="387" y="508">—</text><text class="check" x="505" y="508">✅(本人)</text><text class="dash" x="623" y="508">—</text><text class="check" x="741" y="508">✅</text><text class="dash" x="865" y="508">—</text>
 
     <!-- 图例 -->
@@ -1268,10 +1268,10 @@ SLA 契约(sla_policy) → 工单 → 升级(escalation)</pre>
     <tr><td>① 系统管理</td><td rowspan="4">信息服务AI管控平台V1.0</td><td>系统管理员</td><td>系统/接单/派单/修改工单/催单/进度/结单/帮助</td><td>汇总、X单位…</td><td>仪表盘/工单/安全问题/整改/报告/验收/结款/评价</td></tr>
     <tr><td>② 系统运维</td><td>系统运维人员</td><td>系统(权限仅服务人员)/帮助</td><td>汇总、X单位…</td><td>同上 8 项</td></tr>
     <tr><td>③ 工单管理</td><td>工单管理人员</td><td>系统/接单/派单/修改工单/催单/进度/结单/帮助</td><td>汇总、X单位…</td><td>同上 8 项</td></tr>
-    <tr><td>④ 服务人员</td><td>安服人员</td><td>系统/帮助</td><td>工单汇总/今日工作/催单/问题反馈</td><td>含"工作排期"9 项</td></tr>
+    <tr><td>④ 服务人员</td><td>工程师</td><td>系统/帮助</td><td>工单汇总/今日工作/催单/问题反馈</td><td>含"工作排期"9 项</td></tr>
     <tr><td>⑤ 客户系统管理</td><td rowspan="2">运维服务AI管控平台</td><td>客户系统管理员</td><td>系统/帮助</td><td>汇总、X系统…</td><td>仪表盘/运维工作/安全问题/整改/报告/验收</td></tr>
     <tr><td>⑥ 客户服务管理</td><td>客户服务管理人员</td><td>系统/派单/修改工单/催单/进度/结单/帮助</td><td>汇总、X系统…</td><td>同上 + 评价与投诉</td></tr>
-    <tr><td>⑦ 服务人员APP</td><td>信息服务AI管控平台V1.0</td><td>安服人员(移动)</td><td>系统/帮助</td><td>底部：工单汇总/今日工作/催单/反馈</td><td>仪表盘/工单/排期/安全/整改/填写报告</td></tr>
+    <tr><td>⑦ 服务人员APP</td><td>信息服务AI管控平台V1.0</td><td>工程师(移动)</td><td>系统/帮助</td><td>底部：工单汇总/今日工作/催单/反馈</td><td>仪表盘/工单/排期/安全/整改/填写报告</td></tr>
     <tr><td>⑧ 系统管理员APP</td><td>信息服务AI管控平台V1.0</td><td>系统管理员(移动)</td><td>系统/帮助</td><td>底部：权限管理/接单/派单/修改工单/催单/进度/结单</td><td>工单汇总/安全问题/整改/报告/验收/结款/评价</td></tr>
     <tr><td>⑨ 工单管理员APP</td><td>信息服务AI管控平台V1.0</td><td>工单管理员(移动)</td><td>系统/帮助</td><td>底部：权限(仅服务人员)/接单/派单/修改/催单/进度/结单</td><td>工单汇总/安全问题/整改/报告/验收/结款/评价</td></tr>
     <tr><td>⑩ 客户系统管理APP</td><td>运维服务AI管控平台</td><td>客户系统管理员(移动)</td><td>系统/帮助</td><td>底部：仪表盘/运维工作/安全问题/整改/报告/验收/评价</td><td>同左（底部菜单即导航）</td></tr>

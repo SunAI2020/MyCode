@@ -52,8 +52,15 @@ const query = reactive({ page: 1, size: 20 })
 const filterType = ref('')
 const filterStatus = ref('')
 
+const LEVEL_TAG: Record<string, string> = {
+  '严重': 'danger',
+  '高危': 'warning',
+  '中危': 'primary',
+  '低危': 'info',
+  '信息': 'success',
+}
 function levelTag(level: string) {
-  return level === '高' ? 'danger' : level === '中' ? 'warning' : 'info'
+  return LEVEL_TAG[level] || 'info'
 }
 function statusTag(status: string) {
   return status === '已关闭' ? 'success' : status === '整改中' ? 'warning' : 'danger'

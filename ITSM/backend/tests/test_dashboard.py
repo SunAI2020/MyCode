@@ -35,3 +35,17 @@ def test_dashboard(db):
     assert data["deliveries"]["total"] == 0
     assert data["outsourcing"]["total"] == 0
     assert data["performance_top"] == []
+
+    # 三行看板图表字段
+    assert data["customers_by_industry"] == [{"name": "未分类", "value": 1}]
+    assert data["contracts_by_status"] == [{"name": "执行中", "value": 1}]
+    assert data["work_orders_by_status"] == [{"name": "待派单", "value": 1}]
+    assert data["engineer_workload"]["categories"] == []
+    assert data["project_workload"]["categories"] == []
+    assert data["issue_by_type_level"]["categories"] == []
+    assert data["issue_by_type_status"]["categories"] == []
+    assert data["performance_by_engineer"]["categories"] == []
+    assert data["compliance_by_reg_source"]["categories"] == []
+    assert data["check_by_customer"]["categories"] == []
+    assert data["coverage_by_customer"]["categories"] == []
+    assert data["risk_by_customer"]["categories"] == []

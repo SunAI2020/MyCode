@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.core.deps import _client_ip, customer_scope_of, get_current_user, get_db, role_rows_of
+from app.core.deps import _client_ip, customer_scope_of, get_current_user, get_db, permission_codes_of, role_rows_of
 from app.core.config import settings
 from app.core.security import create_access_token, verify_password
 from app.models import SysUser
@@ -24,6 +24,7 @@ def _user_out(user: SysUser, db: Session) -> UserOut:
         dept=user.dept,
         status=user.status,
         roles=roles,
+        permissions=sorted(permission_codes_of(user, db)),
         customer_id=customer_scope_of(user, db),
     )
 

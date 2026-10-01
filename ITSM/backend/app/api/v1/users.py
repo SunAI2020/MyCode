@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.core.deps import customer_scope_of, get_db, require_role, role_rows_of
+from app.core.deps import customer_scope_of, get_db, require_permission, require_role, role_rows_of
 from app.core.security import hash_password
 from app.models import Customer, OutsourceUser, Performance, SysRole, SysUser, SysUserRole, WorkOrderAssignee
 from app.schemas.auth import RoleBrief, UserOut
@@ -14,7 +14,6 @@ from app.utils.response import ok
 router = APIRouter(prefix="/users", tags=["人员管理"])
 
 ROLE = ("sys_admin", "sys_ops", "ticket_mgr")
-ADMIN = ("sys_admin", "sys_ops")
 
 
 def _user_out(user: SysUser, roles: list[SysRole], customer_id: int | None = None) -> UserOut:
@@ -110,7 +109,7 @@ def list_users(user: SysUser = Depends(require_role(*ROLE)), db: Session = Depen
 
 
 @router.post("")
-def create_user(body: UserCreate, user: SysUser = Depends(require_role(*ADMIN)), db: Session = Depends(get_db)):
+def create_user(body: UserCreate, user: SysUser = Depends(require_permission("user:write")), db: Session = Depends(get_db)):
     if db.query(SysUser).filter(SysUser.username == body.username).first() is not None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "用户名已存在")
     u = SysUser(
@@ -132,7 +131,7 @@ def create_user(body: UserCreate, user: SysUser = Depends(require_role(*ADMIN)),
 
 
 @router.put("/{uid}")
-def update_user(uid: int, body: UserUpdate, user: SysUser = Depends(require_role(*ADMIN)), db: Session = Depends(get_db)):
+def update_user(uid: int, body: UserUpdate, user: SysUser = Depends(require_permission("user:write")), db: Session = Depends(get_db)):
     u = db.get(SysUser, uid)
     if u is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "用户不存在")
@@ -157,7 +156,7 @@ def update_user(uid: int, body: UserUpdate, user: SysUser = Depends(require_role
 
 
 @router.delete("/{uid}")
-def delete_user(uid: int, user: SysUser = Depends(require_role(*ADMIN)), db: Session = Depends(get_db)):
+def delete_user(uid: int, user: SysUser = Depends(require_permission("user:write")), db: Session = Depends(get_db)):
     u = db.get(SysUser, uid)
     if u is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "用户不存在")

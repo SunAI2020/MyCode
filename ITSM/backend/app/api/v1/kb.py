@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, require_role
+from app.core.deps import get_db, require_permission, require_role
 from app.models import KbArticle, SysUser
 from app.schemas.kb import KbArticleCreate, KbArticleOut, KbArticleUpdate, KbAskIn
 from app.services.audit_service import record
@@ -11,7 +11,6 @@ from app.services.rag_service import answer_question
 from app.services.search_service import delete_kb_article, index_kb_article, reindex_kb, search_kb
 from app.utils.response import ok
 
-RW_ROLE = ("sys_admin", "sys_ops", "ticket_mgr")
 DEL_ROLE = ("sys_admin", "sys_ops")
 ASK_ROLE = ("sys_admin", "sys_ops", "ticket_mgr", "cust_admin", "cust_service")
 
@@ -25,7 +24,7 @@ def list_articles(
     status: str | None = Query(None),
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
-    user: SysUser = Depends(require_role(*RW_ROLE)),
+    user: SysUser = Depends(require_permission("knowledge")),
     db: Session = Depends(get_db),
 ):
     return ok(search_kb(db, q, category, status, page, size))
@@ -34,7 +33,7 @@ def list_articles(
 @router.post("")
 def create_article(
     body: KbArticleCreate,
-    user: SysUser = Depends(require_role(*RW_ROLE)),
+    user: SysUser = Depends(require_permission("kb:write")),
     db: Session = Depends(get_db),
 ):
     obj = KbArticle(**body.model_dump(), author_id=user.id)  # 作者取自当前用户，防 mass-assignment 冒名
@@ -59,7 +58,7 @@ def reindex(user: SysUser = Depends(require_role(*DEL_ROLE)), db: Session = Depe
 
 
 @router.get("/{aid}")
-def get_article(aid: int, user: SysUser = Depends(require_role(*RW_ROLE)), db: Session = Depends(get_db)):
+def get_article(aid: int, user: SysUser = Depends(require_permission("knowledge")), db: Session = Depends(get_db)):
     obj = db.get(KbArticle, aid)
     if obj is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "知识条目不存在")
@@ -70,7 +69,7 @@ def get_article(aid: int, user: SysUser = Depends(require_role(*RW_ROLE)), db: S
 def update_article(
     aid: int,
     body: KbArticleUpdate,
-    user: SysUser = Depends(require_role(*RW_ROLE)),
+    user: SysUser = Depends(require_permission("kb:write")),
     db: Session = Depends(get_db),
 ):
     obj = db.get(KbArticle, aid)
@@ -86,7 +85,7 @@ def update_article(
 
 
 @router.delete("/{aid}")
-def delete_article(aid: int, user: SysUser = Depends(require_role(*DEL_ROLE)), db: Session = Depends(get_db)):
+def delete_article(aid: int, user: SysUser = Depends(require_permission("kb:delete")), db: Session = Depends(get_db)):
     obj = db.get(KbArticle, aid)
     if obj is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "知识条目不存在")
@@ -98,7 +97,7 @@ def delete_article(aid: int, user: SysUser = Depends(require_role(*DEL_ROLE)), d
 
 
 @router.post("/{aid}/view")
-def view_article(aid: int, user: SysUser = Depends(require_role(*RW_ROLE)), db: Session = Depends(get_db)):
+def view_article(aid: int, user: SysUser = Depends(require_permission("knowledge")), db: Session = Depends(get_db)):
     obj = db.get(KbArticle, aid)
     if obj is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "知识条目不存在")
