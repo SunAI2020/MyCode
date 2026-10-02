@@ -9,14 +9,14 @@ class ServiceItemIn(BaseModel):
     frequency: int = 1
     unit: str = "月"
     price: float | None = None
-    service_object: str | None = None  # 关联服务对象名（可空，空则归首个服务对象）
+    service_object: str | None = None  # 关联业务系统名（可空，空则归首个业务系统）
 
 
 class ContractArchiveConfirm(BaseModel):
     """确认导入：编辑后的抽取字段 + 可选显式客户。"""
 
     customer_id: int | None = None  # 显式选择已有客户（优先）
-    contract_id: int | None = None  # 挂到已有项目（优先于新建项目）；为空则新建 客户→项目→服务对象→服务项目
+    contract_id: int | None = None  # 挂到已有项目（优先于新建项目）；为空则新建 客户→项目→业务系统→服务类别
     name: str | None = None  # 合同名称
     customer_name: str | None = None
     contract_no: str | None = None

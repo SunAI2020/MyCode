@@ -106,6 +106,6 @@ def delete_customer(
         db.rollback()
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
-            "该客户仍有关联数据（服务对象/工单等），无法删除",
+            "该客户仍有关联数据（业务系统/工单等），无法删除",
         ) from None
     return ok({"deleted": cid})

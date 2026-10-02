@@ -60,13 +60,13 @@ def _validate_requirement_refs(
         contract = db.get(Contract, project_id)
         if contract is None or contract.customer_id != customer_id:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "项目（合同）不存在或不属于该客户")
-    if source_type == "服务项目" and source_id is not None:
+    if source_type == "服务类别" and source_id is not None:
         item = db.get(ContractItem, source_id)
         if item is None:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "服务项目不存在")
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "服务类别不存在")
         contract = db.get(Contract, item.contract_id)
         if contract is None or contract.customer_id != customer_id:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "服务项目不属于该客户")
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "服务类别不属于该客户")
 
 
 # ---- 合规要求 ----
@@ -410,7 +410,7 @@ def list_templates(
     user: SysUser = Depends(require_role(*ROLE)),
     db: Session = Depends(get_db),
 ):
-    """监管要求模板库：等保2.0 / 密码测评 / 数据安全 / 公安部176号令。"""
+    """监管要求模板库：等保2.0 / 密码测评 / 数据安全 / 公安部176号令 / 关基保护。"""
     q = db.query(ComplianceRequirementTemplate)
     if reg_source is not None:
         q = q.filter(ComplianceRequirementTemplate.reg_source == reg_source)

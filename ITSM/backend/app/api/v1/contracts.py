@@ -1,4 +1,4 @@
-"""合同 / 服务对象(CI) / 合同子项 CRUD。"""
+"""合同 / 业务系统(CI) / 合同子项 CRUD。"""
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -32,7 +32,7 @@ from app.utils.response import ok
 
 contracts = APIRouter(prefix="/contracts", tags=["合同"])
 items = APIRouter(prefix="/contract-items", tags=["合同子项"])
-cis = APIRouter(prefix="/cmdb-cis", tags=["服务对象"])
+cis = APIRouter(prefix="/cmdb-cis", tags=["业务系统"])
 
 
 # ---- 合同 ----
@@ -160,18 +160,18 @@ def create_item(
     if body.ci_id is not None:
         ci = db.get(CmdbCi, body.ci_id)
         if ci is None:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "服务目标不存在")
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "业务系统不存在")
         if scope is not None and ci.customer_id != scope:
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "无权为其他客户创建服务项目")
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "无权为其他客户创建服务类别")
         contract_id = ci.contract_id
     else:
         if body.contract_id is None:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "未关联服务目标时需指定项目")
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "未关联业务系统时需指定项目")
         contract = db.get(Contract, body.contract_id)
         if contract is None:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "项目不存在")
         if scope is not None and contract.customer_id != scope:
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "无权为其他客户创建服务项目")
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "无权为其他客户创建服务类别")
         contract_id = contract.id
     data = body.model_dump()
     data["contract_id"] = contract_id
@@ -207,10 +207,10 @@ def update_item(
     if data.get("ci_id") is not None:
         ci = db.get(CmdbCi, data["ci_id"])
         if ci is None:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "服务对象不存在")
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "业务系统不存在")
         scope = customer_scope_of(user, db)
         if scope is not None and ci.customer_id != scope:
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "无权访问该服务对象")
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "无权访问该业务系统")
         data["contract_id"] = ci.contract_id
     before = {k: getattr(obj, k) for k in data}
     for k, v in data.items():
@@ -247,7 +247,7 @@ def generate_item_cycles(
     return ok(result)
 
 
-# ---- 服务对象 CI ----
+# ---- 业务系统 CI ----
 @cis.get("")
 def list_cis(
     page: int = Query(1, ge=1),
@@ -274,7 +274,7 @@ def create_ci(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "合同不存在")
     scope = customer_scope_of(user, db)
     if scope is not None and contract.customer_id != scope:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "无权为其他客户创建服务对象")
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "无权为其他客户创建业务系统")
     data = body.model_dump()
     data["customer_id"] = contract.customer_id
     obj = CmdbCi(**data)
@@ -289,7 +289,7 @@ def create_ci(
 def get_ci(iid: int, user: SysUser = Depends(get_current_user), db: Session = Depends(get_db)):
     obj = db.get(CmdbCi, iid)
     if obj is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "服务对象不存在")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "业务系统不存在")
     scope = customer_scope_of(user, db)
     assert_scoped(obj, scope, db)
     return ok(mask_sensitive(CmdbCiOut.model_validate(obj).model_dump(), scope))
@@ -304,7 +304,7 @@ def update_ci(
 ):
     obj = db.get(CmdbCi, iid)
     if obj is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "服务对象不存在")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "业务系统不存在")
     data = body.model_dump(exclude_unset=True)
     if data.get("contract_id") is not None and data["contract_id"] != obj.contract_id:
         contract = db.get(Contract, data["contract_id"])
@@ -314,7 +314,7 @@ def update_ci(
         if scope is not None and contract.customer_id != scope:
             raise HTTPException(status.HTTP_403_FORBIDDEN, "无权访问该合同")
         data["customer_id"] = contract.customer_id
-        # 服务对象换合同后，同步其子服务项目的冗余 contract_id，维持「contract_id = ci.contract_id」不变量
+        # 业务系统换合同后，同步其子服务类别的冗余 contract_id，维持「contract_id = ci.contract_id」不变量
         db.query(ContractItem).filter(ContractItem.ci_id == iid).update({ContractItem.contract_id: contract.id})
     before = {k: getattr(obj, k) for k in data}
     for k, v in data.items():
@@ -329,7 +329,7 @@ def update_ci(
 def delete_ci(iid: int, user: SysUser = Depends(require_permission("contract:delete")), db: Session = Depends(get_db)):
     obj = db.get(CmdbCi, iid)
     if obj is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "服务对象不存在")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "业务系统不存在")
     db.delete(obj)
     record(db, user_id=user.id, action="delete", resource=f"cmdb_ci:{iid}")
     db.commit()
@@ -349,7 +349,7 @@ def create_dependency(
     src = db.get(CmdbCi, body.source_ci_id)
     dst = db.get(CmdbCi, body.target_ci_id)
     if src is None or dst is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "服务对象不存在")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "业务系统不存在")
     assert_scoped(src, customer_scope_of(user, db), db)  # 校验调用方归属
     if src.customer_id != dst.customer_id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "不能跨客户建立依赖")
@@ -378,7 +378,7 @@ def delete_dependency(did: int, user: SysUser = Depends(require_permission("cont
 def list_dependencies(iid: int, user: SysUser = Depends(get_current_user), db: Session = Depends(get_db)):
     obj = db.get(CmdbCi, iid)
     if obj is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "服务对象不存在")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "业务系统不存在")
     assert_scoped(obj, customer_scope_of(user, db), db)
     rows = db.query(CmdbCiDependency).filter(
         (CmdbCiDependency.source_ci_id == iid) | (CmdbCiDependency.target_ci_id == iid)
@@ -391,7 +391,7 @@ def impact_analysis(iid: int, user: SysUser = Depends(get_current_user), db: Ses
     """影响分析：返回该 CI 故障时受影响的上游 CI（递归，含直接/间接依赖方）。"""
     obj = db.get(CmdbCi, iid)
     if obj is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "服务对象不存在")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "业务系统不存在")
     assert_scoped(obj, customer_scope_of(user, db), db)
     # BFS 递归上游：谁依赖我（source 依赖 target=我）
     affected: list[int] = []

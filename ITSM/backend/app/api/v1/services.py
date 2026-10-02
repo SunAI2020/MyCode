@@ -94,7 +94,7 @@ def list_cycles(
     db: Session = Depends(get_db),
 ):
     data = paginate(db.query(ServiceCycle).order_by(ServiceCycle.id.desc()), page, size, ServiceCycleOut)
-    # 富化 客户名称 / 项目名称 / 服务目标（系统）/ 服务项目
+    # 富化 客户名称 / 项目名称 / 业务系统/ 服务类别
     item_ids = [it["contract_item_id"] for it in data["items"]]
     if item_ids:
         rows = (

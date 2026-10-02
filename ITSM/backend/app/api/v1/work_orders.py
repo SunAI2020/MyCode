@@ -2,6 +2,7 @@
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.deps import (
@@ -109,7 +110,7 @@ def list_work_orders(
     q = db.query(WorkOrder)
     q = scope_filter(q, WorkOrder, customer_scope_of(user, db))
     data = paginate(q, page, size, WorkOrderOut)
-    # 富化执行人姓名（work_order_assignee → sys_user.name）
+    # 富化执行人姓名（work_order_assignee → sys_user.name）+ 服务类别（聚合工单经 WorkOrderItem → ContractItem.project）
     ids = [it["id"] for it in data["items"]]
     if ids:
         rows = (
@@ -121,8 +122,41 @@ def list_work_orders(
         names: dict[int, list[str]] = {}
         for wid, name in rows:
             names.setdefault(wid, []).append(name)
+
+        # 聚合工单的服务类别：project 为空，经 WorkOrderItem 关联 ContractItem，多类别顿号连接
+        item_rows = (
+            db.query(WorkOrderItem.work_order_id, ContractItem.project)
+            .join(ContractItem, WorkOrderItem.contract_item_id == ContractItem.id)
+            .filter(WorkOrderItem.work_order_id.in_(ids))
+            .all()
+        )
+        proj_map: dict[int, list[str]] = {}
+        for wid, proj in item_rows:
+            proj_map.setdefault(wid, [])
+            if proj and proj not in proj_map[wid]:
+                proj_map[wid].append(proj)
+
+        # 简单工单：project 为空但有 contract_item_id 时，从 ContractItem 补 project
+        simple_ids = [
+            it["contract_item_id"]
+            for it in data["items"]
+            if not it.get("project") and it.get("contract_item_id") and it["id"] not in proj_map
+        ]
+        ci_proj: dict[int, str] = {}
+        if simple_ids:
+            ci_proj = {
+                cid: proj
+                for cid, proj in db.query(ContractItem.id, ContractItem.project)
+                .filter(ContractItem.id.in_(simple_ids))
+                .all()
+            }
+
         for it in data["items"]:
             it["assignee_names"] = names.get(it["id"], [])
+            if it["id"] in proj_map:
+                it["project"] = "、".join(proj_map[it["id"]])
+            elif not it.get("project") and it.get("contract_item_id"):
+                it["project"] = ci_proj.get(it["contract_item_id"], "")
     return ok(data)
 
 
@@ -160,7 +194,7 @@ def create_work_order(
 
 
 def _item_cycles(db: Session, item: ContractItem) -> list[tuple[int, date, date]]:
-    """按合同起止日期 + 服务项目频率/单位即时拆分频次（周期），与 generate_cycles 同源。"""
+    """按合同起止日期 + 服务类别频率/单位即时拆分频次（周期），与 generate_cycles 同源。"""
     contract = db.get(Contract, item.contract_id)
     if contract is None or contract.start_date is None or contract.end_date is None:
         return []
@@ -173,7 +207,7 @@ def aggregate_cycles_preview(
     user: SysUser = Depends(require_permission("work_order:write")),
     db: Session = Depends(get_db),
 ):
-    """给定服务项目列表，返回各项目的频次（周期）列表，供前端渲染复选。"""
+    """给定服务类别列表，返回各项目的频次（周期）列表，供前端渲染复选。"""
     scope = customer_scope_of(user, db)
     cycles: dict[int, list[dict]] = {}
     for iid in body.contract_item_ids:
@@ -184,7 +218,7 @@ def aggregate_cycles_preview(
         if scope is not None:
             ci = db.get(CmdbCi, item.ci_id)
             if ci is None or ci.customer_id != scope:
-                raise HTTPException(status.HTTP_403_FORBIDDEN, "无权访问该服务项目")
+                raise HTTPException(status.HTTP_403_FORBIDDEN, "无权访问该服务类别")
         cycles[iid] = [
             {"cycle_no": no, "service_start": s.isoformat(), "service_end": e.isoformat()}
             for no, s, e in _item_cycles(db, item)
@@ -209,14 +243,14 @@ def create_aggregate_work_order(
     for ci_id in body.ci_ids:
         ci = db.get(CmdbCi, ci_id)
         if ci is None or ci.customer_id != body.customer_id:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "服务对象不存在或不属于该客户")
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "业务系统不存在或不属于该客户")
         ci_set.add(ci_id)
 
     items_by_id: dict[int, ContractItem] = {}
     for iid in body.contract_item_ids:
         item = db.get(ContractItem, iid)
         if item is None or item.ci_id not in ci_set:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "服务项目不存在或不属于所选服务对象")
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "服务类别不存在或不属于所选业务系统")
         items_by_id[iid] = item
 
     item_cycle_dates: dict[int, dict[int, tuple[date, date]]] = {}
@@ -228,7 +262,7 @@ def create_aggregate_work_order(
     for c in body.cycles:
         dates = item_cycle_dates.get(c.contract_item_id)
         if dates is None:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "频次不属于所选服务项目")
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "频次不属于所选服务类别")
         if c.cycle_no not in dates:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "频次编号无效")
         if (c.contract_item_id, c.cycle_no) in seen:
@@ -261,7 +295,7 @@ def create_aggregate_work_order(
 
 @router.get("/{wid}/scope")
 def get_work_order_scope(wid: int, user: SysUser = Depends(get_current_user), db: Session = Depends(get_db)):
-    """聚合工单明细：服务对象 / 服务项目 / 频次。"""
+    """聚合工单明细：业务系统 / 服务类别 / 频次。"""
     wo = db.get(WorkOrder, wid)
     if wo is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "工单不存在")
@@ -296,6 +330,31 @@ def get_work_order(wid: int, user: SysUser = Depends(get_current_user), db: Sess
     return ok(WorkOrderOut.model_validate(wo).model_dump())
 
 
+@router.delete("/{wid}")
+def delete_work_order(wid: int, user: SysUser = Depends(require_permission("work_order:write")), db: Session = Depends(get_db)):
+    wo = db.get(WorkOrder, wid)
+    if wo is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "工单不存在")
+    assert_scoped(wo, customer_scope_of(user, db), db)
+    # 删除工单自身关联（执行人/聚合业务系统/服务类别/频次/派单）
+    db.query(WorkOrderAssignee).filter_by(work_order_id=wid).delete()
+    db.query(WorkOrderCi).filter_by(work_order_id=wid).delete()
+    db.query(WorkOrderItem).filter_by(work_order_id=wid).delete()
+    db.query(WorkOrderCycle).filter_by(work_order_id=wid).delete()
+    db.query(OrderDispatch).filter_by(work_order_id=wid).delete()
+    try:
+        db.delete(wo)
+        record(db, user_id=user.id, action="delete", resource=f"work_order:{wid}")
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "该工单仍有关联数据（安全隐患/绩效/外包/变更/交付/升级等），无法删除",
+        ) from None
+    return ok({"deleted": wid})
+
+
 @router.put("/{wid}/status")
 def update_status(
     wid: int,
@@ -324,7 +383,7 @@ def update_status(
             to_status=body.status,
             operator_id=user.id,
         )
-    # 合规证据自动采集：工单完成 → 匹配服务项目对应合规要求生成证据（步骤 51）
+    # 合规证据自动采集：工单完成 → 匹配服务类别对应合规要求生成证据（步骤 51）
     if body.status == "已完成":
         collect_for_work_order(db, wo, operator_id=user.id)
     db.flush()

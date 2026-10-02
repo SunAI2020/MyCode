@@ -81,7 +81,7 @@ class WorkOrderAssignee(Base):
 
 
 class WorkOrderCi(Base):
-    """聚合工单——服务对象（多选）。"""
+    """聚合工单——业务系统（多选）。"""
 
     __tablename__ = "work_order_ci"
 
@@ -91,7 +91,7 @@ class WorkOrderCi(Base):
 
 
 class WorkOrderItem(Base):
-    """聚合工单——服务项目（多选）。"""
+    """聚合工单——服务类别（多选）。"""
 
     __tablename__ = "work_order_item"
 

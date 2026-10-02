@@ -77,7 +77,7 @@ def test_extract_text_pdf_falls_back_on_expired(monkeypatch):
 
 
 def test_rule_extract_xufang_contract():
-    """需方/供方式合同：名称/需方客户/服务对象与项目/验收标准/交付文档/服务地点。"""
+    """需方/供方式合同：名称/需方客户/业务系统与项目/验收标准/交付文档/服务地点。"""
     text = (
         "太原市数字健康保障中心网络安全设备维保采购项目\n"
         "服务合同\n"
@@ -201,7 +201,7 @@ def test_confirm_generates_full_chain(db):
     assert {c.name for c in cis} == {"OA系统", "数据库"}
     items = db.query(ContractItem).filter_by(contract_id=ct.id).all()
     assert {i.project for i in items} == {"漏洞扫描", "渗透测试"}
-    # 第二项无 service_object → 归到首个服务对象
+    # 第二项无 service_object → 归到首个业务系统
     first_ci = next(c for c in cis if c.name == "OA系统")
     assert all(i.ci_id == first_ci.id for i in items)
 
@@ -225,7 +225,7 @@ def test_confirm_reuses_existing_customer(db):
 
 
 def test_confirm_attaches_to_existing_contract(db):
-    """带 contract_id 时仅归档原件到已有项目，不重复生成客户/服务对象/服务项目。"""
+    """带 contract_id 时仅归档原件到已有项目，不重复生成客户/业务系统/服务类别。"""
     u = _mk_user(db)
     c = Customer(name="既有客户")
     db.add(c)
@@ -302,7 +302,7 @@ def test_confirm_rejects_out_of_scope(db):
 
 
 def test_create_item_without_ci_sets_null(db):
-    """服务项目不关联具体系统：ci_id 为空 + 指定项目 → 正常创建，ci_id 为 None。"""
+    """服务类别不关联具体系统：ci_id 为空 + 指定项目 → 正常创建，ci_id 为 None。"""
     u = _mk_user(db)
     c = Customer(name="客户")
     db.add(c)
@@ -318,7 +318,7 @@ def test_create_item_without_ci_sets_null(db):
 
 
 def test_create_item_with_ci_derives_contract(db):
-    """关联服务目标时 contract_id 由服务目标派生。"""
+    """关联业务系统时 contract_id 由业务系统派生。"""
     u = _mk_user(db)
     c = Customer(name="客户")
     db.add(c)

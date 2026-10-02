@@ -73,10 +73,10 @@ LOW_KEYWORDS = ["建议", "不急", "有空", "低"]
 
 
 def classify_ticket(description: str) -> dict:
-    """报障描述 → 运维项目/优先级。LLM 可用则调 LLM，否则关键词规则降级。"""
+    """报障描述 → 服务类别/优先级。LLM 可用则调 LLM，否则关键词规则降级。"""
     if llm_configured():
         prompt = (
-            "对运维报障描述分类，只返回 JSON：{\"project\":\"<运维项目>\",\"priority\":\"<高/中/低>\"}。"
+            "对运维报障描述分类，只返回 JSON：{\"project\":\"<服务类别>\",\"priority\":\"<高/中/低>\"}。"
             f"描述：{description}"
         )
         try:

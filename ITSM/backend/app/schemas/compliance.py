@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict
 class ComplianceRequirementCreate(BaseModel):
     customer_id: int
     project_id: int | None = None
-    source_type: str = "监管"  # 监管/合同义务/服务项目
+    source_type: str = "监管"  # 监管/合同义务/服务类别
     source_id: int | None = None
     clause: str
     category: str = "技术"  # 技术/组织/制度/台账/流程

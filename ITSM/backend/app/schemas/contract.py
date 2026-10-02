@@ -1,4 +1,4 @@
-"""合同 / 服务对象(CI) / 合同子项 schema。"""
+"""合同 / 业务系统(CI) / 合同子项 schema。"""
 from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict
@@ -64,7 +64,7 @@ class ContractOut(BaseModel):
     archive_count: int = 0  # 归档的合同原件数量（列表接口填充，供前端灰显无原件项目）
 
 
-# ---- 服务对象 CI ----
+# ---- 业务系统 CI ----
 class CmdbCiCreate(BaseModel):
     contract_id: int
     name: str
@@ -102,7 +102,7 @@ class CmdbCiOut(BaseModel):
 
 # ---- 合同子项 ----
 class ContractItemCreate(BaseModel):
-    ci_id: int | None = None  # 关联服务目标；None = 不针对具体系统（记作「//」）
+    ci_id: int | None = None  # 关联业务系统；None = 不针对具体系统（记作「//」）
     contract_id: int | None = None  # ci_id 为空时需显式指定所属项目
     project: str
     frequency: int = 1

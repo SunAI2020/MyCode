@@ -12,7 +12,7 @@ from app.db.base import Base
 
 
 class ComplianceRequirement(Base):
-    """合规要求（底座）：监管要求 / 合同义务 / 服务项目义务条目化。"""
+    """合规要求（底座）：监管要求 / 合同义务 / 服务类别义务条目化。"""
 
     __tablename__ = "compliance_requirement"
 
@@ -21,7 +21,7 @@ class ComplianceRequirement(Base):
     project_id: Mapped[int | None] = mapped_column(
         ForeignKey("contract.id"), nullable=True, index=True
     )  # 归属项目；null = 全局监管要求
-    source_type: Mapped[str] = mapped_column(String(16), default="监管")  # 监管/合同义务/服务项目
+    source_type: Mapped[str] = mapped_column(String(16), default="监管")  # 监管/合同义务/服务类别
     source_id: Mapped[int | None] = mapped_column(Integer, nullable=True)  # 指向 contract / contract_item
     clause: Mapped[str] = mapped_column(Text)  # 条款原文 / 要求描述
     category: Mapped[str] = mapped_column(String(16), default="技术")  # 技术/组织/制度/台账/流程
@@ -107,12 +107,12 @@ class DutyReport(Base):
 
 
 class ComplianceRequirementTemplate(Base):
-    """监管要求模板库（全局，无客户归属）：等保2.0 / 密码测评 / 数据安全 / 公安部176号令。"""
+    """监管要求模板库（全局，无客户归属）：等保2.0 / 密码测评 / 数据安全 / 公安部176号令 / 关基保护。"""
 
     __tablename__ = "compliance_requirement_template"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    reg_source: Mapped[str] = mapped_column(String(32), index=True)  # 等保2.0/密码测评/数据安全/公安部176号令
+    reg_source: Mapped[str] = mapped_column(String(32), index=True)  # 等保2.0/密码测评/数据安全/公安部176号令/关基保护
     domain: Mapped[str] = mapped_column(String(64))  # 标准领域，如 安全物理环境/数据分类分级
     title: Mapped[str] = mapped_column(String(128))  # 条款标题
     clause: Mapped[str] = mapped_column(Text)  # 要求原文

@@ -105,7 +105,7 @@ def verify_chain(db: Session, requirement_id: int) -> dict:
 
 
 def collect_for_work_order(db: Session, work_order: WorkOrder, operator_id: int | None = None) -> int:
-    """工单完成自动采集：匹配工单关联服务项目对应的合规要求，逐条生成证据。返回生成数。"""
+    """工单完成自动采集：匹配工单关联服务类别对应的合规要求，逐条生成证据。返回生成数。"""
     item_ids: set[int] = set()
     if work_order.contract_item_id:
         item_ids.add(work_order.contract_item_id)
@@ -114,7 +114,7 @@ def collect_for_work_order(db: Session, work_order: WorkOrder, operator_id: int 
     if not item_ids:
         return 0
 
-    # 归集服务项目所属客户，作为租户过滤（防止跨客户误采集证据）
+    # 归集服务类别所属客户，作为租户过滤（防止跨客户误采集证据）
     customer_ids = {
         cid
         for (cid,) in db.query(Contract.customer_id)
@@ -128,7 +128,7 @@ def collect_for_work_order(db: Session, work_order: WorkOrder, operator_id: int 
     reqs = (
         db.query(ComplianceRequirement)
         .filter(
-            ComplianceRequirement.source_type == "服务项目",
+            ComplianceRequirement.source_type == "服务类别",
             ComplianceRequirement.source_id.in_(item_ids),
             ComplianceRequirement.customer_id.in_(customer_ids),
             ComplianceRequirement.status == "启用",
@@ -208,7 +208,7 @@ def _collect_matching(
     source_id: int,
     operator_id: int | None = None,
 ) -> int:
-    """按「客户 + 项目/服务项目」维度匹配启用中的合规要求，逐条生成证据。返回生成数。"""
+    """按「客户 + 项目/服务类别」维度匹配启用中的合规要求，逐条生成证据。返回生成数。"""
     q = db.query(ComplianceRequirement).filter(
         ComplianceRequirement.customer_id == customer_id,
         ComplianceRequirement.status == "启用",
@@ -218,13 +218,13 @@ def _collect_matching(
         conds.append(ComplianceRequirement.project_id == contract_id)
     if contract_item_id is not None:
         conds.append(
-            (ComplianceRequirement.source_type == "服务项目")
+            (ComplianceRequirement.source_type == "服务类别")
             & (ComplianceRequirement.source_id == contract_item_id)
         )
     if conds:
         q = q.filter(or_(*conds))
     else:
-        # 无项目/服务项目上下文：仅匹配客户全局要求（project_id 为空）
+        # 无项目/服务类别上下文：仅匹配客户全局要求（project_id 为空）
         q = q.filter(ComplianceRequirement.project_id.is_(None))
     reqs = q.all()
     for r in reqs:

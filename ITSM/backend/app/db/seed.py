@@ -79,7 +79,7 @@ ROLE_PERMISSIONS = {
 
 # (category, code, name)
 DICTS = [
-    # 运维项目 16 项
+    # 服务类别 16 项
     ("project", "vuln_scan", "漏洞扫描"),
     ("project", "pentest", "渗透测试"),
     ("project", "drill", "应急演练"),
@@ -200,7 +200,7 @@ def seed() -> None:
         db.commit()
         print("seed 完成：8 角色 / 28 权限点 / 37 字典项 / 3 SLA 模板 / 3 知识条目 / 1 管理员(admin)")
         if added_tpl:
-            print(f"  监管要求模板库：新增 {added_tpl} 条（等保2.0/密码测评/数据安全/公安部176号令）")
+            print(f"  监管要求模板库：新增 {added_tpl} 条（等保2.0/密码测评/数据安全/公安部176号令/关基保护）")
         if admin_pwd:
             print(f"  admin 初始密码：{admin_pwd}（请登录后立即修改）")
     finally:

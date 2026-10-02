@@ -27,12 +27,12 @@ EXTRACT_PROMPT_TMPL = (
     "service_period(服务期限文本,如 '2026-01-01 至 2026-12-31')、service_location(服务地点)、"
     "staff_requirement(人员要求)、accept_standard(验收标准)、delivery_docs(交付文档)、"
     "acceptance_report_format(验收报告格式)、"
-    "service_objects(服务对象名称的字符串数组)、"
-    "service_items(服务项目数组，每项为 {{project,frequency,unit,price,service_object}}，"
-    "frequency 为数字、unit 为 天/周/月/季度/半年/年/不定期、service_object 关联服务对象名)。\n"
+    "service_objects(业务系统名称的字符串数组)、"
+    "service_items(服务类别数组，每项为 {{project,frequency,unit,price,service_object}}，"
+    "frequency 为数字、unit 为 天/周/月/季度/半年/年/不定期、service_object 关联业务系统名)。\n"
     "【抽取要求】字段值只填「值本身」，禁止混入字段标签前缀（如「合同名称：」「委托方（甲方）：」「甲方：」）、"
     "章节标题（如「一、服务内容」）或 markdown 符号（##、**、- 等）。"
-    "service_items 的 project 只填简洁的服务项目名词短语（如「网络安全备案咨询服务」「漏洞扫描」），"
+    "service_items 的 project 只填简洁的服务类别名词短语（如「网络安全备案咨询服务」「漏洞扫描」），"
     "不要填「为甲方提供…服务」这类句子或章节标题。\n"
     "合同文本：\n{text}"
 )
@@ -244,7 +244,7 @@ def _normalize(parsed: dict) -> dict:
 
 
 def _extract_service(text: str, out: dict) -> None:
-    """从「提供 X 维保及 Y 服务」类描述抽取 服务对象(X) + 服务项目(X维保、Y服务)。"""
+    """从「提供 X 维保及 Y 服务」类描述抽取 业务系统(X) + 服务类别(X维保、Y服务)。"""
     m = re.search(
         r"提供\s*([一-龥A-Za-z0-9]+?)\s*维保\s*[及和与、]\s*([一-龥A-Za-z0-9]+?)\s*服务",
         text,
@@ -339,10 +339,10 @@ def _rule_extract(text: str) -> dict:
     if m:
         out["delivery_docs"] = m.group(1).strip()
 
-    # 服务对象 / 服务项目：优先从「提供 X 维保及 Y 服务」类描述抽取
+    # 业务系统 / 服务类别：优先从「提供 X 维保及 Y 服务」类描述抽取
     _extract_service(text, out)
 
-    # 服务对象兜底：「服务对象：」列表
+    # 业务系统兜底：「服务对象：」列表
     if not out["service_objects"]:
         m = re.search(r"(?:服务对象|维护对象|运维对象)\s*[:：]?\s*([^\n\r]+)", text)
         if m:

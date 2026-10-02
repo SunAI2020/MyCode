@@ -1,4 +1,4 @@
-"""合同原件档案：上传→抽取→加密存档→确认导入（自动生成 客户→合同→服务对象→服务项目）。"""
+"""合同原件档案：上传→抽取→加密存档→确认导入（自动生成 客户→合同→业务系统→服务类别）。"""
 import hashlib
 import json
 import os
@@ -172,7 +172,7 @@ def confirm_archive(
         if obj.customer_id is None and obj.created_by != user.id:
             raise HTTPException(status.HTTP_403_FORBIDDEN, "无权确认他人上传的档案")
 
-    # 挂到已有项目：仅归档原件，不重复生成 客户/服务对象/服务项目
+    # 挂到已有项目：仅归档原件，不重复生成 客户/业务系统/服务类别
     if body.contract_id is not None:
         contract = db.get(Contract, body.contract_id)
         if contract is None:
@@ -212,7 +212,7 @@ def confirm_archive(
     db.add(contract)
     db.flush()
 
-    # 服务对象
+    # 业务系统
     ci_by_name: dict[str, CmdbCi] = {}
     for name in body.service_objects:
         name = (name or "").strip()
@@ -223,10 +223,10 @@ def confirm_archive(
         db.flush()
         ci_by_name[name] = ci
 
-    # 服务项目（无服务对象时兜底建默认服务对象）
+    # 服务类别（无业务系统时兜底建默认业务系统）
     default_ci = next(iter(ci_by_name.values()), None)
     if body.service_items and default_ci is None:
-        default_ci = CmdbCi(customer_id=customer.id, contract_id=contract.id, name="默认服务对象", type="业务系统")
+        default_ci = CmdbCi(customer_id=customer.id, contract_id=contract.id, name="默认业务系统", type="业务系统")
         db.add(default_ci)
         db.flush()
         ci_by_name[default_ci.name] = default_ci

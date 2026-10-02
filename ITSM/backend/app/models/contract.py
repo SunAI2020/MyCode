@@ -32,13 +32,13 @@ class Contract(Base):
 
 
 class CmdbCi(Base):
-    """服务对象 = CMDB 配置项"""
+    """业务系统 = CMDB 配置项"""
 
     __tablename__ = "cmdb_ci"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     customer_id: Mapped[int] = mapped_column(ForeignKey("customer.id"), index=True)  # 冗余，由合同派生，供行级隔离直接过滤
-    contract_id: Mapped[int] = mapped_column(ForeignKey("contract.id"), index=True)  # 服务对象归属合同
+    contract_id: Mapped[int] = mapped_column(ForeignKey("contract.id"), index=True)  # 业务系统归属合同
     name: Mapped[str] = mapped_column(String(128))  # 如 OA 系统 / XX 系统
     type: Mapped[str] = mapped_column(String(32), default="业务系统")  # 业务系统/网络设备/服务器/机房/数据库
     ip: Mapped[str | None] = mapped_column(String(64), nullable=True)  # 脱敏
@@ -51,7 +51,7 @@ class CmdbCi(Base):
 
 
 class CmdbCiDependency(Base):
-    """服务对象依赖关系：source 依赖 target（target 故障影响 source）。"""
+    """业务系统依赖关系：source 依赖 target（target 故障影响 source）。"""
 
     __tablename__ = "cmdb_ci_dependency"
 
@@ -69,8 +69,8 @@ class ContractItem(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     contract_id: Mapped[int] = mapped_column(ForeignKey("contract.id"), index=True)  # 冗余，由 ci.contract_id 派生，供 scope_filter/cycle 使用
-    ci_id: Mapped[int | None] = mapped_column(ForeignKey("cmdb_ci.id"), nullable=True, index=True)  # 服务项目归属服务对象；null = 不针对具体系统（记作「//」）
-    project: Mapped[str] = mapped_column(String(64))  # 运维项目枚举
+    ci_id: Mapped[int | None] = mapped_column(ForeignKey("cmdb_ci.id"), nullable=True, index=True)  # 服务类别归属业务系统；null = 不针对具体系统（记作「//」）
+    project: Mapped[str] = mapped_column(String(64))  # 服务类别枚举
     frequency: Mapped[int] = mapped_column(Integer, default=1)
     unit: Mapped[str] = mapped_column(String(16), default="月")  # 天/周/月/季度/半年/年/不定期
     sla_policy_id: Mapped[int | None] = mapped_column(
