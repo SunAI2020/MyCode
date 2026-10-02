@@ -226,7 +226,7 @@
         <el-row :gutter="16">
           <el-col :span="24">
             <el-form-item label="所属项目">
-              <el-select v-model="importTargetProjectId" style="width: 100%">
+              <el-select v-model="importTargetProjectId" filterable allow-create default-first-option style="width: 100%" @change="onTargetProjectChange">
                 <el-option :value="null" label="新建项目" />
                 <el-option v-for="c in contracts" :key="c.id" :label="c.name" :value="c.id" />
               </el-select>
@@ -274,7 +274,9 @@
       <el-divider content-position="left">服务目标（系统）</el-divider>
       <div class="obj-list">
         <div v-for="(o, i) in importForm.service_objects" :key="i" class="obj-row">
-          <el-input v-model="importForm.service_objects[i]" placeholder="服务目标（系统）名称" style="width: 300px" />
+          <el-select v-model="importForm.service_objects[i]" filterable allow-create default-first-option placeholder="选择或输入服务目标（系统）" style="width: 300px">
+            <el-option v-for="c in cis" :key="c.id" :label="c.name" :value="c.name" />
+          </el-select>
           <el-button link type="danger" @click="importForm.service_objects.splice(i, 1)">删除</el-button>
         </div>
         <el-button link type="primary" @click="importForm.service_objects.push('')">+ 添加服务目标（系统）</el-button>
@@ -435,7 +437,7 @@ const importOriginalName = ref('')
 const importTextPreview = ref('')
 const importNoText = ref(false)
 const importMineruExpired = ref(false)
-const importTargetProjectId = ref<number | null>(null) // null = 新建项目
+const importTargetProjectId = ref<number | string | null>(null) // null = 新建项目；string = 直接输入的新项目名（经 onTargetProjectChange 归一）
 const archiveDlg = ref(false)
 const archiveProjectName = ref('')
 const archives = ref<any[]>([])
@@ -469,6 +471,14 @@ function resetImportForm() {
     accept_standard: '', delivery_docs: '', acceptance_report_format: '',
     service_objects: [], service_items: [],
   })
+}
+
+function onTargetProjectChange(val: number | string | null) {
+  // allow-create 直接输入新项目名（string）→ 视为「新建项目」，名称同步到项目名称字段
+  if (typeof val === 'string' && val.trim()) {
+    importForm.name = val.trim()
+    importTargetProjectId.value = null
+  }
 }
 
 async function onFilePicked(e: Event) {

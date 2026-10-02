@@ -30,6 +30,10 @@ EXTRACT_PROMPT_TMPL = (
     "service_objects(服务对象名称的字符串数组)、"
     "service_items(服务项目数组，每项为 {{project,frequency,unit,price,service_object}}，"
     "frequency 为数字、unit 为 天/周/月/季度/半年/年/不定期、service_object 关联服务对象名)。\n"
+    "【抽取要求】字段值只填「值本身」，禁止混入字段标签前缀（如「合同名称：」「委托方（甲方）：」「甲方：」）、"
+    "章节标题（如「一、服务内容」）或 markdown 符号（##、**、- 等）。"
+    "service_items 的 project 只填简洁的服务项目名词短语（如「网络安全备案咨询服务」「漏洞扫描」），"
+    "不要填「为甲方提供…服务」这类句子或章节标题。\n"
     "合同文本：\n{text}"
 )
 
@@ -178,6 +182,26 @@ def _as_bool(value) -> bool | None:
     return None
 
 
+# 字段值里常见的「标签前缀」（LLM/OCR 易把「委托方（甲方）：」「## 一服务内容：」带进值里）
+_MD_HEAD_RE = re.compile(r"^[#>\s]+")
+_LABEL_RE = re.compile(
+    r"^[一二三四五六七八九十]*[、.．]?\s*"
+    r"(?:服务内容|服务项目|运维项目|项目名称|合同名称|客户名称|委托方|甲方|乙方|需方|供方|采购方|采购人|招标方|买方|卖方|单位名称|服务对象)"
+    r"(?:[（(][^）)]*[）)])?\s*[:：]\s*"
+)
+
+
+def _clean_field(value) -> str | None:
+    """剥离混入字段值的 markdown 符号与标签前缀（如「委托方（甲方）：」「## 一服务内容：」）。"""
+    if value is None:
+        return None
+    s = str(value).strip().replace("**", "").replace("`", "")
+    s = _MD_HEAD_RE.sub("", s).strip()
+    for _ in range(2):  # 最多剥两层标签
+        s = _LABEL_RE.sub("", s, count=1).strip()
+    return s or None
+
+
 def _normalize(parsed: dict) -> dict:
     out: dict = {}
     for k in (
@@ -185,14 +209,13 @@ def _normalize(parsed: dict) -> dict:
         "service_location", "staff_requirement", "accept_standard", "delivery_docs",
         "acceptance_report_format",
     ):
-        v = parsed.get(k)
-        out[k] = str(v).strip() if v not in (None, "") else None
+        out[k] = _clean_field(parsed.get(k))
     out["amount"] = _as_number(parsed.get("amount"))
     out["has_onsite"] = _as_bool(parsed.get("has_onsite"))
 
     objs = parsed.get("service_objects") or []
     out["service_objects"] = (
-        [str(o).strip() for o in objs if str(o).strip()] if isinstance(objs, list) else []
+        [c for c in (_clean_field(o) for o in objs) if c] if isinstance(objs, list) else []
     )
 
     items: list[dict] = []
@@ -201,7 +224,7 @@ def _normalize(parsed: dict) -> dict:
         for it in raw_items:
             if not isinstance(it, dict):
                 continue
-            project = str(it.get("project") or "").strip()
+            project = (_clean_field(it.get("project")) or "").strip("。；;，,")
             if not project:
                 continue
             freq = it.get("frequency")
@@ -212,9 +235,9 @@ def _normalize(parsed: dict) -> dict:
             items.append({
                 "project": project,
                 "frequency": freq,
-                "unit": str(it.get("unit") or "").strip() or "月",
+                "unit": _clean_field(it.get("unit")) or "月",
                 "price": _as_number(it.get("price")),
-                "service_object": str(it.get("service_object") or "").strip() or None,
+                "service_object": _clean_field(it.get("service_object")),
             })
     out["service_items"] = items
     return out
