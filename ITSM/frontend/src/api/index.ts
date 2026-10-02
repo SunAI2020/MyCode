@@ -65,7 +65,7 @@ export const updateItem = (id: number, data: any) => request.put(`/contract-item
 export const deleteItem = (id: number) => request.delete(`/contract-items/${id}`)
 export const generateCycles = (id: number) => request.post(`/contract-items/${id}/cycles/generate`)
 
-// ---- 服务对象 CI ----
+// ---- 业务系统 CI ----
 export const listCis = (params: any) => request.get('/cmdb-cis', { params })
 export const createCi = (data: any) => request.post('/cmdb-cis', data)
 export const updateCi = (id: number, data: any) => request.put(`/cmdb-cis/${id}`, data)
@@ -77,6 +77,7 @@ export const createReceive = (data: any) => request.post('/receives', data)
 export const listWorkOrders = (params: any) => request.get('/work-orders', { params })
 export const createWorkOrder = (data: any) => request.post('/work-orders', data)
 export const updateStatus = (id: number, data: any) => request.put(`/work-orders/${id}/status`, data)
+export const deleteWorkOrder = (id: number) => request.delete(`/work-orders/${id}`)
 export const dispatch = (id: number, data: any) => request.post(`/work-orders/${id}/dispatch`, data)
 export const transfer = (id: number, data: any) => request.post(`/work-orders/${id}/assignees/transfer`, data)
 export const previewAggregateCycles = (data: any) => request.post('/work-orders/aggregate/preview', data)

@@ -26,9 +26,9 @@
         </el-card>
       </el-tab-pane>
 
-      <el-tab-pane label="服务目标（系统）" name="ci">
+      <el-tab-pane label="业务系统" name="ci">
         <el-card>
-          <div class="toolbar"><el-button v-if="canWrite" type="primary" @click="openCi()">新增服务目标（系统）</el-button></div>
+          <div class="toolbar"><el-button v-if="canWrite" type="primary" @click="openCi()">新增业务系统</el-button></div>
           <el-table :data="cis" v-loading="loading">
             <el-table-column prop="id" label="ID" width="60" />
             <el-table-column label="项目名称">
@@ -48,18 +48,20 @@
         </el-card>
       </el-tab-pane>
 
-      <el-tab-pane label="服务项目" name="item">
+      <el-tab-pane label="服务类别" name="item">
         <el-card>
           <div class="toolbar">
-            <el-select v-model="itemFilter.ci_id" placeholder="选择服务目标（系统）" clearable style="width: 240px" @change="loadItems">
+            <el-select v-model="itemFilter.ci_id" placeholder="选择业务系统" clearable style="width: 240px" @change="loadItems">
               <el-option v-for="c in cis" :key="c.id" :label="c.name" :value="c.id" />
             </el-select>
-            <el-button v-if="canWrite" type="primary" @click="openItem()">新增服务项目</el-button>
+            <el-button v-if="canWrite" type="primary" @click="openItem()">新增服务类别</el-button>
           </div>
-          <el-table :data="items" v-loading="loading">
-            <el-table-column prop="id" label="ID" width="60" />
-            <el-table-column label="服务目标（系统）">
-              <template #default="{ row }">{{ ciNameOf(row) }}</template>
+          <el-table :data="groupedItems" v-loading="loading">
+            <el-table-column label="业务系统">
+              <template #default="{ row }">
+                <template v-if="row._ciCount > 1">{{ row._ciCount }}个业务系统</template>
+                <template v-else>{{ row._ciIds.length ? ciNameById(row._ciIds[0]) : '//' }}</template>
+              </template>
             </el-table-column>
             <el-table-column label="项目名称">
               <template #default="{ row }">{{ contractNameOf(row) }}</template>
@@ -67,7 +69,7 @@
             <el-table-column label="客户名称">
               <template #default="{ row }">{{ customerNameOf(row) }}</template>
             </el-table-column>
-            <el-table-column prop="project" label="运维项目" />
+            <el-table-column prop="project" label="服务类别" />
             <el-table-column prop="frequency" label="频率" width="70" />
             <el-table-column prop="unit" label="单位" width="90" />
             <el-table-column prop="price" label="价格" width="110" />
@@ -160,28 +162,28 @@
       </template>
     </el-dialog>
 
-    <!-- 服务项目弹窗 -->
-    <el-dialog v-model="itemDlg" :title="itemEditId ? '编辑服务项目' : '新增服务项目'" width="520px">
+    <!-- 服务类别弹窗 -->
+    <el-dialog v-model="itemDlg" :title="itemEditId ? '编辑服务类别' : '新增服务类别'" width="520px">
       <el-form :model="itemForm" label-width="110px">
         <el-form-item label="项目名称">
           <el-select v-model="itemForm.contract_id" style="width: 100%" :disabled="!!itemEditId" @change="onItemContractChange">
             <el-option v-for="c in contracts" :key="c.id" :label="c.name" :value="c.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="服务目标（系统）" label-position="top" class="ci-form-item">
+        <el-form-item label="业务系统" label-position="top" class="ci-form-item">
           <el-checkbox-group v-model="itemForm.ci_ids" class="ci-checkbox-list">
             <el-checkbox v-for="c in projectCis" :key="c.id" :value="c.id">{{ c.name }}</el-checkbox>
           </el-checkbox-group>
           <div v-if="!itemForm.ci_ids.length" class="ci-empty">未选择 → 记作「//」（不关联具体系统）</div>
         </el-form-item>
-        <el-form-item label="运维项目">
+        <el-form-item label="服务类别">
           <el-select v-model="itemForm.project" style="width: 100%">
             <el-option v-for="p in PROJECTS" :key="p" :label="p" :value="p" />
           </el-select>
         </el-form-item>
         <el-form-item label="频率"><el-input-number v-model="itemForm.frequency" :min="1" /></el-form-item>
         <el-form-item label="单位">
-          <el-select v-model="itemForm.unit" style="width: 100%">
+          <el-select v-model="itemForm.unit" filterable allow-create default-first-option style="width: 100%">
             <el-option v-for="u in ['天', '周', '月', '季度', '半年', '年', '不定期']" :key="u" :label="u" :value="u" />
           </el-select>
         </el-form-item>
@@ -190,8 +192,8 @@
       <template #footer><el-button @click="itemDlg = false">取消</el-button><el-button type="primary" @click="saveItem">保存</el-button></template>
     </el-dialog>
 
-    <!-- 服务目标（系统）弹窗 -->
-    <el-dialog v-model="ciDlg" :title="ciEditId ? '编辑服务目标（系统）' : '新增服务目标（系统）'" width="520px">
+    <!-- 业务系统弹窗 -->
+    <el-dialog v-model="ciDlg" :title="ciEditId ? '编辑业务系统' : '新增业务系统'" width="520px">
       <el-form :model="ciForm" label-width="90px">
         <el-form-item label="项目">
           <el-select v-model="ciForm.contract_id" style="width: 100%">
@@ -271,27 +273,27 @@
         </el-row>
       </el-form>
 
-      <el-divider content-position="left">服务目标（系统）</el-divider>
+      <el-divider content-position="left">业务系统</el-divider>
       <div class="obj-list">
         <div v-for="(o, i) in importForm.service_objects" :key="i" class="obj-row">
-          <el-select v-model="importForm.service_objects[i]" filterable allow-create default-first-option placeholder="选择或输入服务目标（系统）" style="width: 300px">
+          <el-select v-model="importForm.service_objects[i]" filterable allow-create default-first-option placeholder="选择或输入业务系统" style="width: 300px">
             <el-option v-for="c in cis" :key="c.id" :label="c.name" :value="c.name" />
           </el-select>
           <el-button link type="danger" @click="importForm.service_objects.splice(i, 1)">删除</el-button>
         </div>
-        <el-button link type="primary" @click="importForm.service_objects.push('')">+ 添加服务目标（系统）</el-button>
+        <el-button link type="primary" @click="importForm.service_objects.push('')">+ 添加业务系统</el-button>
       </div>
 
-      <el-divider content-position="left">服务项目</el-divider>
+      <el-divider content-position="left">服务类别</el-divider>
       <el-table :data="importForm.service_items" size="small" border>
-        <el-table-column label="服务目标（系统）" width="150">
+        <el-table-column label="业务系统" width="150">
           <template #default="{ row }">
             <el-select v-model="row.service_object" clearable placeholder="默认首个" size="small">
               <el-option v-for="o in importForm.service_objects" :key="o" :label="o" :value="o" />
             </el-select>
           </template>
         </el-table-column>
-        <el-table-column label="运维项目" min-width="160">
+        <el-table-column label="服务类别" min-width="160">
           <template #default="{ row }">
             <el-select v-model="row.project" filterable allow-create size="small" style="width: 100%">
               <el-option v-for="p in PROJECTS" :key="p" :label="p" :value="p" />
@@ -303,7 +305,7 @@
         </el-table-column>
         <el-table-column label="单位" width="110">
           <template #default="{ row }">
-            <el-select v-model="row.unit" size="small">
+            <el-select v-model="row.unit" filterable allow-create default-first-option size="small">
               <el-option v-for="u in ['天', '周', '月', '季度', '半年', '年', '不定期']" :key="u" :label="u" :value="u" />
             </el-select>
           </template>
@@ -315,7 +317,7 @@
           <template #default="{ $index }"><el-button link type="danger" @click="importForm.service_items.splice($index, 1)">删除</el-button></template>
         </el-table-column>
       </el-table>
-      <el-button link type="primary" style="margin-top: 8px" @click="importForm.service_items.push({ project: '', frequency: 1, unit: '月', price: null, service_object: null })">+ 添加服务项目</el-button>
+      <el-button link type="primary" style="margin-top: 8px" @click="importForm.service_items.push({ project: '', frequency: 1, unit: '月', price: null, service_object: null })">+ 添加服务类别</el-button>
 
       <el-alert v-if="importMineruExpired" title="mineru的token已过期！请重新获取！" type="error" :closable="false" style="margin-top: 12px" />
       <el-alert v-if="importNoText" title="未能从文件中提取文字（可能是扫描件/图片），请手动录入或换用文字版 PDF" type="error" :closable="false" style="margin-top: 12px" />
@@ -415,12 +417,13 @@ async function loadContractTypes() {
 
 const itemDlg = ref(false)
 const itemEditId = ref<number | null>(null)
+const itemEditGroup = ref<any[]>([])  // 编辑时保存组内原始条目（聚合组）
 const itemForm = reactive({
   contract_id: null as number | null,
   ci_ids: [] as number[],
   project: '', frequency: 1, unit: '月', price: null as number | null,
 })
-// 运维项目枚举（与后端 seed 的 project 字典一致）
+// 服务类别枚举（与后端 seed 的 project 字典一致）
 const PROJECTS = ['漏洞扫描', '渗透测试', '应急演练', '安全加固', '安全培训', '代码审计', '基线核查', '安全巡检', '安全评估', '应急处置', '重保值守', '攻防演练', '安全防护', '设备巡检', '等保测评', '故障排查']
 
 const ciDlg = ref(false)
@@ -544,7 +547,7 @@ async function onConfirmImport() {
       service_objects: importForm.service_objects.filter((o: string) => o && o.trim()),
       service_items: importForm.service_items.filter((it: any) => it.project && it.project.trim()),
     })
-    ElMessage.success(importTargetProjectId.value ? '导入完成，已挂到所选项目' : '导入完成，已生成项目与服务目标（系统）/项目')
+    ElMessage.success(importTargetProjectId.value ? '导入完成，已挂到所选项目' : '导入完成，已生成项目与业务系统/项目')
     importDlg.value = false
     loadContracts()
     loadCis()
@@ -588,6 +591,28 @@ function customerNameOf(row: any) {
 function ciNameOf(row: any) {
   return row.ci_id ? (ciMap.value.get(row.ci_id)?.name ?? '') : '//'
 }
+function ciNameById(id: number) {
+  return ciMap.value.get(id)?.name ?? ''
+}
+
+// 服务类别列表聚合：同项目 + 同服务类别 + 同配置（频率/单位/价格）的多业务系统合并为一条
+const groupedItems = computed(() => {
+  const map = new Map<string, any>()
+  for (const it of items.value) {
+    const key = `${it.contract_id}|${it.project}|${it.frequency}|${it.unit}|${it.price ?? ''}`
+    if (!map.has(key)) {
+      map.set(key, { contract_id: it.contract_id, project: it.project, frequency: it.frequency, unit: it.unit, price: it.price, _members: [], _ciIds: [] })
+    }
+    const g = map.get(key)
+    g._members.push(it)
+    if (it.ci_id) g._ciIds.push(it.ci_id)
+  }
+  return [...map.values()].map((g) => {
+    g._ciIds = [...new Set(g._ciIds)]
+    g._ciCount = g._ciIds.length
+    return g
+  })
+})
 
 // 合同
 function openContract(row?: any) {
@@ -653,22 +678,25 @@ async function onDownloadArchive(a: any) {
   }
 }
 
-// 服务项目
+// 服务类别
 const projectCis = computed(() => cis.value.filter((c) => c.contract_id === itemForm.contract_id))
 function onItemContractChange() {
-  // 新增时切换项目 → 服务目标默认全选该项目全部服务目标
+  // 新增时切换项目 → 业务系统默认全选该项目全部业务系统
   if (!itemEditId.value) itemForm.ci_ids = projectCis.value.map((c) => c.id)
 }
 function openItem(row?: any) {
   if (row) {
-    itemEditId.value = row.id
+    const members = row._members ?? [row]
+    itemEditId.value = members[0]?.id ?? row.id
+    itemEditGroup.value = members
     Object.assign(itemForm, {
       contract_id: row.contract_id ?? null,
-      ci_ids: row.ci_id ? [row.ci_id] : [],
+      ci_ids: [...(row._ciIds ?? (row.ci_id ? [row.ci_id] : []))],
       project: row.project, frequency: row.frequency, unit: row.unit, price: row.price,
     })
   } else {
     itemEditId.value = null
+    itemEditGroup.value = []
     Object.assign(itemForm, { contract_id: contracts.value[0]?.id ?? null, ci_ids: [], project: '', frequency: 1, unit: '月', price: null })
     onItemContractChange()
   }
@@ -676,36 +704,63 @@ function openItem(row?: any) {
 }
 async function saveItem() {
   if (!itemForm.project || !itemForm.project.trim()) {
-    ElMessage.warning('请填写运维项目')
+    ElMessage.warning('请填写服务类别')
     return
   }
   const base = { project: itemForm.project, frequency: itemForm.frequency, unit: itemForm.unit, price: itemForm.price }
-  if (itemEditId.value) {
-    // 编辑：单条更新，勾选 0 个 → ci_id 置空；勾选多个 → 取第一个
-    await updateItem(itemEditId.value, { ci_id: itemForm.ci_ids[0] ?? null, ...base })
+  const newCiIds = itemForm.ci_ids || []
+  if (itemEditGroup.value.length) {
+    // 编辑组：diff 同步 —— 删被取消的业务系统条目、更新保留条目、为新增业务系统建条目（保留原 id，不破坏已生成周期/工单关联）
+    const oldCiIds = itemEditGroup.value.map((m: any) => m.ci_id)
+    for (const m of itemEditGroup.value) {
+      if (m.ci_id == null) {
+        if (newCiIds.length) await deleteItem(m.id)          // 原「//」条目，现已选具体业务系统 → 删
+        else await updateItem(m.id, { ...base })             // 仍不关联业务系统 → 保留并更新字段
+      } else if (newCiIds.includes(m.ci_id)) {
+        await updateItem(m.id, { ...base })                  // 保留：仅更新共享字段，ci_id 不变
+      } else {
+        await deleteItem(m.id)                               // 被取消勾选 → 删
+      }
+    }
+    for (const ciId of newCiIds) {
+      if (!oldCiIds.includes(ciId)) await createItem({ ci_id: ciId, contract_id: itemForm.contract_id, ...base })
+    }
+    if (!newCiIds.length && !oldCiIds.includes(null)) {
+      await createItem({ ci_id: null, contract_id: itemForm.contract_id, ...base })  // 边界：清空后补一条「//」
+    }
   } else {
     // 新增：勾选 N 个 → 批量生成 N 条；全不选 → 1 条（不关联具体系统，记作「//」）
-    if (!itemForm.ci_ids.length) {
+    if (!newCiIds.length) {
       await createItem({ ci_id: null, contract_id: itemForm.contract_id, ...base })
     } else {
-      for (const ci_id of itemForm.ci_ids) await createItem({ ci_id, contract_id: itemForm.contract_id, ...base })
+      for (const ciId of newCiIds) await createItem({ ci_id: ciId, contract_id: itemForm.contract_id, ...base })
     }
   }
   ElMessage.success('已保存')
   itemDlg.value = false
+  itemEditGroup.value = []
   loadItems()
 }
 async function onGenerate(row: any) {
-  const res = await generateCycles(row.id)
-  ElMessage.success(`生成周期完成：新增 ${res.data.created} / 共 ${res.data.total}`)
+  const members = row._members ?? [row]
+  let created = 0
+  let total = 0
+  for (const m of members) {
+    const res = await generateCycles(m.id)
+    created += res.data.created
+    total += res.data.total
+  }
+  ElMessage.success(`生成周期完成：新增 ${created} / 共 ${total}`)
 }
 async function onDeleteItem(row: any) {
-  await ElMessageBox.confirm('确认删除该服务项目？', '提示', { type: 'warning' })
-  await deleteItem(row.id)
+  const members = row._members ?? [row]
+  const n = members.length
+  await ElMessageBox.confirm(n > 1 ? `确认删除该服务类别（${n}个业务系统）？` : '确认删除该服务类别？', '提示', { type: 'warning' })
+  for (const m of members) await deleteItem(m.id)
   loadItems()
 }
 
-// 服务目标（系统）
+// 业务系统
 function openCi(row?: any) {
   if (row) {
     ciEditId.value = row.id
@@ -724,7 +779,7 @@ async function saveCi() {
   loadCis()
 }
 async function onDeleteCi(row: any) {
-  await ElMessageBox.confirm('确认删除该服务目标（系统）？', '提示', { type: 'warning' })
+  await ElMessageBox.confirm('确认删除该业务系统？', '提示', { type: 'warning' })
   await deleteCi(row.id)
   loadCis()
 }

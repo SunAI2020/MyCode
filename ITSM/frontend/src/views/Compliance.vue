@@ -149,7 +149,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="归属ID">
-          <el-input-number v-model="reqForm.source_id" :min="0" style="width: 100%" placeholder="服务项目/合同 ID（可选）" />
+          <el-input-number v-model="reqForm.source_id" :min="0" style="width: 100%" placeholder="服务类别/合同 ID（可选）" />
         </el-form-item>
         <el-form-item label="条款/要求" required>
           <el-input v-model="reqForm.clause" type="textarea" :rows="3" />
@@ -298,9 +298,9 @@ const canWrite = computed(() => auth.hasPermission('compliance:write'))
 const canDelete = computed(() => auth.hasPermission('compliance:delete'))
 
 const CATEGORIES = ['技术', '组织', '制度', '台账', '流程']
-const SOURCE_TYPES = ['监管', '合同义务', '服务项目']
+const SOURCE_TYPES = ['监管', '合同义务', '服务类别']
 const CHECK_TYPES = ['巡查', '自查', '攻防校验', '复测']
-const TPL_SOURCES = ['等保2.0', '密码测评', '数据安全', '公安部176号令']
+const TPL_SOURCES = ['等保2.0', '密码测评', '数据安全', '公安部176号令', '关基保护']
 
 const tab = ref('requirement')
 const loading = ref(false)

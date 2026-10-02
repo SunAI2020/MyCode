@@ -42,7 +42,7 @@ const sections = ref<{ title: string; charts: ChartCell[] }[]>([
   {
     title: '执行情况',
     charts: [
-      { title: '服务项目工单', total: 0 },
+      { title: '服务类别工单', total: 0 },
       { title: '安全隐患（CVE 分级）', total: 0 },
       { title: '整改情况', total: 0 },
       { title: '人员绩效', total: 0 },

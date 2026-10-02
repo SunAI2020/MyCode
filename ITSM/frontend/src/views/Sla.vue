@@ -26,8 +26,8 @@
             <el-table-column prop="id" label="ID" width="60" />
             <el-table-column prop="customer_name" label="客户名称" width="130" />
             <el-table-column prop="project_name" label="项目名称" width="130" />
-            <el-table-column prop="ci_name" label="服务目标（系统）" width="140" show-overflow-tooltip />
-            <el-table-column prop="item_project" label="服务项目" width="120" />
+            <el-table-column prop="ci_name" label="业务系统" width="140" show-overflow-tooltip />
+            <el-table-column prop="item_project" label="服务类别" width="120" />
             <el-table-column prop="cycle_no" label="期次" width="70" />
             <el-table-column prop="service_start" label="开始" width="110" />
             <el-table-column prop="service_end" label="结束" width="110" />
