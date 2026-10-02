@@ -313,11 +313,19 @@ def get_work_order_scope(wid: int, user: SysUser = Depends(get_current_user), db
                 "contract_item_id": item.id, "ci_id": item.ci_id, "project": item.project,
                 "frequency": item.frequency, "unit": item.unit, "price": item.price,
             })
-    cycles = [
-        {"contract_item_id": r.contract_item_id, "cycle_no": r.cycle_no,
-         "service_start": r.service_start.isoformat(), "service_end": r.service_end.isoformat()}
-        for r in db.query(WorkOrderCycle).filter_by(work_order_id=wid).all()
-    ]
+    item_map = {it["contract_item_id"]: it for it in items}
+    ci_map = {c["ci_id"]: c["name"] for c in cis}
+    cycles = []
+    for r in db.query(WorkOrderCycle).filter_by(work_order_id=wid).all():
+        it = item_map.get(r.contract_item_id)
+        cycles.append({
+            "contract_item_id": r.contract_item_id,
+            "cycle_no": r.cycle_no,
+            "service_start": r.service_start.isoformat(),
+            "service_end": r.service_end.isoformat(),
+            "project": it["project"] if it else "",
+            "ci_name": ci_map.get(it["ci_id"], "") if it and it.get("ci_id") else "",
+        })
     return ok({"work_order": WorkOrderOut.model_validate(wo).model_dump(), "cis": cis, "items": items, "cycles": cycles})
 
 

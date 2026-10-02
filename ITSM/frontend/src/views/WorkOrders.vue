@@ -6,19 +6,18 @@
         <el-button v-if="canDispatch" type="primary" @click="openAggregate">新增聚合工单</el-button>
       </div>
       <el-table :data="rows" v-loading="loading">
-        <el-table-column prop="no" label="工单号" width="150" />
-        <el-table-column prop="type" label="类型" width="100" />
         <el-table-column label="客户" width="130">
           <template #default="{ row }">{{ customerMap.get(row.customer_id)?.name || '' }}</template>
         </el-table-column>
         <el-table-column prop="project" label="服务类别" width="130" />
-        <el-table-column prop="status" label="状态" width="90" />
+        <el-table-column prop="type" label="类型" width="100" />
         <el-table-column prop="priority" label="优先级" width="80" />
+        <el-table-column prop="status" label="状态" width="90" />
+        <el-table-column prop="current_cycle_no" label="周期" width="70" />
         <el-table-column prop="progress" label="进度" width="80" />
         <el-table-column label="执行人" width="130">
           <template #default="{ row }">{{ (row.assignee_names || []).join('、') || '—' }}</template>
         </el-table-column>
-        <el-table-column prop="current_cycle_no" label="周期" width="70" />
         <el-table-column label="操作" width="260">
           <template #default="{ row }">
             <el-button v-if="row.customer_id" link type="info" @click="openScope(row)">查看</el-button>
@@ -117,9 +116,14 @@
         <el-divider content-position="left">服务类别（{{ scopeData.items.length }}）</el-divider>
         <el-tag v-for="i in scopeData.items" :key="i.contract_item_id" class="scope-tag">{{ i.project }}（每 {{ i.frequency }}{{ i.unit }}）</el-tag>
         <el-divider content-position="left">频次（{{ scopeData.cycles.length }}）</el-divider>
-        <div v-for="cy in scopeData.cycles" :key="cy.contract_item_id + '-' + cy.cycle_no" class="scope-cycle">
-          {{ itemProjectMap[cy.contract_item_id] || cy.contract_item_id }}　第 {{ cy.cycle_no }} 次　{{ cy.service_start }} ~ {{ cy.service_end }}
-        </div>
+        <el-table :data="scopeData.cycles" size="small" border>
+          <el-table-column prop="cycle_no" label="序号" width="60" />
+          <el-table-column prop="ci_name" label="业务系统" />
+          <el-table-column prop="project" label="服务类别" />
+          <el-table-column label="开始时间 ~ 结束时间">
+            <template #default="{ row }">{{ row.service_start }} ~ {{ row.service_end }}</template>
+          </el-table-column>
+        </el-table>
       </template>
       <template #footer><el-button @click="scopeDlg = false">关闭</el-button></template>
     </el-dialog>
@@ -182,12 +186,6 @@ const users = ref<any[]>([])
 // 写权限点（工单创建/派单/转派，与后端 work_order:write 对齐）
 const canDispatch = computed(() => auth.hasPermission('work_order:write'))
 const customerMap = computed(() => new Map(customers.value.map((c) => [c.id, c])))
-const itemProjectMap = computed(() => {
-  const m: Record<number, string> = {}
-  for (const i of items.value) m[i.id] = i.project
-  return m
-})
-
 const createDlg = ref(false)
 const createForm = reactive({
   customer_id: null as number | null,
