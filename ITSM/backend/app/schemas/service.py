@@ -52,6 +52,12 @@ class ServiceCycleOut(BaseModel):
     item_project: str | None = None  # 服务类别
 
 
+class ServiceCycleUpdate(BaseModel):
+    service_start: date | None = None
+    service_end: date | None = None
+    status: str | None = None
+
+
 class ServiceReminderOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

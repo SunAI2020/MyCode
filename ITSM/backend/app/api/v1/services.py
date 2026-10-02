@@ -6,6 +6,7 @@ from app.core.deps import get_db, require_permission, require_role
 from app.models import CmdbCi, Contract, ContractItem, Customer, ServiceCycle, ServiceReminder, SlaPolicy, SysUser
 from app.schemas.service import (
     ServiceCycleOut,
+    ServiceCycleUpdate,
     ServiceReminderOut,
     SlaPolicyCreate,
     SlaPolicyOut,
@@ -120,6 +121,36 @@ def list_cycles(
                 it["ci_name"] = r[3]
                 it["item_project"] = r[4]
     return ok(data)
+
+
+@cycles.put("/{cid}")
+def update_cycle(
+    cid: int,
+    body: ServiceCycleUpdate,
+    user: SysUser = Depends(require_permission("sla:write")),
+    db: Session = Depends(get_db),
+):
+    obj = db.get(ServiceCycle, cid)
+    if obj is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "周期不存在")
+    for k, v in body.model_dump(exclude_unset=True).items():
+        setattr(obj, k, v)
+    db.commit()
+    return ok(ServiceCycleOut.model_validate(obj).model_dump())
+
+
+@cycles.delete("/{cid}")
+def delete_cycle(
+    cid: int,
+    user: SysUser = Depends(require_permission("sla:delete")),
+    db: Session = Depends(get_db),
+):
+    obj = db.get(ServiceCycle, cid)
+    if obj is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "周期不存在")
+    db.delete(obj)
+    db.commit()
+    return ok({"deleted": cid})
 
 
 # ---- 服务提醒（读；生成在步骤五） ----

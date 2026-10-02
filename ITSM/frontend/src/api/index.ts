@@ -90,6 +90,8 @@ export const createSla = (data: any) => request.post('/sla-policies', data)
 export const updateSla = (id: number, data: any) => request.put(`/sla-policies/${id}`, data)
 export const deleteSla = (id: number) => request.delete(`/sla-policies/${id}`)
 export const listCycles = (params: any) => request.get('/cycles', { params })
+export const updateCycle = (id: number, data: any) => request.put(`/cycles/${id}`, data)
+export const deleteCycle = (id: number) => request.delete(`/cycles/${id}`)
 export const listReminders = (params: any) => request.get('/reminders', { params })
 
 // ---- 知识库 / RAG ----

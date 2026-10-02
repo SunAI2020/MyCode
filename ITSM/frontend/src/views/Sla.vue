@@ -1,6 +1,41 @@
 <template>
   <div>
     <el-tabs v-model="tab">
+      <el-tab-pane label="服务周期" name="cycle">
+        <el-card>
+          <el-table :data="cycles" v-loading="loading">
+            <el-table-column prop="customer_name" label="客户名称" width="130" />
+            <el-table-column prop="ci_name" label="业务系统" width="140" show-overflow-tooltip />
+            <el-table-column prop="item_project" label="服务类别" width="120" />
+            <el-table-column prop="cycle_no" label="期次" width="70" />
+            <el-table-column prop="service_start" label="开始" width="110" />
+            <el-table-column prop="service_end" label="结束" width="110" />
+            <el-table-column label="状态" width="90">
+              <template #default="{ row }">{{ STATUS_MAP[row.status] || row.status }}</template>
+            </el-table-column>
+            <el-table-column v-if="canWrite || canDelete" label="操作" width="180">
+              <template #default="{ row }">
+                <el-button v-if="canWrite" link type="primary" @click="openCycleEdit(row)">编辑</el-button>
+                <el-button v-if="canWrite" link type="warning" @click="openCycleDefer(row)">延期</el-button>
+                <el-button v-if="canDelete" link type="danger" @click="onDeleteCycle(row)">删除</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-card>
+      </el-tab-pane>
+
+      <el-tab-pane label="服务提醒" name="reminder">
+        <el-card>
+          <el-table :data="reminders" v-loading="loading">
+            <el-table-column prop="id" label="ID" width="60" />
+            <el-table-column prop="type" label="类型" width="80" />
+            <el-table-column prop="level" label="级别" width="80" />
+            <el-table-column prop="content" label="内容" />
+            <el-table-column prop="channel" label="渠道" width="90" />
+          </el-table>
+        </el-card>
+      </el-tab-pane>
+
       <el-tab-pane label="SLA 策略" name="sla">
         <el-card>
           <div class="toolbar"><el-button v-if="canWrite" type="primary" @click="openSla()">新增策略</el-button></div>
@@ -16,37 +51,6 @@
                 <el-button v-if="canDelete" link type="danger" @click="onDeleteSla(row)">删除</el-button>
               </template>
             </el-table-column>
-          </el-table>
-        </el-card>
-      </el-tab-pane>
-
-      <el-tab-pane label="服务周期" name="cycle">
-        <el-card>
-          <el-table :data="cycles" v-loading="loading">
-            <el-table-column prop="id" label="ID" width="60" />
-            <el-table-column prop="customer_name" label="客户名称" width="130" />
-            <el-table-column prop="project_name" label="项目名称" width="130" />
-            <el-table-column prop="ci_name" label="业务系统" width="140" show-overflow-tooltip />
-            <el-table-column prop="item_project" label="服务类别" width="120" />
-            <el-table-column prop="cycle_no" label="期次" width="70" />
-            <el-table-column prop="service_start" label="开始" width="110" />
-            <el-table-column prop="service_end" label="结束" width="110" />
-            <el-table-column label="状态" width="90">
-              <template #default="{ row }">{{ STATUS_MAP[row.status] || row.status }}</template>
-            </el-table-column>
-            <el-table-column prop="auto_generated" label="自动生成" width="90" />
-          </el-table>
-        </el-card>
-      </el-tab-pane>
-
-      <el-tab-pane label="服务提醒" name="reminder">
-        <el-card>
-          <el-table :data="reminders" v-loading="loading">
-            <el-table-column prop="id" label="ID" width="60" />
-            <el-table-column prop="type" label="类型" width="80" />
-            <el-table-column prop="level" label="级别" width="80" />
-            <el-table-column prop="content" label="内容" />
-            <el-table-column prop="channel" label="渠道" width="90" />
           </el-table>
         </el-card>
       </el-tab-pane>
@@ -66,13 +70,30 @@
       </el-form>
       <template #footer><el-button @click="slaDlg = false">取消</el-button><el-button type="primary" @click="saveSla">保存</el-button></template>
     </el-dialog>
+
+    <el-dialog v-model="cycleDlg" :title="cycleMode === 'defer' ? '延期周期' : '编辑周期'" width="480px">
+      <el-form :model="cycleForm" label-width="90px">
+        <el-form-item v-if="cycleMode !== 'defer'" label="开始时间">
+          <el-date-picker v-model="cycleForm.service_start" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="结束时间">
+          <el-date-picker v-model="cycleForm.service_end" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
+        </el-form-item>
+        <el-form-item v-if="cycleMode !== 'defer'" label="状态">
+          <el-select v-model="cycleForm.status" style="width: 100%">
+            <el-option v-for="(label, s) in STATUS_MAP" :key="s" :label="label" :value="s" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer><el-button @click="cycleDlg = false">取消</el-button><el-button type="primary" @click="saveCycle">保存</el-button></template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { listSla, createSla, updateSla, deleteSla, listCycles, listReminders } from '@/api'
+import { listSla, createSla, updateSla, deleteSla, listCycles, updateCycle, deleteCycle, listReminders } from '@/api'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
@@ -89,6 +110,11 @@ const reminders = ref<any[]>([])
 const slaDlg = ref(false)
 const slaEditId = ref<number | null>(null)
 const slaForm = reactive({ name: '', customer_level: '普通', response_limit: '', resolve_limit: '', escalation_chain: '' })
+
+const cycleDlg = ref(false)
+const cycleMode = ref<'edit' | 'defer'>('edit')
+const cycleEditId = ref<number | null>(null)
+const cycleForm = reactive({ service_start: '', service_end: '', status: 'pending' })
 
 async function loadSlas() {
   slas.value = (await listSla({ page: 1, size: 100 })).data.items
@@ -121,6 +147,36 @@ async function onDeleteSla(row: any) {
   await ElMessageBox.confirm(`确认删除策略「${row.name}」？`, '提示', { type: 'warning' })
   await deleteSla(row.id)
   loadSlas()
+}
+
+function openCycleEdit(row: any) {
+  cycleEditId.value = row.id
+  cycleMode.value = 'edit'
+  Object.assign(cycleForm, { service_start: row.service_start, service_end: row.service_end, status: row.status })
+  cycleDlg.value = true
+}
+function openCycleDefer(row: any) {
+  cycleEditId.value = row.id
+  cycleMode.value = 'defer'
+  Object.assign(cycleForm, { service_start: row.service_start, service_end: row.service_end, status: row.status })
+  cycleDlg.value = true
+}
+async function saveCycle() {
+  const payload: any = { service_end: cycleForm.service_end }
+  if (cycleMode.value === 'edit') {
+    payload.service_start = cycleForm.service_start
+    payload.status = cycleForm.status
+  }
+  await updateCycle(cycleEditId.value!, payload)
+  ElMessage.success('已保存')
+  cycleDlg.value = false
+  loadCycles()
+}
+async function onDeleteCycle(row: any) {
+  await ElMessageBox.confirm(`确认删除该周期（第 ${row.cycle_no} 次）？`, '提示', { type: 'warning' })
+  await deleteCycle(row.id)
+  ElMessage.success('已删除')
+  loadCycles()
 }
 
 onMounted(() => {
