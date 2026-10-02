@@ -54,29 +54,30 @@
             <el-select v-model="itemFilter.ci_id" placeholder="选择业务系统" clearable style="width: 240px" @change="loadItems">
               <el-option v-for="c in cis" :key="c.id" :label="c.name" :value="c.id" />
             </el-select>
-            <el-button v-if="canWrite" type="primary" @click="openItem()">新增服务类别</el-button>
+            <el-button v-if="canWrite" type="primary" @click="openItem()">新增服务子项</el-button>
           </div>
           <el-table :data="groupedItems" v-loading="loading">
+            <el-table-column label="客户名称">
+              <template #default="{ row }">{{ customerNameOf(row) }}</template>
+            </el-table-column>
+            <el-table-column label="项目名称">
+              <template #default="{ row }">{{ contractNameOf(row) }}</template>
+            </el-table-column>
             <el-table-column label="业务系统">
               <template #default="{ row }">
                 <template v-if="row._ciCount > 1">{{ row._ciCount }}个业务系统</template>
                 <template v-else>{{ row._ciIds.length ? ciNameById(row._ciIds[0]) : '//' }}</template>
               </template>
             </el-table-column>
-            <el-table-column label="项目名称">
-              <template #default="{ row }">{{ contractNameOf(row) }}</template>
-            </el-table-column>
-            <el-table-column label="客户名称">
-              <template #default="{ row }">{{ customerNameOf(row) }}</template>
-            </el-table-column>
             <el-table-column prop="project" label="服务类别" />
-            <el-table-column prop="frequency" label="频率" width="70" />
-            <el-table-column prop="unit" label="单位" width="90" />
+            <el-table-column label="服务频率" width="110">
+              <template #default="{ row }">{{ row.frequency }}次/{{ row.unit }}</template>
+            </el-table-column>
             <el-table-column prop="price" label="价格" width="110" />
             <el-table-column v-if="canWrite || canDelete" label="操作" width="210">
               <template #default="{ row }">
                 <el-button v-if="canWrite" link type="primary" @click="openItem(row)">编辑</el-button>
-                <el-button v-if="canWrite" link type="success" @click="onGenerate(row)">生成周期</el-button>
+                <el-button v-if="canWrite" link type="success" class="gen-cycle-btn" :disabled="row._cycleCount > 0" @click="onGenerate(row)">生成周期</el-button>
                 <el-button v-if="canDelete" link type="danger" @click="onDeleteItem(row)">删除</el-button>
               </template>
             </el-table-column>
@@ -610,6 +611,7 @@ const groupedItems = computed(() => {
   return [...map.values()].map((g) => {
     g._ciIds = [...new Set(g._ciIds)]
     g._ciCount = g._ciIds.length
+    g._cycleCount = g._members.reduce((s: number, m: any) => s + (m.cycle_count || 0), 0)
     return g
   })
 })
@@ -729,6 +731,21 @@ async function saveItem() {
       await createItem({ ci_id: null, contract_id: itemForm.contract_id, ...base })  // 边界：清空后补一条「//」
     }
   } else {
+    // 新增：重复校验（同一客户 + 同一业务系统 + 同一服务类别）
+    const dup = items.value.find((it: any) =>
+      it.contract_id === itemForm.contract_id &&
+      it.project === itemForm.project &&
+      it.ci_id != null &&
+      newCiIds.includes(it.ci_id)
+    )
+    if (dup) {
+      ElMessageBox.alert(
+        `${customerNameOf(dup)}客户的${ciNameById(dup.ci_id)}业务系统，已经存在${itemForm.project}服务类别，请勿重复提交！`,
+        '重复提交',
+        { type: 'warning' }
+      )
+      return
+    }
     // 新增：勾选 N 个 → 批量生成 N 条；全不选 → 1 条（不关联具体系统，记作「//」）
     if (!newCiIds.length) {
       await createItem({ ci_id: null, contract_id: itemForm.contract_id, ...base })
@@ -747,6 +764,10 @@ async function onGenerate(row: any) {
   let total = 0
   for (const m of members) {
     const res = await generateCycles(m.id)
+    if (res.data.duplicate) {
+      ElMessageBox.alert(res.data.message, '重复生成周期', { type: 'warning' })
+      return
+    }
     created += res.data.created
     total += res.data.total
   }
@@ -795,6 +816,7 @@ onMounted(() => {
 
 <style scoped>
 .toolbar { display: flex; gap: 12px; margin-bottom: 14px; }
+.gen-cycle-btn.is-disabled { color: #909399 !important; }
 .obj-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .ci-checkbox-list { display: flex; flex-direction: column; gap: 4px; }
 .ci-empty { color: #999; font-size: 12px; margin-top: 4px; }

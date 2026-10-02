@@ -135,3 +135,4 @@ class ContractItemOut(BaseModel):
     accept_standard: str | None = None
     price: float | None = None
     created_at: datetime | None = None
+    cycle_count: int = 0  # 已生成的服务周期数（列表接口填充，供前端禁用「生成周期」按钮）

@@ -11,7 +11,7 @@ from app.core.deps import (
     require_permission,
     scope_filter,
 )
-from app.models import CmdbCi, CmdbCiDependency, Contract, ContractArchive, ContractItem, Customer, SysUser
+from app.models import CmdbCi, CmdbCiDependency, Contract, ContractArchive, ContractItem, Customer, ServiceCycle, SysUser
 from app.core.security import mask_sensitive, masked_page
 from app.schemas.cmdb import CmdbCiDependencyCreate, CmdbCiDependencyOut
 from app.schemas.contract import (
@@ -147,7 +147,19 @@ def list_items(
         ids = [int(x) for x in ci_ids.split(",") if x.strip()]
         if ids:
             q = q.filter(ContractItem.ci_id.in_(ids))
-    return ok(masked_page(paginate(q, page, size, ContractItemOut), scope))
+    data = paginate(q, page, size, ContractItemOut)
+    # 富化周期数量（供前端禁用「生成周期」按钮）
+    item_ids = [it["id"] for it in data["items"]]
+    if item_ids:
+        counts = dict(
+            db.query(ServiceCycle.contract_item_id, func.count(ServiceCycle.id))
+            .filter(ServiceCycle.contract_item_id.in_(item_ids))
+            .group_by(ServiceCycle.contract_item_id)
+            .all()
+        )
+        for it in data["items"]:
+            it["cycle_count"] = counts.get(it["id"], 0)
+    return ok(masked_page(data, scope))
 
 
 @items.post("")
@@ -173,6 +185,21 @@ def create_item(
         if scope is not None and contract.customer_id != scope:
             raise HTTPException(status.HTTP_403_FORBIDDEN, "无权为其他客户创建服务类别")
         contract_id = contract.id
+    # 重复校验：同一客户 + 同一业务系统 + 同一服务类别
+    if body.ci_id is not None:
+        dup = db.query(ContractItem).filter(
+            ContractItem.contract_id == contract_id,
+            ContractItem.ci_id == body.ci_id,
+            ContractItem.project == body.project,
+        ).first()
+        if dup is not None:
+            ci = db.get(CmdbCi, body.ci_id)
+            contract = db.get(Contract, contract_id)
+            customer = db.get(Customer, contract.customer_id) if contract else None
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                f"{customer.name if customer else ''}客户的{ci.name if ci else ''}业务系统，已经存在{body.project}服务类别，请勿重复提交！",
+            )
     data = body.model_dump()
     data["contract_id"] = contract_id
     obj = ContractItem(**data)
@@ -238,10 +265,23 @@ def generate_item_cycles(
     user: SysUser = Depends(require_permission("contract:write")),
     db: Session = Depends(get_db),
 ):
+    item = db.get(ContractItem, iid)
+    if item is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "子项不存在")
+    # 重复检测：该子项已生成过周期 → 返回 duplicate 标志，由前端弹框提示，不重复生成
+    if db.query(ServiceCycle).filter(ServiceCycle.contract_item_id == iid).first() is not None:
+        ci = db.get(CmdbCi, item.ci_id) if item.ci_id else None
+        contract = db.get(Contract, item.contract_id)
+        customer = db.get(Customer, contract.customer_id) if contract else None
+        return ok({
+            "duplicate": True,
+            "message": f"{customer.name if customer else ''}的{ci.name if ci else '//'}业务系统，已经存在{item.project}服务周期，请勿重复提交！",
+        })
     try:
         result = generate_cycles(db, iid)
     except ValueError as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
+    result["duplicate"] = False
     record(db, user_id=user.id, action="generate_cycles", resource=f"contract_item:{iid}", after=str(result))
     db.commit()
     return ok(result)
