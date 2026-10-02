@@ -88,15 +88,15 @@ function renderPie(i: number, data: { name: string; value: number }[]) {
   if (!charts[i]) charts[i] = echarts.init(el)
   charts[i].setOption({
     tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
-    legend: { bottom: 0 },
+    legend: { bottom: 0, itemWidth: 10, itemHeight: 10, textStyle: { fontSize: 10 } },
     series: [
       {
         type: 'pie',
-        radius: ['45%', '70%'], // 带缺口（环形）
-        center: ['50%', '48%'],
-        roseType: 'area', // 面积玫瑰，模拟立体
+        radius: ['30%', '52%'], // 带缺口（环形）
+        center: ['50%', '50%'],
         itemStyle: { borderRadius: 4, borderColor: '#fff', borderWidth: 2, shadowBlur: 12, shadowColor: 'rgba(0,0,0,0.25)' },
-        label: { formatter: '{b}: {c}' },
+        label: { formatter: '{b}：{c}', color: '#303133', fontSize: 11 },
+        labelLine: { length: 6, length2: 4, smooth: true },
         data: data.length ? data : [{ name: '暂无数据', value: 0 }],
       },
     ],
@@ -109,8 +109,8 @@ function renderStacked(i: number, d: { categories: string[]; series: { name: str
   if (!charts[i]) charts[i] = echarts.init(el)
   charts[i].setOption({
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-    legend: { bottom: 0 },
-    grid: { left: 8, right: 16, top: 16, bottom: 46, containLabel: true },
+    legend: { bottom: 0, itemWidth: 10, itemHeight: 10, textStyle: { fontSize: 10 } },
+    grid: { left: 8, right: 16, top: 8, bottom: 28, containLabel: true },
     xAxis: { type: 'value', axisLabel: { formatter: pct ? '{value}%' : '{value}' } },
     yAxis: { type: 'category', data: d.categories },
     series: d.series.map((s) => ({ name: s.name, type: 'bar', stack: 'total', barMaxWidth: 18, data: s.data })),
@@ -150,10 +150,10 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.sec-title { margin: 20px 0 12px; font-size: 15px; color: #303133; border-left: 4px solid #0a3d91; padding-left: 8px; }
+.sec-title { margin: 12px 0 8px; font-size: 14px; color: #303133; border-left: 4px solid #0a3d91; padding-left: 8px; }
 .chart-card { margin-bottom: 8px; }
 .chart-head { display: flex; justify-content: space-between; align-items: center; padding: 2px 4px 4px; }
 .chart-title { font-size: 13px; color: #303133; font-weight: 600; }
 .chart-num { font-size: 18px; font-weight: 700; color: #0a3d91; }
-.chart { height: 280px; }
+.chart { height: 200px; }
 </style>
