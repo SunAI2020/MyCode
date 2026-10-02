@@ -1,5 +1,6 @@
 """客户 CRUD。"""
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.deps import (
@@ -10,7 +11,7 @@ from app.core.deps import (
     require_permission,
     scope_filter,
 )
-from app.models import Customer, SysUser
+from app.models import Contract, Customer, SysUser
 from app.core.security import mask_sensitive, masked_page
 from app.schemas.customer import CustomerCreate, CustomerOut, CustomerUpdate
 from app.services.audit_service import record
@@ -90,7 +91,21 @@ def delete_customer(
     obj = db.get(Customer, cid)
     if obj is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "客户不存在")
-    db.delete(obj)
-    record(db, user_id=user.id, action="delete", resource=f"customer:{cid}")
-    db.commit()
+    # 存在关联项目（合同）时禁止删除，给出友好提示而非数据库外键 500
+    contract_count = db.query(Contract).filter(Contract.customer_id == cid).count()
+    if contract_count:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            f"该客户下存在 {contract_count} 个项目/合同，请先删除或转移相关项目后再删除客户",
+        )
+    try:
+        db.delete(obj)
+        record(db, user_id=user.id, action="delete", resource=f"customer:{cid}")
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "该客户仍有关联数据（服务对象/工单等），无法删除",
+        ) from None
     return ok({"deleted": cid})
