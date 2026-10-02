@@ -102,8 +102,8 @@
           </el-col>
           <el-col :span="12">
             <el-form-item label="类型">
-              <el-select v-model="contractForm.type" style="width: 100%">
-                <el-option v-for="t in ['安全服务', '安全运维', '设备升级', '购买设备', '机房改造', '其他']" :key="t" :label="t" :value="t" />
+              <el-select v-model="contractForm.type" style="width: 100%" @change="onTypeChange">
+                <el-option v-for="t in contractTypes" :key="t" :label="t" :value="t" />
               </el-select>
             </el-form-item>
           </el-col>
@@ -147,6 +147,17 @@
         </el-row>
       </el-form>
       <template #footer><el-button @click="contractDlg = false">取消</el-button><el-button type="primary" @click="saveContract">保存</el-button></template>
+    </el-dialog>
+
+    <!-- 新建项目类型弹窗 -->
+    <el-dialog v-model="newTypeDlg" title="新建项目类型" width="420px">
+      <el-form label-width="80px">
+        <el-form-item label="类型名称"><el-input v-model="newTypeName" placeholder="请输入新的项目类型" @keyup.enter="confirmNewType" /></el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="newTypeDlg = false">取消</el-button>
+        <el-button type="primary" @click="confirmNewType">确定</el-button>
+      </template>
     </el-dialog>
 
     <!-- 服务项目弹窗 -->
@@ -204,6 +215,11 @@
     </el-dialog>
 
     <!-- 导入存档弹窗 -->
+    <!-- 识别中提示 -->
+    <el-dialog v-model="recognizing" width="320px" :show-close="false" :close-on-click-modal="false" :close-on-press-escape="false" append-to-body>
+      <div v-loading="true" element-loading-text="正在识别中...，请您耐心等待！" element-loading-background="rgba(255,255,255,0.9)" style="min-height: 100px;"></div>
+    </el-dialog>
+
     <el-dialog v-model="importDlg" title="合同原件导入 - 识别结果" width="840px" top="4vh">
       <el-alert v-if="importOriginalName" :title="`原件：${importOriginalName}`" type="info" :closable="false" style="margin-bottom: 12px" />
       <el-form :model="importForm" label-width="110px">
@@ -337,6 +353,7 @@ import {
   listItems, createItem, updateItem, deleteItem, generateCycles,
   listCis, createCi, updateCi, deleteCi, listCustomers,
   uploadContractArchive, confirmContractArchive, listContractArchives, downloadContractArchive,
+  listDicts, createDict,
 } from '@/api'
 import { useAuthStore } from '@/stores/auth'
 
@@ -362,6 +379,38 @@ const contractForm = reactive({
   staff_requirement: '', accept_standard: '', delivery_docs: '', acceptance_report_format: '',
 })
 
+// 项目类型（合同类型）：选择「其他」时弹窗新建自定义类型
+const CONTRACT_TYPES = ['安全服务', '安全运维', '设备升级', '购买设备', '机房改造', '其他']
+const contractTypes = ref<string[]>(CONTRACT_TYPES)
+const newTypeDlg = ref(false)
+const newTypeName = ref('')
+
+function onTypeChange(val: string) {
+  if (val === '其他') {
+    newTypeName.value = ''
+    newTypeDlg.value = true
+  }
+}
+async function confirmNewType() {
+  const name = newTypeName.value.trim()
+  if (!name) return ElMessage.warning('请输入类型名称')
+  if (contractTypes.value.includes(name)) return ElMessage.warning('该类型已存在')
+  try {
+    await createDict({ category: 'contract_type', name })
+    contractTypes.value.splice(contractTypes.value.length - 1, 0, name) // 插到「其他」之前
+    contractForm.type = name
+    newTypeDlg.value = false
+    ElMessage.success('已新建项目类型')
+  } catch { /* 后端拒绝由响应拦截器统一提示 */ }
+}
+
+async function loadContractTypes() {
+  try {
+    const names = (await listDicts('contract_type')).data
+    if (names && names.length) contractTypes.value = names
+  } catch { /* 字典加载失败则用默认值 */ }
+}
+
 const itemDlg = ref(false)
 const itemEditId = ref<number | null>(null)
 const itemForm = reactive({
@@ -380,6 +429,7 @@ const ciForm = reactive({ contract_id: 1, name: '', type: '业务系统', ip: ''
 const fileInput = ref<HTMLInputElement | null>(null)
 const importDlg = ref(false)
 const importLoading = ref(false)
+const recognizing = ref(false) // 上传识别中（显示「正在识别中」对话框）
 const importArchiveId = ref<number | null>(null)
 const importOriginalName = ref('')
 const importTextPreview = ref('')
@@ -425,6 +475,7 @@ async function onFilePicked(e: Event) {
   const input = e.target as HTMLInputElement
   const file = input.files?.[0]
   if (!file) return
+  recognizing.value = true
   importLoading.value = true
   try {
     const res = await uploadContractArchive(file)
@@ -456,6 +507,7 @@ async function onFilePicked(e: Event) {
     importDlg.value = true
   } finally {
     importLoading.value = false
+    recognizing.value = false
     input.value = ''
   }
 }
@@ -672,6 +724,7 @@ onMounted(() => {
   loadCustomers()
   loadItems()
   loadCis()
+  loadContractTypes()
 })
 </script>
 

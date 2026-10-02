@@ -39,6 +39,8 @@ request.interceptors.response.use(
     }
     if (error.response) {
       ElMessage.error(msg || `请求失败(${status})`)
+    } else if (error.code === 'ECONNABORTED' || /timeout/i.test(error.message || '')) {
+      ElMessage.error('请求超时，请稍后重试（大文件导入/提取可能较慢）')
     } else {
       ElMessage.error('无法连接后端服务，请确认后端已启动（端口 8000）')
     }

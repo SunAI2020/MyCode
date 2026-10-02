@@ -85,7 +85,8 @@ def _extract_mineru(data: bytes, suffix: str) -> str:
             f.write(data)
             tmp = f.name
         client = MinerU(settings.MINERU_TOKEN)
-        result = client.extract(tmp, ocr=True, timeout=120)
+        # flash 快速 OCR 模式（秒级返回）；普通 extract(v4) 云端排队极慢、易超时，扫描件尤其如此
+        result = client.flash_extract(tmp, is_ocr=True, timeout=300)
         return (result.markdown or "").strip()
     except AuthError:
         raise MineruTokenExpired() from None

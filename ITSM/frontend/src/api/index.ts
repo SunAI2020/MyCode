@@ -23,6 +23,10 @@ export const updateRolePermissions = (code: string, data: any) => request.put(`/
 // ---- 安全隐患（问题整改）----
 export const listIssues = (params: any) => request.get('/issues', { params })
 
+// ---- 字典枚举 ----
+export const listDicts = (category: string) => request.get(`/dicts/${category}`)
+export const createDict = (data: any) => request.post('/dicts', data)
+
 // ---- 客户 ----
 export const listCustomers = (params: any) => request.get('/customers', { params })
 export const createCustomer = (data: any) => request.post('/customers', data)
@@ -39,7 +43,8 @@ export const deleteContract = (id: number) => request.delete(`/contracts/${id}`)
 export const uploadContractArchive = (file: File) => {
   const fd = new FormData()
   fd.append('file', file)
-  return request.post('/contract-archives/upload', fd)
+  // 上传 + 后端文字提取（MinerU flash 秒级）；放宽到 120s 留余量
+  return request.post('/contract-archives/upload', fd, { timeout: 120000 })
 }
 export const confirmContractArchive = (id: number, data: any) => request.post(`/contract-archives/${id}/confirm`, data)
 export const listContractArchives = (params: any) => request.get('/contract-archives', { params })
