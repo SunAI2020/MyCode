@@ -30,7 +30,7 @@ from app.services.issue_service import submit_round
 
 
 def _mk_chain(db):
-    """构造 客户→合同→服务对象→服务项目 基础链。"""
+    """构造 客户→合同→业务系统→服务类别 基础链。"""
     c = Customer(name="A")
     db.add(c)
     db.flush()
@@ -64,7 +64,7 @@ def test_collect_creates_evidence(db):
 def test_collect_for_work_order(db):
     item = _mk_chain(db)
     req = ComplianceRequirement(
-        customer_id=item.contract_id, source_type="服务项目", source_id=item.id, clause="要求A"
+        customer_id=item.contract_id, source_type="服务类别", source_id=item.id, clause="要求A"
     )
     db.add(req)
     db.commit()
@@ -361,4 +361,4 @@ def test_seed_templates(db):
     assert seed_templates(db) == 0
     # 覆盖四大标准
     sources = {s for (s,) in db.query(ComplianceRequirementTemplate.reg_source).distinct().all()}
-    assert sources == {"等保2.0", "密码测评", "数据安全", "公安部176号令"}
+    assert sources == {"等保2.0", "密码测评", "数据安全", "公安部176号令", "关基保护"}
