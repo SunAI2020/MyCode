@@ -529,9 +529,22 @@ async function onSubmitReport() {
   }
 }
 async function onDeleteWorkOrder(row: any) {
-  await ElMessageBox.confirm(`确认删除工单「${row.no}」？`, '提示', { type: 'warning' })
-  await deleteWorkOrder(row.id)
-  ElMessage.success('已删除')
+  let deleteCycles = true
+  try {
+    await ElMessageBox.confirm(
+      `删除工单「${row.no}」后，与该工单关联的服务工期将同步删除。确认？保留工期？`,
+      '删除工单',
+      { confirmButtonText: '确认', cancelButtonText: '保留工期', distinguishCancelAndClose: true, type: 'warning' },
+    )
+  } catch (e: any) {
+    if (e === 'cancel') {
+      deleteCycles = false
+    } else {
+      return // 关闭弹窗/ESC → 取消删除
+    }
+  }
+  await deleteWorkOrder(row.id, { delete_cycles: deleteCycles })
+  ElMessage.success(deleteCycles ? '已删除' : '已删除（工期保留）')
   load()
 }
 

@@ -58,6 +58,10 @@ class ServiceCycleUpdate(BaseModel):
     status: str | None = None
 
 
+class CycleRemindIn(BaseModel):
+    content: str | None = None  # 自定义提醒内容；缺省用后端默认文案
+
+
 class ServiceReminderOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

@@ -19,6 +19,7 @@ from app.models import (
     WorkOrderCycle,
 )
 from app.schemas.service import (
+    CycleRemindIn,
     ServiceCycleOut,
     ServiceCycleUpdate,
     ServiceReminderOut,
@@ -210,23 +211,26 @@ def _cycle_content(db: Session, cycle: ServiceCycle) -> str:
     return f"{name}第 {cycle.cycle_no} 次服务"
 
 
-def _notify_work_order(db: Session, cycle: ServiceCycle, type_: str, level: str, content: str) -> None:
-    """为工期对应工单发送提醒/催单：无对应工单报错；落到执行人并多渠道推送。"""
+def _notify_work_order(db: Session, cycle: ServiceCycle, type_: str, level: str, content: str, require_wo: bool = True) -> None:
+    """为工期对应工单发送提醒/催单：落到执行人并多渠道推送；require_wo=True 时无对应工单报错。"""
     wo = _work_order_for_cycle(db, cycle)
-    if wo is None:
+    if wo is None and require_wo:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "该工期无对应工单，请尽快派单！")
-    assignee = (
-        db.query(WorkOrderAssignee.user_id)
-        .filter(WorkOrderAssignee.work_order_id == wo.id, WorkOrderAssignee.is_active.is_(True))
-        .first()
-    )
+    to_user_id = None
+    if wo is not None:
+        assignee = (
+            db.query(WorkOrderAssignee.user_id)
+            .filter(WorkOrderAssignee.work_order_id == wo.id, WorkOrderAssignee.is_active.is_(True))
+            .first()
+        )
+        to_user_id = assignee[0] if assignee else None
     db.add(
         ServiceReminder(
             cycle_id=cycle.id,
             type=type_,
             level=level,
             content=content,
-            to_user_id=assignee[0] if assignee else None,
+            to_user_id=to_user_id,
         )
     )
     db.commit()
@@ -236,14 +240,17 @@ def _notify_work_order(db: Session, cycle: ServiceCycle, type_: str, level: str,
 @cycles.post("/{cid}/remind")
 def remind_cycle(
     cid: int,
+    body: CycleRemindIn | None = None,
     user: SysUser = Depends(require_permission("sla:write")),
     db: Session = Depends(get_db),
 ):
     cycle = db.get(ServiceCycle, cid)
     if cycle is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "工期不存在")
-    content = f"{_cycle_content(db, cycle)}，服务工期将于 {cycle.service_end} 结束，请及时处理"
-    _notify_work_order(db, cycle, "提醒", "黄", content)
+    content = (body.content.strip() if body and body.content and body.content.strip() else None) or (
+        f"{_cycle_content(db, cycle)}，服务工期将于 {cycle.service_end} 结束，请及时处理"
+    )
+    _notify_work_order(db, cycle, "提醒", "黄", content, require_wo=False)
     return ok({"reminded": cid})
 
 

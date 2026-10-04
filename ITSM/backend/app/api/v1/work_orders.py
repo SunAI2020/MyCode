@@ -22,6 +22,7 @@ from app.models import (
     OrderDispatch,
     OrderReceive,
     ServiceCycle,
+    ServiceReminder,
     SysUser,
     WorkOrder,
     WorkOrderAssignee,
@@ -533,17 +534,38 @@ def edit_work_order(
 
 
 @router.delete("/{wid}")
-def delete_work_order(wid: int, user: SysUser = Depends(require_permission("work_order:write")), db: Session = Depends(get_db)):
+def delete_work_order(
+    wid: int,
+    delete_cycles: bool = Query(True, description="是否同步删除与该工单关联的服务工期"),
+    user: SysUser = Depends(require_permission("work_order:write")),
+    db: Session = Depends(get_db),
+):
     wo = db.get(WorkOrder, wid)
     if wo is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "工单不存在")
-    assert_scoped(wo, customer_scope_of(user, db), db)
+    scope = customer_scope_of(user, db)
+    assert_scoped(wo, scope, db)
+    # 收集工单关联的服务工期键：简单工单 → current_cycle_no；聚合工单 → work_order_cycle
+    cycle_keys: list[tuple[int, int]] = []
+    if wo.contract_item_id is not None and wo.current_cycle_no is not None:
+        cycle_keys.append((wo.contract_item_id, wo.current_cycle_no))
+    for iid, no in db.query(WorkOrderCycle.contract_item_id, WorkOrderCycle.cycle_no).filter_by(work_order_id=wid).all():
+        cycle_keys.append((iid, no))
     # 删除工单自身关联（执行人/聚合业务系统/服务类别/频次/派单）
     db.query(WorkOrderAssignee).filter_by(work_order_id=wid).delete()
     db.query(WorkOrderCi).filter_by(work_order_id=wid).delete()
     db.query(WorkOrderItem).filter_by(work_order_id=wid).delete()
     db.query(WorkOrderCycle).filter_by(work_order_id=wid).delete()
     db.query(OrderDispatch).filter_by(work_order_id=wid).delete()
+    # 同步删除关联服务工期（默认勾选；逐条作用域校验 + 清理其提醒记录避免外键残留）
+    if delete_cycles:
+        for iid, no in cycle_keys:
+            cycle = db.query(ServiceCycle).filter_by(contract_item_id=iid, cycle_no=no).first()
+            if cycle is None:
+                continue
+            assert_scoped(cycle, scope, db)
+            db.query(ServiceReminder).filter_by(cycle_id=cycle.id).delete()
+            db.delete(cycle)
     try:
         db.delete(wo)
         record(db, user_id=user.id, action="delete", resource=f"work_order:{wid}")
