@@ -127,7 +127,7 @@ def recommend_assignee(db, project: str, limit: int = 3) -> list[dict]:
 
 # ---- 合同履约洞察 ----
 def contract_insight(db, today: date | None = None) -> list[dict]:
-    """合同履约洞察：临近到期未完成周期 + 履约缺口（应生成 vs 已生成）。"""
+    """合同履约洞察：临近到期未完成工期 + 履约缺口（应生成 vs 已生成）。"""
     today = today or date.today()
     insights: list[dict] = []
 
@@ -161,7 +161,7 @@ def contract_insight(db, today: date | None = None) -> list[dict]:
             }
         )
 
-    # 履约缺口（已生成周期数 < 按频率应生成）
+    # 履约缺口（已生成工期数 < 按频率应生成）
     for item in items.values():
         contract = contracts.get(item.contract_id)
         if contract is None or contract.start_date is None or contract.end_date is None:

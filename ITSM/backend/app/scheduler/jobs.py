@@ -12,7 +12,7 @@ from app.utils.wo_no import next_work_order_no, work_order_no_scope
 def run_daily_work_order_generation(db: Session, today: date | None = None) -> int:
     """扫描到期子项，生成 service_cycle + work_order + 启动提醒（幂等）。
 
-    周期可复用（若已由 generate_cycles 预生成）；工单按 (contract_item_id, cycle_no) 幂等。
+    工期可复用（若已由 generate_cycles 预生成）；工单按 (contract_item_id, cycle_no) 幂等。
     """
     today = today or date.today()
     items = db.query(ContractItem).all()

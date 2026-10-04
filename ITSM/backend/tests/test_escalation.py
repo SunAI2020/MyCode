@@ -53,6 +53,6 @@ def test_scan_sla_escalations_idempotent(db):
 
 def test_scan_skips_completed_work_order(db):
     wo = _mk_overdue_wo(db)
-    wo.status = "已完成"
+    wo.status = "已结单"
     db.commit()
     assert scan_sla_escalations(db, today=date.today()) == 0

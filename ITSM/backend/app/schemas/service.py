@@ -1,4 +1,4 @@
-"""SLA 策略 / 服务周期 / 服务提醒 schema。"""
+"""SLA 策略 / 服务工期 / 服务提醒 schema。"""
 from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict

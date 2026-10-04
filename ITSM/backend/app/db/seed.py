@@ -32,12 +32,15 @@ PERMISSIONS = [
     ("contracts", "项目管理", "menu"),
     ("work_orders", "工单管理", "menu"),
     ("personnel", "人员管理", "menu"),
-    ("sla", "SLA/周期管理", "menu"),
+    ("sla", "SLA/工期管理", "menu"),
     ("issues", "安全隐患管理", "menu"),
     ("compliance", "合规运营", "menu"),
     ("portal", "自助门户", "menu"),
     ("knowledge", "知识库", "menu"),
     ("workflows", "工作流", "menu"),
+    ("deliveries", "项目验收", "menu"),
+    ("performance", "绩效考核", "menu"),
+    ("reports", "报告中心", "menu"),
     ("user:write", "人员增删改", "action"),
     ("role:write", "角色/权限矩阵配置", "action"),
     ("customer:write", "客户增改", "action"),
@@ -57,14 +60,14 @@ PERMISSIONS = [
     ("approval:write", "审批同意/驳回", "action"),
 ]
 
-_MENU_ALL = ["dashboard", "customers", "contracts", "work_orders", "personnel", "sla", "issues", "compliance", "portal", "knowledge", "workflows"]
+_MENU_ALL = ["dashboard", "customers", "contracts", "work_orders", "personnel", "sla", "issues", "compliance", "deliveries", "performance", "reports", "portal", "knowledge", "workflows"]
 
 # 角色默认权限矩阵（role_code -> permission codes），逐条翻译现有 require_role 白名单与前端 MENU_ITEMS，
 # 保证首次 seed 后行为与现状等价。
 ROLE_PERMISSIONS = {
     "sys_admin": [code for code, _, _ in PERMISSIONS],
     "sys_ops": [
-        "dashboard", "work_orders", "personnel", "sla", "issues", "compliance", "portal", "knowledge",
+        "dashboard", "work_orders", "personnel", "sla", "issues", "compliance", "deliveries", "performance", "reports", "portal", "knowledge",
         "user:write", "customer:write", "contract:write", "work_order:write",
         "issue:write", "issue:delete", "compliance:write", "compliance:delete",
         "kb:write", "kb:delete", "sla:write",
@@ -72,8 +75,8 @@ ROLE_PERMISSIONS = {
     "ticket_mgr": _MENU_ALL + ["work_order:write", "issue:write", "compliance:write", "kb:write", "approval:write"],
     "cs_staff": ["dashboard", "work_orders", "knowledge"],
     "sec_staff": ["work_orders", "issues", "compliance", "knowledge", "issue:write", "compliance:write"],
-    "cust_admin": ["dashboard", "work_orders", "portal", "knowledge"],
-    "cust_service": ["dashboard", "work_orders", "portal", "knowledge"],
+    "cust_admin": ["dashboard", "work_orders", "portal", "knowledge", "reports"],
+    "cust_service": ["dashboard", "work_orders", "portal", "knowledge", "reports"],
     "outsource": [],
 }
 
@@ -104,15 +107,15 @@ DICTS = [
     ("frequency_unit", "half_year", "半年"),
     ("frequency_unit", "year", "年"),
     ("frequency_unit", "irregular", "不定期"),
-    # 工单状态 8 项
+    # 工单状态 10 项
     ("work_order_status", "pending_dispatch", "待派单"),
-    ("work_order_status", "dispatched", "已派单"),
-    ("work_order_status", "planned", "计划中"),
-    ("work_order_status", "in_progress", "进行中"),
+    ("work_order_status", "pending_exec", "待执行"),
+    ("work_order_status", "executing", "执行中"),
     ("work_order_status", "pending_accept", "待验收"),
-    ("work_order_status", "done", "已完成"),
-    ("work_order_status", "closed", "已关闭"),
+    ("work_order_status", "accepted", "已验收"),
+    ("work_order_status", "closed", "已结单"),
     ("work_order_status", "cancelled", "已取消"),
+    ("work_order_status", "archived", "已关闭"),
     # 合同类型 6 项
     ("contract_type", "security_service", "安全服务"),
     ("contract_type", "security_ops", "安全运维"),
@@ -198,7 +201,7 @@ def seed() -> None:
 
         added_tpl = seed_templates(db)
         db.commit()
-        print("seed 完成：8 角色 / 28 权限点 / 37 字典项 / 3 SLA 模板 / 3 知识条目 / 1 管理员(admin)")
+        print("seed 完成：8 角色 / 31 权限点 / 37 字典项 / 3 SLA 模板 / 3 知识条目 / 1 管理员(admin)")
         if added_tpl:
             print(f"  监管要求模板库：新增 {added_tpl} 条（等保2.0/密码测评/数据安全/公安部176号令/关基保护）")
         if admin_pwd:

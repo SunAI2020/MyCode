@@ -37,3 +37,6 @@ class PerformanceOut(BaseModel):
     customer_score: float
     perf_score: float
     created_at: datetime | None = None
+    # 富化字段（列表接口填充）
+    user_name: str | None = None
+    work_order_no: str | None = None

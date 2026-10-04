@@ -11,6 +11,7 @@ from app.models import (
     ComplianceEvidence,
     ComplianceRequirement,
     Contract,
+    ContractItem,
     Customer,
     Delivery,
     Issue,
@@ -29,7 +30,7 @@ router = APIRouter(prefix="/dashboard", tags=["数据看板"])
 ROLE = ("sys_admin", "sys_ops", "ticket_mgr")
 
 # 叠加维度固定顺序，保证 series 稳定、无数据补 0
-WORK_STATUS = ["待派单", "已派单", "计划中", "进行中", "待验收", "已完成", "已关闭", "已取消"]
+WORK_STATUS = ["待派单", "待执行", "执行中", "待验收", "已验收", "已结单", "已取消", "已关闭"]
 ISSUE_STATUS = ["待整改", "整改中", "已关闭"]
 LEVELS = ["严重", "高危", "中危", "低危", "信息"]
 CATEGORIES = ["技术", "组织", "制度", "台账", "流程"]
@@ -126,10 +127,13 @@ def dashboard(user: SysUser = Depends(require_role(*ROLE)), db: Session = Depend
     engineer_workload = _stacked(eng_map, WORK_STATUS)
 
     # ---- 第二行：执行情况 ----
+    # 服务类别以 contract_item.project 实时为准（改名即时生效），无关联工单退回快照 project
+    proj_label = func.coalesce(ContractItem.project, WorkOrder.project)
     proj_rows = (
-        db.query(WorkOrder.project, WorkOrder.status, func.count(WorkOrder.id))
-        .filter(WorkOrder.project.isnot(None))
-        .group_by(WorkOrder.project, WorkOrder.status)
+        db.query(proj_label, WorkOrder.status, func.count(WorkOrder.id))
+        .outerjoin(ContractItem, WorkOrder.contract_item_id == ContractItem.id)
+        .filter(proj_label.isnot(None))
+        .group_by(proj_label, WorkOrder.status)
         .all()
     )
     proj_map: dict = {}

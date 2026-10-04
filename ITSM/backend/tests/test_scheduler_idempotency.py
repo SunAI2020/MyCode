@@ -7,7 +7,7 @@ from app.scheduler.jobs import run_daily_work_order_generation
 
 def test_generation_idempotent(db):
     today = date(2024, 3, 1)
-    # 合同周期从今天开始，子项 1 次/季度 → 首期今天到点
+    # 合同工期从今天开始，子项 1 次/季度 → 首期今天到点
     c = Contract(customer_id=1, name="c", start_date=today, end_date=today + timedelta(days=200))
     db.add(c)
     db.flush()
@@ -18,7 +18,7 @@ def test_generation_idempotent(db):
     db.add(item)
     db.commit()
 
-    # 第一次运行：应生成恰好 1 个周期 + 1 个工单（今天到点的那一期）
+    # 第一次运行：应生成恰好 1 个工期 + 1 个工单（今天到点的那一期）
     n1 = run_daily_work_order_generation(db, today=today)
     assert n1 == 1
     assert db.query(ServiceCycle).count() == 1

@@ -1,7 +1,7 @@
 <template>
   <div>
     <el-tabs v-model="tab">
-      <el-tab-pane label="服务周期" name="cycle">
+      <el-tab-pane label="服务工期" name="cycle">
         <el-card>
           <el-table :data="cycles" v-loading="loading">
             <el-table-column prop="customer_name" label="客户名称" width="130" />
@@ -26,12 +26,24 @@
 
       <el-tab-pane label="服务提醒" name="reminder">
         <el-card>
-          <el-table :data="reminders" v-loading="loading">
-            <el-table-column prop="id" label="ID" width="60" />
-            <el-table-column prop="type" label="类型" width="80" />
-            <el-table-column prop="level" label="级别" width="80" />
-            <el-table-column prop="content" label="内容" />
-            <el-table-column prop="channel" label="渠道" width="90" />
+          <el-table :data="expiringCycles" v-loading="loading">
+            <el-table-column prop="customer_name" label="客户名称" width="130" />
+            <el-table-column prop="ci_name" label="业务系统" width="140" show-overflow-tooltip />
+            <el-table-column prop="item_project" label="服务类别" width="120" />
+            <el-table-column prop="cycle_no" label="期次" width="70" />
+            <el-table-column prop="service_start" label="开始时间" width="110" />
+            <el-table-column prop="service_end" label="结束时间" width="110" />
+            <el-table-column label="状态" width="90">
+              <template #default="{ row }">{{ STATUS_MAP[row.status] || row.status }}</template>
+            </el-table-column>
+            <el-table-column v-if="canWrite || canDelete" label="操作" width="240">
+              <template #default="{ row }">
+                <el-button v-if="canWrite" link type="info" @click="onRemind(row)">提醒</el-button>
+                <el-button v-if="canWrite" link type="warning" @click="onUrge(row)">催单</el-button>
+                <el-button v-if="canWrite" link type="primary" @click="openCycleDefer(row)">延期</el-button>
+                <el-button v-if="canDelete" link type="danger" @click="onCancelCycle(row)">撤销</el-button>
+              </template>
+            </el-table-column>
           </el-table>
         </el-card>
       </el-tab-pane>
@@ -71,7 +83,7 @@
       <template #footer><el-button @click="slaDlg = false">取消</el-button><el-button type="primary" @click="saveSla">保存</el-button></template>
     </el-dialog>
 
-    <el-dialog v-model="cycleDlg" :title="cycleMode === 'defer' ? '延期周期' : '编辑周期'" width="480px">
+    <el-dialog v-model="cycleDlg" :title="cycleMode === 'defer' ? '延期工期' : '编辑工期'" width="480px">
       <el-form :model="cycleForm" label-width="90px">
         <el-form-item v-if="cycleMode !== 'defer'" label="开始时间">
           <el-date-picker v-model="cycleForm.service_start" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
@@ -93,7 +105,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { listSla, createSla, updateSla, deleteSla, listCycles, updateCycle, deleteCycle, listReminders } from '@/api'
+import { listSla, createSla, updateSla, deleteSla, listCycles, updateCycle, deleteCycle, remindCycle, urgeCycle, cancelCycle } from '@/api'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
@@ -102,10 +114,10 @@ const canDelete = computed(() => auth.hasPermission('sla:delete'))
 
 const tab = ref('sla')
 const loading = ref(false)
-const STATUS_MAP: Record<string, string> = { pending: '待执行', started: '进行中', done: '已完成' }
+const STATUS_MAP: Record<string, string> = { pending: '待执行', started: '进行中', done: '已完成', cancelled: '已撤销' }
 const slas = ref<any[]>([])
 const cycles = ref<any[]>([])
-const reminders = ref<any[]>([])
+const expiringCycles = ref<any[]>([])
 
 const slaDlg = ref(false)
 const slaEditId = ref<number | null>(null)
@@ -122,8 +134,8 @@ async function loadSlas() {
 async function loadCycles() {
   cycles.value = (await listCycles({ page: 1, size: 100 })).data.items
 }
-async function loadReminders() {
-  reminders.value = (await listReminders({ page: 1, size: 100 })).data.items
+async function loadExpiringCycles() {
+  expiringCycles.value = (await listCycles({ page: 1, size: 100, expiring: true })).data.items
 }
 
 function openSla(row?: any) {
@@ -171,18 +183,34 @@ async function saveCycle() {
   ElMessage.success('已保存')
   cycleDlg.value = false
   loadCycles()
+  loadExpiringCycles()
 }
 async function onDeleteCycle(row: any) {
-  await ElMessageBox.confirm(`确认删除该周期（第 ${row.cycle_no} 次）？`, '提示', { type: 'warning' })
+  await ElMessageBox.confirm(`确认删除该工期（第 ${row.cycle_no} 次）？`, '提示', { type: 'warning' })
   await deleteCycle(row.id)
   ElMessage.success('已删除')
   loadCycles()
+}
+async function onRemind(row: any) {
+  await remindCycle(row.id)
+  ElMessage.success('已提醒')
+}
+async function onUrge(row: any) {
+  await urgeCycle(row.id)
+  ElMessage.success('已催单')
+}
+async function onCancelCycle(row: any) {
+  await ElMessageBox.confirm(`确认撤销该服务工期（第 ${row.cycle_no} 次）？`, '提示', { type: 'warning' })
+  await cancelCycle(row.id)
+  ElMessage.success('已撤销')
+  loadCycles()
+  loadExpiringCycles()
 }
 
 onMounted(() => {
   loadSlas()
   loadCycles()
-  loadReminders()
+  loadExpiringCycles()
 })
 </script>
 

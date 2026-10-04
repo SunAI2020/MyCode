@@ -19,7 +19,7 @@ from app.services.notify_service import notify_all_channels
 
 
 def sla_level(service_end: date, today: date) -> str | None:
-    """距周期结束 ≤1/3/7 天 → 红/橙/黄；超时红。"""
+    """距工期结束 ≤1/3/7 天 → 红/橙/黄；超时红。"""
     days = (service_end - today).days
     if days < 0 or days <= 1:
         return "红"
@@ -31,9 +31,9 @@ def sla_level(service_end: date, today: date) -> str | None:
 
 
 def scan_sla_alerts(db: Session, today: date | None = None) -> int:
-    """扫描未完成周期，生成分级预警提醒（同周期同级别去重）。返回新增数。"""
+    """扫描未完成工期，生成分级预警提醒（同工期同级别去重）。返回新增数。"""
     today = today or date.today()
-    cycles = db.query(ServiceCycle).filter(ServiceCycle.status != "done").all()
+    cycles = db.query(ServiceCycle).filter(ServiceCycle.status.notin_(["done", "cancelled"])).all()
     created = 0
     for c in cycles:
         level = sla_level(c.service_end, today)
@@ -46,7 +46,7 @@ def scan_sla_alerts(db: Session, today: date | None = None) -> int:
         )
         if dup:
             continue
-        content = f"服务周期将于 {c.service_end} 结束，SLA {level} 级预警"
+        content = f"服务工期将于 {c.service_end} 结束，SLA {level} 级预警"
         db.add(
             ServiceReminder(
                 cycle_id=c.id,
@@ -120,7 +120,7 @@ def scan_sla_escalations(db: Session, today: date | None = None) -> int:
         .filter(
             WorkOrder.sla_deadline.isnot(None),
             func.date(WorkOrder.sla_deadline) < today,
-            WorkOrder.status.notin_(["已完成", "已关闭", "已取消"]),
+            WorkOrder.status.notin_(["已结单", "已取消", "已关闭"]),
         )
         .all()
     )

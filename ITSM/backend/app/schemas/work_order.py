@@ -49,11 +49,37 @@ class WorkOrderCreate(BaseModel):
     description: str | None = None
     task_type: str | None = None  # 内部任务类型
     deadline: datetime | None = None  # 内部任务截止时间
+    service_start: date | None = None  # 服务开始（同时生成工期/派单）
+    service_end: date | None = None    # 服务结束
+    cycle_no: int | None = None        # 工期期次（preview 选中；同时生成工期时回填 current_cycle_no）
+    generate_cycle: bool = False       # 同时生成工期
+    dispatch: bool = False             # 同时派单
+    dispatch_type: str = "内部"        # 派单类型
+    assignee_id: int | None = None     # 执行人
 
 
 class WorkOrderStatusUpdate(BaseModel):
     status: str
     progress: int | None = Field(None, ge=0, le=100)
+
+
+class WorkOrderUpdate(BaseModel):
+    type: str | None = None
+    priority: str | None = None
+    description: str | None = None
+    task_type: str | None = None
+    deadline: datetime | None = None
+
+
+class WorkOrderEditIn(BaseModel):
+    type: str | None = None
+    priority: str | None = None
+    description: str | None = None
+    service_start: date | None = None
+    service_end: date | None = None
+    dispatch_type: str | None = None
+    assignee_id: int | None = None
+    dispatch: bool = False
 
 
 class WorkOrderOut(BaseModel):
@@ -99,6 +125,12 @@ class AggregateWorkOrderCreate(BaseModel):
     type: str = "客户工单"
     priority: str = "中"
     description: str | None = None
+    service_start: date | None = None
+    service_end: date | None = None
+    generate_cycle: bool = False
+    dispatch: bool = False
+    dispatch_type: str = "内部"
+    assignee_id: int | None = None
 
 
 # ---- 派单 / 执行人 ----

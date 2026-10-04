@@ -11,7 +11,11 @@ from app.services.workflow_service import (
 
 
 def test_default_work_order_targets(db):
-    assert allowed_targets(db, "work_order", "待派单") == ["已派单", "已取消"]
+    assert allowed_targets(db, "work_order", "待派单") == ["待执行", "已取消"]
+    assert allowed_targets(db, "work_order", "待验收") == ["已验收", "已取消"]
+    assert allowed_targets(db, "work_order", "已验收") == ["已结单"]
+    assert allowed_targets(db, "work_order", "已结单") == ["已关闭"]
+    assert allowed_targets(db, "work_order", "已取消") == ["已关闭"]
     assert allowed_targets(db, "work_order", "已关闭") == []
 
 
@@ -30,20 +34,20 @@ def test_disabled_rule_ignored(db):
 
 
 def test_can_transition_same_status(db):
-    assert can_transition(db, "work_order", "进行中", "进行中") is True
+    assert can_transition(db, "work_order", "执行中", "执行中") is True
 
 
 def test_assert_transition_invalid_raises(db):
     with pytest.raises(ValueError):
-        assert_transition(db, "work_order", "待派单", "已完成")
+        assert_transition(db, "work_order", "待派单", "已结单")
 
 
 def test_log_transition_creates_action_log(db):
-    log_transition(db, entity="work_order", entity_id=7, from_status="进行中", to_status="待验收", operator_id=3, note="自检通过")
+    log_transition(db, entity="work_order", entity_id=7, from_status="执行中", to_status="待验收", operator_id=3, note="自检通过")
     db.commit()
     log = db.query(ActionLog).one()
     assert log.entity == "work_order"
     assert log.entity_id == 7
-    assert log.from_status == "进行中"
+    assert log.from_status == "执行中"
     assert log.to_status == "待验收"
     assert log.operator_id == 3

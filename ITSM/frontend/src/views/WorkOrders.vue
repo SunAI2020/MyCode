@@ -13,17 +13,17 @@
         <el-table-column prop="type" label="类型" width="100" />
         <el-table-column prop="priority" label="优先级" width="80" />
         <el-table-column prop="status" label="状态" width="90" />
-        <el-table-column prop="current_cycle_no" label="周期" width="70" />
+        <el-table-column prop="current_cycle_no" label="工期" width="70" />
         <el-table-column prop="progress" label="进度" width="80" />
         <el-table-column label="执行人" width="130">
           <template #default="{ row }">{{ (row.assignee_names || []).join('、') || '—' }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="260">
+        <el-table-column label="操作" width="300" fixed="right">
           <template #default="{ row }">
-            <el-button v-if="row.customer_id" link type="info" @click="openScope(row)">查看</el-button>
-            <el-button v-if="canDispatch" link type="primary" @click="openDispatch(row)">派单</el-button>
-            <el-button link type="success" @click="openStatus(row)">流转</el-button>
-            <el-button v-if="canDispatch" link type="danger" @click="onDeleteWorkOrder(row)">删除</el-button>
+            <el-button link type="info" @click="openView(row)">查看</el-button>
+            <el-button link type="primary" :disabled="!canDispatch || !nextAction(row)" @click="onNextAction(row)">{{ nextAction(row) || '—' }}</el-button>
+            <el-button link type="warning" :disabled="!canDispatch || !targetList(row).length" @click="openTransition(row)">流转</el-button>
+            <el-button link type="danger" :disabled="!canDispatch" @click="onDeleteWorkOrder(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -37,8 +37,8 @@
       />
     </el-card>
 
-    <el-dialog v-model="createDlg" title="新增工单" width="460px">
-      <el-form :model="createForm" label-width="90px">
+    <el-dialog v-model="createDlg" title="新增工单" width="560px">
+      <el-form :model="createForm" label-width="100px">
         <el-form-item label="客户" required>
           <el-select v-model="createForm.customer_id" style="width: 100%" placeholder="选择客户" @change="onCreateCustomerChange">
             <el-option v-for="c in customers" :key="c.id" :label="c.name" :value="c.id" />
@@ -50,7 +50,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="服务类别" required>
-          <el-select v-model="createForm.contract_item_id" style="width: 100%" placeholder="选择服务类别" :disabled="!createForm.contract_id">
+          <el-select v-model="createForm.contract_item_id" style="width: 100%" placeholder="选择服务类别" :disabled="!createForm.contract_id" @change="onCreateItemChange">
             <el-option v-for="it in createItems" :key="it.id" :label="it.ci_id ? `${it.project}（${createCiName.get(it.ci_id) || '//'}）` : `${it.project}（//）`" :value="it.id" />
           </el-select>
         </el-form-item>
@@ -64,6 +64,21 @@
             <el-option v-for="p in ['高', '中', '低']" :key="p" :label="p" :value="p" />
           </el-select>
         </el-form-item>
+        <el-form-item label="服务开始时间"><el-date-picker v-model="createForm.service_start" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item>
+        <el-form-item label="服务结束时间"><el-date-picker v-model="createForm.service_end" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item>
+        <el-form-item label="同时生成工期"><el-checkbox v-model="createForm.generate_cycle" /></el-form-item>
+        <el-form-item label="派单类型">
+          <el-select v-model="createForm.dispatch_type" style="width: 100%">
+            <el-option label="内部" value="内部" />
+            <el-option label="外包" value="外包" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="执行人">
+          <el-select v-model="createForm.assignee_id" filterable placeholder="选择执行人" style="width: 100%">
+            <el-option v-for="u in users" :key="u.id" :label="u.name" :value="u.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="同时派单"><el-checkbox v-model="createForm.dispatch" /></el-form-item>
       </el-form>
       <template #footer><el-button @click="createDlg = false">取消</el-button><el-button type="primary" @click="onCreate">创建</el-button></template>
     </el-dialog>
@@ -101,6 +116,21 @@
             <el-option v-for="p in ['高', '中', '低']" :key="p" :label="p" :value="p" />
           </el-select>
         </el-form-item>
+        <el-form-item label="服务开始时间"><el-date-picker v-model="aggServiceStart" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item>
+        <el-form-item label="服务结束时间"><el-date-picker v-model="aggServiceEnd" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item>
+        <el-form-item label="同时生成工期"><el-checkbox v-model="aggGenerateCycle" /></el-form-item>
+        <el-form-item label="派单类型">
+          <el-select v-model="aggDispatchType" style="width: 100%">
+            <el-option label="内部" value="内部" />
+            <el-option label="外包" value="外包" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="执行人">
+          <el-select v-model="aggAssigneeId" filterable placeholder="选择执行人" style="width: 100%">
+            <el-option v-for="u in users" :key="u.id" :label="u.name" :value="u.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="同时派单"><el-checkbox v-model="aggDispatch" /></el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="aggDlg = false">取消</el-button>
@@ -152,11 +182,64 @@
       <template #footer><el-button @click="dispatchDlg = false">取消</el-button><el-button type="primary" @click="onDispatch">派单</el-button></template>
     </el-dialog>
 
-    <el-dialog v-model="statusDlg" title="状态流转" width="420px">
-      <el-select v-model="statusForm.status" style="width: 100%">
-        <el-option v-for="s in ['待派单', '已派单', '计划中', '进行中', '待验收', '已完成', '已关闭', '已取消']" :key="s" :label="s" :value="s" />
-      </el-select>
-      <template #footer><el-button @click="statusDlg = false">取消</el-button><el-button type="primary" @click="onStatus">确定</el-button></template>
+    <el-dialog v-model="detailDlg" title="工单详情" width="520px">
+      <template v-if="detailData">
+        <el-descriptions :column="1" border>
+          <el-descriptions-item label="工单号">{{ detailData.no }}</el-descriptions-item>
+          <el-descriptions-item label="类型">{{ detailData.type }}</el-descriptions-item>
+          <el-descriptions-item label="状态">{{ detailData.status }}</el-descriptions-item>
+          <el-descriptions-item label="优先级">{{ detailData.priority }}</el-descriptions-item>
+          <el-descriptions-item label="服务类别">{{ detailData.project || '—' }}</el-descriptions-item>
+          <el-descriptions-item label="进度">{{ detailData.progress }}%</el-descriptions-item>
+          <el-descriptions-item label="执行人">{{ (detailData.assignee_names || []).join('、') || '—' }}</el-descriptions-item>
+          <el-descriptions-item label="描述">{{ detailData.description || '—' }}</el-descriptions-item>
+        </el-descriptions>
+      </template>
+      <template #footer><el-button @click="detailDlg = false">关闭</el-button></template>
+    </el-dialog>
+
+    <el-dialog v-model="transitionDlg" title="状态流转" width="440px">
+      <template v-if="transitionRow">
+        <p>工单号：{{ transitionRow.no }}　当前状态：<el-tag>{{ transitionRow.status }}</el-tag></p>
+        <el-form label-width="90px" style="margin-top: 12px">
+          <el-form-item label="目标状态">
+            <el-select v-model="transitionTarget" placeholder="选择流转目标状态" style="width: 100%">
+              <el-option v-for="t in transitionTargets" :key="t" :label="t" :value="t" />
+            </el-select>
+          </el-form-item>
+        </el-form>
+      </template>
+      <template #footer>
+        <el-button @click="transitionDlg = false">取消</el-button>
+        <el-button type="primary" @click="onTransition">流转</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="reportUploadDlg" title="上传报告" width="480px">
+      <template v-if="reportUploadRow">
+        <p>工单号：{{ reportUploadRow.no }}　服务类别：{{ reportUploadRow.project || '—' }}</p>
+        <el-form label-width="90px" style="margin-top: 12px">
+          <el-form-item label="报告文件">
+            <el-upload
+              :auto-upload="false"
+              :limit="1"
+              :on-change="onReportFileChange"
+              :on-remove="() => (reportUploadFile = null)"
+              accept=".pdf,.docx,.md,.html,.htm,.jpg,.jpeg,.png"
+              style="width: 100%"
+            >
+              <el-button type="primary">选择报告文件</el-button>
+              <template #tip>
+                <div class="el-upload__tip">支持 PDF / Word / Markdown / HTML / 图片，上传后自动脱敏并加密存储</div>
+              </template>
+            </el-upload>
+          </el-form-item>
+        </el-form>
+      </template>
+      <template #footer>
+        <el-button @click="reportUploadDlg = false">取消</el-button>
+        <el-button type="primary" :loading="reportUploading" @click="onSubmitReport">上传并提交</el-button>
+      </template>
     </el-dialog>
   </div>
 </template>
@@ -168,7 +251,7 @@ import {
   listWorkOrders, createWorkOrder, updateStatus, dispatch, deleteWorkOrder,
   listCustomers, listCis, listItems, listContracts,
   previewAggregateCycles, createAggregateWorkOrder, getWorkOrderScope,
-  listUsers,
+  listUsers, workflowTransitions, uploadReport,
 } from '@/api'
 import { useAuthStore } from '@/stores/auth'
 
@@ -193,6 +276,8 @@ const createForm = reactive({
   contract_item_id: null as number | null,
   type: '客户工单',
   priority: '中',
+  service_start: '', service_end: '', cycle_no: null as number | null,
+  generate_cycle: true, dispatch: true, dispatch_type: '内部', assignee_id: null as number | null,
 })
 const createContracts = ref<any[]>([])  // 所选客户的项目
 const createItems = ref<any[]>([])      // 所选项目的服务类别
@@ -202,16 +287,18 @@ const dispatchDlg = ref(false)
 const dispatchTarget = ref<number | null>(null)
 const dispatchForm = reactive({ dispatch_type: '内部', assignees: [{ user_id: null, workload_ratio: 100 }] as any[] })
 
-const statusDlg = ref(false)
-const statusTarget = ref<number | null>(null)
-const statusForm = reactive({ status: '待派单' })
-
 // 聚合工单（按服务类别逐条打包：勾选几个服务类别就生成几个工单）
 const aggDlg = ref(false)
 const aggCustomerId = ref<number | null>(null)
 const aggCiIds = ref<number[]>([])       // 勾选的业务系统
 const aggGroupIds = ref<string[]>([])    // 选中的服务类别组 key
 const aggPriority = ref('中')
+const aggServiceStart = ref('')
+const aggServiceEnd = ref('')
+const aggGenerateCycle = ref(true)
+const aggDispatch = ref(true)
+const aggDispatchType = ref('内部')
+const aggAssigneeId = ref<number | null>(null)
 
 const filteredCis = computed(() => cis.value.filter((c) => c.customer_id === aggCustomerId.value))
 const aggCiAll = computed(() => filteredCis.value.length > 0 && aggCiIds.value.length === filteredCis.value.length)
@@ -241,6 +328,32 @@ const aggIndeterminate = computed(() => aggGroupIds.value.length > 0 && aggGroup
 const scopeDlg = ref(false)
 const scopeData = ref<any>({ work_order: null, cis: [], items: [], cycles: [] })
 
+const detailDlg = ref(false)
+const detailData = ref<any>(null)
+
+const transitionDlg = ref(false)
+const transitionRow = ref<any>(null)
+const transitionTarget = ref<string | null>(null)
+const transitionTargets = ref<string[]>([])
+
+// 工单状态流转表（默认 ∪ DB 规则；有权限时用接口覆盖）
+const DEFAULT_WO_TRANSITIONS: Record<string, string[]> = {
+  '待派单': ['待执行', '已取消'],
+  '待执行': ['执行中', '已取消'],
+  '执行中': ['待验收', '已取消'],
+  '待验收': ['已验收', '已取消'],
+  '已验收': ['已结单'],
+  '已结单': ['已关闭'],
+  '已取消': ['已关闭'],
+  '已关闭': [],
+}
+const transitions = ref<Record<string, Record<string, string[]>>>({ work_order: DEFAULT_WO_TRANSITIONS })
+
+const reportUploadDlg = ref(false)
+const reportUploadRow = ref<any>(null)
+const reportUploadFile = ref<File | null>(null)
+const reportUploading = ref(false)
+
 async function load() {
   loading.value = true
   try {
@@ -256,7 +369,7 @@ function onPage(p: number) {
   load()
 }
 async function openCreate() {
-  Object.assign(createForm, { customer_id: null, contract_id: null, contract_item_id: null, type: '客户工单', priority: '中' })
+  Object.assign(createForm, { customer_id: null, contract_id: null, contract_item_id: null, type: '客户工单', priority: '中', service_start: '', service_end: '', cycle_no: null, generate_cycle: true, dispatch: true, dispatch_type: '内部', assignee_id: null })
   createContracts.value = []
   createItems.value = []
   createCiName.value = new Map()
@@ -277,22 +390,67 @@ async function onCreateCustomerChange() {
 async function onCreateContractChange() {
   createForm.contract_item_id = null
   createItems.value = []
+  createForm.service_start = ''
+  createForm.service_end = ''
   if (!createForm.contract_id) return
   createItems.value = (await listItems({ page: 1, size: 100, contract_id: createForm.contract_id })).data.items
+}
+async function onCreateItemChange() {
+  createForm.service_start = ''
+  createForm.service_end = ''
+  createForm.cycle_no = null
+  if (!createForm.contract_item_id) return
+  // 默认取项目的开始/结束日期
+  const contract = createContracts.value.find((c: any) => c.id === createForm.contract_id)
+  if (contract) {
+    createForm.service_start = contract.start_date || ''
+    createForm.service_end = contract.end_date || ''
+  }
+  // 若可算出下一期工期，用工期起止精化
+  try {
+    const res = await previewAggregateCycles({ contract_item_ids: [createForm.contract_item_id] })
+    const cycles = res.data.cycles[createForm.contract_item_id] || []
+    const next = cycles.find((c: any) => !c.has_work_order)
+    if (next) {
+      createForm.service_start = next.service_start
+      createForm.service_end = next.service_end
+      createForm.cycle_no = next.cycle_no
+    }
+  } catch { /* 自动填充失败可手动填写 */ }
 }
 async function onCreate() {
   if (!createForm.customer_id) return ElMessage.warning('请选择客户')
   if (!createForm.contract_id) return ElMessage.warning('请选择项目')
   if (!createForm.contract_item_id) return ElMessage.warning('请选择服务类别')
+  if (!createForm.service_start || !createForm.service_end) return ElMessage.warning('请填写工单开始日期和结束日期！')
+  if (createForm.dispatch && !createForm.assignee_id) {
+    try {
+      await ElMessageBox.confirm('未选择执行人！', '提示', { confirmButtonText: '确定', cancelButtonText: '重选', type: 'warning' })
+    } catch {
+      return
+    }
+    createForm.dispatch = false
+  }
   const item = createItems.value.find((i: any) => i.id === createForm.contract_item_id)
-  await createWorkOrder({
+  const res = await createWorkOrder({
     type: createForm.type,
     priority: createForm.priority,
     contract_id: createForm.contract_id,
     contract_item_id: createForm.contract_item_id,
     ci_id: item?.ci_id ?? null,
     project: item?.project ?? null,
+    service_start: createForm.service_start || null,
+    service_end: createForm.service_end || null,
+    cycle_no: createForm.cycle_no,
+    generate_cycle: createForm.generate_cycle,
+    dispatch: createForm.dispatch,
+    dispatch_type: createForm.dispatch_type,
+    assignee_id: createForm.dispatch ? createForm.assignee_id : null,
   })
+  if (res.data?.duplicate) {
+    ElMessageBox.alert(res.data.message, '重复生成', { type: 'warning' })
+    return
+  }
   ElMessage.success('工单已创建')
   createDlg.value = false
   load()
@@ -311,16 +469,64 @@ async function onDispatch() {
   dispatchDlg.value = false
   load()
 }
-function openStatus(row: any) {
-  statusTarget.value = row.id
-  statusForm.status = row.status
-  statusDlg.value = true
+function nextAction(row: any) {
+  const map: Record<string, string> = { '待派单': '派单', '待执行': '执行', '执行中': '提交报告', '待验收': '验收', '已验收': '结单', '已结单': '关闭' }
+  return map[row.status] || ''
 }
-async function onStatus() {
-  await updateStatus(statusTarget.value!, statusForm)
-  ElMessage.success('状态已更新')
-  statusDlg.value = false
+function targetList(row: any) {
+  return transitions.value['work_order']?.[row.status] || []
+}
+function openTransition(row: any) {
+  transitionRow.value = row
+  transitionTarget.value = null
+  transitionTargets.value = targetList(row)
+  transitionDlg.value = true
+}
+async function onTransition() {
+  if (!transitionTarget.value) return ElMessage.warning('请选择目标状态')
+  await updateStatus(transitionRow.value.id, { status: transitionTarget.value })
+  ElMessage.success('已流转')
+  transitionDlg.value = false
   load()
+}
+async function onNextAction(row: any) {
+  if (row.status === '待派单') {
+    openDispatch(row)
+    return
+  }
+  if (row.status === '执行中') {
+    openReportUpload(row)
+    return
+  }
+  const next: Record<string, string> = { '待执行': '执行中', '待验收': '已验收', '已验收': '已结单', '已结单': '已关闭' }
+  await updateStatus(row.id, { status: next[row.status] })
+  ElMessage.success('状态已更新')
+  load()
+}
+function openReportUpload(row: any) {
+  reportUploadRow.value = row
+  reportUploadFile.value = null
+  reportUploadDlg.value = true
+}
+function onReportFileChange(file: any) {
+  reportUploadFile.value = file.raw || file
+}
+async function onSubmitReport() {
+  if (!reportUploadFile.value) return ElMessage.warning('请选择报告文件')
+  const fd = new FormData()
+  fd.append('file', reportUploadFile.value)
+  fd.append('work_order_id', String(reportUploadRow.value.id))
+  fd.append('report_type', '运维报告')
+  reportUploading.value = true
+  try {
+    await uploadReport(fd)
+    await updateStatus(reportUploadRow.value.id, { status: '待验收' })
+    ElMessage.success('报告已上传并提交')
+    reportUploadDlg.value = false
+    load()
+  } finally {
+    reportUploading.value = false
+  }
 }
 async function onDeleteWorkOrder(row: any) {
   await ElMessageBox.confirm(`确认删除工单「${row.no}」？`, '提示', { type: 'warning' })
@@ -335,6 +541,12 @@ async function openAggregate() {
   aggCiIds.value = []
   aggGroupIds.value = []
   aggPriority.value = '中'
+  aggServiceStart.value = ''
+  aggServiceEnd.value = ''
+  aggGenerateCycle.value = true
+  aggDispatch.value = true
+  aggDispatchType.value = '内部'
+  aggAssigneeId.value = null
   cis.value = []
   items.value = []
   aggDlg.value = true
@@ -353,6 +565,12 @@ async function onAggCustomerChange() {
   const ciIds = cis.value.map((c) => c.id)
   items.value = ciIds.length ? (await listItems({ page: 1, size: 100, ci_ids: ciIds.join(',') })).data.items : []
   aggGroupIds.value = aggGroups.value.map((g) => g.key)  // 默认全选服务类别
+  // 服务起止自动填充：取该客户合同的最早开始 / 最晚结束
+  const cs = (await listContracts({ page: 1, size: 100 })).data.items.filter((c: any) => c.customer_id === aggCustomerId.value)
+  const starts = cs.map((c: any) => c.start_date).filter(Boolean).sort()
+  const ends = cs.map((c: any) => c.end_date).filter(Boolean).sort()
+  aggServiceStart.value = starts[0] ?? ''
+  aggServiceEnd.value = ends[ends.length - 1] ?? ''
 }
 function toggleAllCi(v: boolean) {
   aggCiIds.value = v ? filteredCis.value.map((c) => c.id) : []
@@ -387,12 +605,26 @@ async function saveAggregate() {
       contract_item_ids: contractItemIds,
       cycles,
       priority: aggPriority.value,
+      service_start: aggServiceStart.value || null,
+      service_end: aggServiceEnd.value || null,
+      generate_cycle: aggGenerateCycle.value,
+      dispatch: aggDispatch.value,
+      dispatch_type: aggDispatchType.value,
+      assignee_id: aggDispatch.value ? aggAssigneeId.value : null,
     })
     count++
   }
   ElMessage.success(`已按服务类别创建 ${count} 个工单`)
   aggDlg.value = false
   load()
+}
+function openView(row: any) {
+  if (row.customer_id) {
+    openScope(row)
+  } else {
+    detailData.value = row
+    detailDlg.value = true
+  }
 }
 async function openScope(row: any) {
   scopeData.value = (await getWorkOrderScope(row.id)).data
@@ -407,6 +639,11 @@ onMounted(async () => {
       users.value = (await listUsers()).data
     } catch {
       // 无人员管理权限时静默降级：执行人下拉为空，派单入口已按角色隐藏
+    }
+    try {
+      transitions.value = (await workflowTransitions()).data
+    } catch {
+      // 无工作流查看权限时用内置默认流转表
     }
   }
 })

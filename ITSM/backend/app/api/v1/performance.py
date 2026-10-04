@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, get_db, require_role
-from app.models import Performance, SysUser
+from app.models import Performance, SysUser, WorkOrder
 from app.schemas.performance import PerformanceCreate, PerformanceOut, PerformanceUpdate
 from app.services.audit_service import record
 from app.services.performance_service import compute_perf_score, generate_performance, summarize
@@ -37,7 +37,19 @@ def list_performance(
     q = db.query(Performance)
     if user_id is not None:
         q = q.filter(Performance.user_id == user_id)
-    return ok(paginate(q, page, size, PerformanceOut))
+    data = paginate(q, page, size, PerformanceOut)
+    _enrich_performance(db, data["items"])
+    return ok(data)
+
+
+def _enrich_performance(db: Session, items: list[dict]) -> None:
+    uids = {it["user_id"] for it in items}
+    wids = {it["work_order_id"] for it in items}
+    uname = {u.id: u.name for u in db.query(SysUser).filter(SysUser.id.in_(uids)).all()} if uids else {}
+    wno = {w.id: w.no for w in db.query(WorkOrder).filter(WorkOrder.id.in_(wids)).all()} if wids else {}
+    for it in items:
+        it["user_name"] = uname.get(it["user_id"])
+        it["work_order_no"] = wno.get(it["work_order_id"])
 
 
 @router.get("/performance/summary")

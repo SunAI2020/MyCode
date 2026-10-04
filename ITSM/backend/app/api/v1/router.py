@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1 import ai, approvals, auth, change_orders, checkins, compliance, contract_archives, contracts, customers, dashboard, deliveries, dicts, escalations, issues, kb, onsite, outsourcing, performance, permissions, portal, services, uploads, users, work_calendars, workflows, work_orders
+from app.api.v1 import ai, approvals, auth, change_orders, checkins, compliance, contract_archives, contracts, customers, dashboard, deliveries, dicts, escalations, issues, kb, onsite, outsourcing, performance, permissions, portal, reports, services, uploads, users, work_calendars, workflows, work_orders
 from app.utils.response import ok
 
 api_router = APIRouter()
@@ -24,6 +24,7 @@ api_router.include_router(issues.router)
 api_router.include_router(compliance.router)
 api_router.include_router(deliveries.router)
 api_router.include_router(performance.router)
+api_router.include_router(reports.router)
 api_router.include_router(onsite.services)
 api_router.include_router(onsite.reports)
 api_router.include_router(onsite.assignments)

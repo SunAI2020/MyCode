@@ -1,9 +1,23 @@
-"""SLA 策略 CRUD + 服务周期/提醒（读）。周期拆分/预警在步骤五。"""
+"""SLA 策略 CRUD + 服务工期/提醒（读）。工期拆分/预警在步骤五。"""
+from datetime import date, timedelta
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_db, require_permission, require_role
-from app.models import CmdbCi, Contract, ContractItem, Customer, ServiceCycle, ServiceReminder, SlaPolicy, SysUser
+from app.models import (
+    CmdbCi,
+    Contract,
+    ContractItem,
+    Customer,
+    ServiceCycle,
+    ServiceReminder,
+    SlaPolicy,
+    SysUser,
+    WorkOrder,
+    WorkOrderAssignee,
+    WorkOrderCycle,
+)
 from app.schemas.service import (
     ServiceCycleOut,
     ServiceCycleUpdate,
@@ -13,13 +27,14 @@ from app.schemas.service import (
     SlaPolicyUpdate,
 )
 from app.services.audit_service import record
+from app.services.notify_service import notify_all_channels
 from app.utils.pagination import paginate
 from app.utils.response import ok
 
 READ_ROLE = ("sys_admin", "sys_ops", "ticket_mgr")
 
 sla = APIRouter(prefix="/sla-policies", tags=["SLA 策略"])
-cycles = APIRouter(prefix="/cycles", tags=["服务周期"])
+cycles = APIRouter(prefix="/cycles", tags=["服务工期"])
 reminders = APIRouter(prefix="/reminders", tags=["服务提醒"])
 
 
@@ -86,15 +101,24 @@ def delete_policy(pid: int, user: SysUser = Depends(require_permission("sla:dele
     return ok({"deleted": pid})
 
 
-# ---- 服务周期（读；生成在步骤五） ----
+# ---- 服务工期（读；生成在步骤五） ----
 @cycles.get("")
 def list_cycles(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
+    expiring: bool = Query(False, description="仅返回已到期/即将到期（未来 7 天）的工期"),
     user: SysUser = Depends(require_role(*READ_ROLE)),
     db: Session = Depends(get_db),
 ):
-    data = paginate(db.query(ServiceCycle).order_by(ServiceCycle.id.desc()), page, size, ServiceCycleOut)
+    q = db.query(ServiceCycle)
+    if expiring:
+        q = q.filter(
+            ServiceCycle.status.notin_(["done", "cancelled"]),
+            ServiceCycle.service_end <= date.today() + timedelta(days=7),
+        ).order_by(ServiceCycle.service_end.asc())
+    else:
+        q = q.order_by(ServiceCycle.id.desc())
+    data = paginate(q, page, size, ServiceCycleOut)
     # 富化 客户名称 / 项目名称 / 业务系统/ 服务类别
     item_ids = [it["contract_item_id"] for it in data["items"]]
     if item_ids:
@@ -132,7 +156,7 @@ def update_cycle(
 ):
     obj = db.get(ServiceCycle, cid)
     if obj is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "周期不存在")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "工期不存在")
     for k, v in body.model_dump(exclude_unset=True).items():
         setattr(obj, k, v)
     db.commit()
@@ -147,10 +171,108 @@ def delete_cycle(
 ):
     obj = db.get(ServiceCycle, cid)
     if obj is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "周期不存在")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "工期不存在")
     db.delete(obj)
     db.commit()
     return ok({"deleted": cid})
+
+
+def _work_order_for_cycle(db: Session, cycle: ServiceCycle) -> WorkOrder | None:
+    """定位该工期对应的工单：优先简单工单(contract_item_id + current_cycle_no)，其次聚合工单(work_order_cycle)。"""
+    wo = (
+        db.query(WorkOrder)
+        .filter(
+            WorkOrder.contract_item_id == cycle.contract_item_id,
+            WorkOrder.current_cycle_no == cycle.cycle_no,
+        )
+        .first()
+    )
+    if wo is not None:
+        return wo
+    link = (
+        db.query(WorkOrderCycle)
+        .filter(
+            WorkOrderCycle.contract_item_id == cycle.contract_item_id,
+            WorkOrderCycle.cycle_no == cycle.cycle_no,
+        )
+        .first()
+    )
+    return db.get(WorkOrder, link.work_order_id) if link is not None else None
+
+
+def _cycle_content(db: Session, cycle: ServiceCycle) -> str:
+    """构造「客户 + 业务系统 + 期次」的提醒文案前缀。"""
+    item = db.get(ContractItem, cycle.contract_item_id)
+    contract = db.get(Contract, item.contract_id) if item else None
+    customer = db.get(Customer, contract.customer_id) if contract else None
+    ci = db.get(CmdbCi, item.ci_id) if item and item.ci_id else None
+    name = f"{customer.name if customer else ''}的{ci.name if ci else ''}业务系统"
+    return f"{name}第 {cycle.cycle_no} 次服务"
+
+
+def _notify_work_order(db: Session, cycle: ServiceCycle, type_: str, level: str, content: str) -> None:
+    """为工期对应工单发送提醒/催单：无对应工单报错；落到执行人并多渠道推送。"""
+    wo = _work_order_for_cycle(db, cycle)
+    if wo is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "该工期无对应工单，请尽快派单！")
+    assignee = (
+        db.query(WorkOrderAssignee.user_id)
+        .filter(WorkOrderAssignee.work_order_id == wo.id, WorkOrderAssignee.is_active.is_(True))
+        .first()
+    )
+    db.add(
+        ServiceReminder(
+            cycle_id=cycle.id,
+            type=type_,
+            level=level,
+            content=content,
+            to_user_id=assignee[0] if assignee else None,
+        )
+    )
+    db.commit()
+    notify_all_channels(content)
+
+
+@cycles.post("/{cid}/remind")
+def remind_cycle(
+    cid: int,
+    user: SysUser = Depends(require_permission("sla:write")),
+    db: Session = Depends(get_db),
+):
+    cycle = db.get(ServiceCycle, cid)
+    if cycle is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "工期不存在")
+    content = f"{_cycle_content(db, cycle)}，服务工期将于 {cycle.service_end} 结束，请及时处理"
+    _notify_work_order(db, cycle, "提醒", "黄", content)
+    return ok({"reminded": cid})
+
+
+@cycles.post("/{cid}/urge")
+def urge_cycle(
+    cid: int,
+    user: SysUser = Depends(require_permission("sla:write")),
+    db: Session = Depends(get_db),
+):
+    cycle = db.get(ServiceCycle, cid)
+    if cycle is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "工期不存在")
+    content = f"{_cycle_content(db, cycle)}，服务工期将于 {cycle.service_end} 结束，请尽快完成"
+    _notify_work_order(db, cycle, "催单", "红", content)
+    return ok({"urged": cid})
+
+
+@cycles.post("/{cid}/cancel")
+def cancel_cycle(
+    cid: int,
+    user: SysUser = Depends(require_permission("sla:delete")),
+    db: Session = Depends(get_db),
+):
+    cycle = db.get(ServiceCycle, cid)
+    if cycle is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "工期不存在")
+    cycle.status = "cancelled"
+    db.commit()
+    return ok({"cancelled": cid})
 
 
 # ---- 服务提醒（读；生成在步骤五） ----

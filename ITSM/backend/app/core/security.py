@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
@@ -53,6 +54,35 @@ def mask_ip(ip: str | None) -> str:
 
 def mask_amount(_value: float | None) -> str:
     return "***"  # 低权限角色金额遮蔽占位
+
+
+def mask_text(text: str | None) -> str:
+    """对报告等文本内容脱敏：身份证/银行卡/手机号/邮箱/IP，返回脱敏后的文本。"""
+    if not text:
+        return text or ""
+    # 身份证（18 位，末位可 X）—— 先于银行卡/手机号，避免被长数字正则吞掉
+    text = re.sub(r"(?<!\d)\d{17}[\dXx](?!\d)", "【身份证已脱敏】", text)
+    # 银行卡（16-19 位）
+    text = re.sub(
+        r"(?<!\d)\d{16,19}(?!\d)",
+        lambda m: m.group(0)[:6] + "****" + m.group(0)[-4:],
+        text,
+    )
+    # 手机号（11 位）
+    text = re.sub(
+        r"(?<!\d)1[3-9]\d{9}(?!\d)",
+        lambda m: m.group(0)[:3] + "****" + m.group(0)[-4:],
+        text,
+    )
+    # 邮箱
+    text = re.sub(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", "【邮箱已脱敏】", text)
+    # IPv4
+    text = re.sub(
+        r"(?<![\d.])(?:\d{1,3}\.){3}\d{1,3}(?![\d.])",
+        lambda m: ".".join(m.group(0).split(".")[:2]) + ".*.*",
+        text,
+    )
+    return text
 
 
 def mask_sensitive(data: dict, scope: int | None) -> dict:

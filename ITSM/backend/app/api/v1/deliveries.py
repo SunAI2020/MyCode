@@ -11,7 +11,7 @@ from app.core.deps import (
     require_role,
     scope_filter,
 )
-from app.models import Contract, Delivery, SysUser, WorkOrder
+from app.models import Contract, Customer, Delivery, SysUser, WorkOrder
 from app.schemas.delivery import DeliveryCreate, DeliveryOut, DeliveryUpdate
 from app.services.audit_service import record
 from app.services.evidence_service import collect_for_delivery
@@ -33,7 +33,23 @@ def list_deliveries(
 ):
     scope = customer_scope_of(user, db)
     q = scope_filter(db.query(Delivery), Delivery, scope)
-    return ok(paginate(q, page, size, DeliveryOut))
+    data = paginate(q, page, size, DeliveryOut)
+    _enrich_deliveries(db, data["items"])
+    return ok(data)
+
+
+def _enrich_deliveries(db: Session, items: list[dict]) -> None:
+    pids = {it["contract_id"] for it in items if it["contract_id"]}
+    wids = {it["work_order_id"] for it in items if it["work_order_id"]}
+    contracts = {c.id: c for c in db.query(Contract).filter(Contract.id.in_(pids)).all()} if pids else {}
+    cids = {c.customer_id for c in contracts.values() if c.customer_id}
+    customers = {c.id: c.name for c in db.query(Customer).filter(Customer.id.in_(cids)).all()} if cids else {}
+    wnos = {w.id: w.no for w in db.query(WorkOrder).filter(WorkOrder.id.in_(wids)).all()} if wids else {}
+    for it in items:
+        contract = contracts.get(it["contract_id"])
+        it["project_name"] = contract.name if contract else None
+        it["customer_name"] = customers.get(contract.customer_id) if contract else None
+        it["work_order_no"] = wnos.get(it["work_order_id"])
 
 
 @router.post("")

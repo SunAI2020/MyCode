@@ -37,7 +37,7 @@ def test_contract_insight_near_expiry(db):
 
 
 def test_contract_insight_gap(db):
-    item = _mk_item(db)  # 无任何周期 → 应生成 12 个但已生成 0
+    item = _mk_item(db)  # 无任何工期 → 应生成 12 个但已生成 0
     insights = contract_insight(db, today=date(2026, 9, 26))
     gaps = [i for i in insights if i["type"] == "履约缺口" and i["item_id"] == item.id]
     assert gaps

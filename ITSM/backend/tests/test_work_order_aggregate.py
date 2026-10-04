@@ -89,7 +89,7 @@ def test_create_aggregate_rejects_mismatch_item(db):
 
 def test_create_aggregate_rejects_invalid_cycle_no(db):
     u = _mk_user(db)
-    c, ci, item = _mk_chain(db, "A")  # 1 次/月、12 个月 → 12 个周期
+    c, ci, item = _mk_chain(db, "A")  # 1 次/月、12 个月 → 12 个工期
     body = AggregateWorkOrderCreate(
         customer_id=c.id, ci_ids=[ci.id], contract_item_ids=[item.id],
         cycles=[AggregateCycleIn(contract_item_id=item.id, cycle_no=99)],

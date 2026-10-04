@@ -1,4 +1,4 @@
-"""周期拆分与生成（幂等）。"""
+"""工期拆分与生成（幂等）。"""
 import calendar
 from datetime import date, timedelta
 
@@ -44,13 +44,13 @@ def _unit_end(d: date, unit: str) -> date:
         return _add_months(d, 6)
     if unit == "year":
         return _add_months(d, 12)
-    raise ValueError(f"未知周期单位：{unit}")
+    raise ValueError(f"未知工期单位：{unit}")
 
 
 def split_cycles(start: date, end: date, frequency: int, unit: str) -> list[tuple[int, date, date]]:
     """把 [start, end) 按 unit 分段、每段按 frequency 等分，返回 (cycle_no, start, end)。
 
-    边界去重且严格递增，避免零长/重叠周期（如 day + frequency>1 时退化为 1 个周期）。
+    边界去重且严格递增，避免零长/重叠工期（如 day + frequency>1 时退化为 1 个工期）。
     """
     unit = normalize_unit(unit)
     if unit == IRREGULAR or frequency <= 0 or end <= start:
@@ -79,7 +79,7 @@ def split_cycles(start: date, end: date, frequency: int, unit: str) -> list[tupl
 
 
 def generate_cycles(db: Session, item_id: int) -> dict:
-    """为合同子项生成服务周期（幂等）。返回 {"total": 应生成数, "created": 本次新增数}。"""
+    """为合同子项生成服务工期（幂等）。返回 {"total": 应生成数, "created": 本次新增数}。"""
     item = db.get(ContractItem, item_id)
     if item is None:
         raise ValueError("子项不存在")
@@ -87,8 +87,8 @@ def generate_cycles(db: Session, item_id: int) -> dict:
     if contract is None or contract.start_date is None or contract.end_date is None:
         raise ValueError("合同缺少起止日期")
     cycles = split_cycles(contract.start_date, contract.end_date, item.frequency, item.unit)
-    # schedule/起止日期变更后，旧的「pending + auto_generated」周期日期已失效：
-    # 先删除再按最新参数重建，避免残留旧日期周期；已 started/done 的周期保留历史。
+    # schedule/起止日期变更后，旧的「pending + auto_generated」工期日期已失效：
+    # 先删除再按最新参数重建，避免残留旧日期工期；已 started/done 的工期保留历史。
     db.query(ServiceCycle).filter_by(
         contract_item_id=item_id, auto_generated=True, status="pending"
     ).delete()
@@ -101,7 +101,7 @@ def generate_cycles(db: Session, item_id: int) -> dict:
     created = 0
     for no, s, e in cycles:
         if no in existing_nos:
-            continue  # 已启动/完成周期占用的序号保留，避免唯一约束冲突
+            continue  # 已启动/完成工期占用的序号保留，避免唯一约束冲突
         db.add(
             ServiceCycle(
                 contract_item_id=item_id,

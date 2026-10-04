@@ -95,7 +95,7 @@
             <el-table-column label="客户" width="140">
               <template #default="{ row }">{{ customerName(row.customer_id) }}</template>
             </el-table-column>
-            <el-table-column label="周期" width="220">
+            <el-table-column label="工期" width="220">
               <template #default="{ row }">{{ row.period_start || '—' }} ~ {{ row.period_end || '—' }}</template>
             </el-table-column>
             <el-table-column prop="status" label="状态" width="90" />
@@ -227,10 +227,10 @@
             <el-option v-for="c in customers" :key="c.id" :label="c.name" :value="c.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="周期起">
+        <el-form-item label="工期起">
           <el-date-picker v-model="reportForm.period_start" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="周期止">
+        <el-form-item label="工期止">
           <el-date-picker v-model="reportForm.period_end" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
         </el-form-item>
       </el-form>

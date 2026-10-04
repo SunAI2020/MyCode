@@ -40,7 +40,7 @@ class ServiceCycle(Base):
     cycle_no: Mapped[int] = mapped_column(Integer)
     service_start: Mapped[date] = mapped_column(Date)
     service_end: Mapped[date] = mapped_column(Date)
-    status: Mapped[str] = mapped_column(String(16), default="pending")  # pending/started/done
+    status: Mapped[str] = mapped_column(String(16), default="pending")  # pending/started/done/cancelled
     auto_generated: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

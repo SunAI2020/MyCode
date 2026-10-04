@@ -76,6 +76,8 @@ export const listReceives = (params: any) => request.get('/receives', { params }
 export const createReceive = (data: any) => request.post('/receives', data)
 export const listWorkOrders = (params: any) => request.get('/work-orders', { params })
 export const createWorkOrder = (data: any) => request.post('/work-orders', data)
+export const updateWorkOrder = (id: number, data: any) => request.put(`/work-orders/${id}`, data)
+export const editWorkOrder = (id: number, data: any) => request.put(`/work-orders/${id}/edit`, data)
 export const updateStatus = (id: number, data: any) => request.put(`/work-orders/${id}/status`, data)
 export const deleteWorkOrder = (id: number) => request.delete(`/work-orders/${id}`)
 export const dispatch = (id: number, data: any) => request.post(`/work-orders/${id}/dispatch`, data)
@@ -84,7 +86,7 @@ export const previewAggregateCycles = (data: any) => request.post('/work-orders/
 export const createAggregateWorkOrder = (data: any) => request.post('/work-orders/aggregate', data)
 export const getWorkOrderScope = (id: number) => request.get(`/work-orders/${id}/scope`)
 
-// ---- SLA / 周期 / 提醒 ----
+// ---- SLA / 工期 / 提醒 ----
 export const listSla = (params: any) => request.get('/sla-policies', { params })
 export const createSla = (data: any) => request.post('/sla-policies', data)
 export const updateSla = (id: number, data: any) => request.put(`/sla-policies/${id}`, data)
@@ -92,7 +94,38 @@ export const deleteSla = (id: number) => request.delete(`/sla-policies/${id}`)
 export const listCycles = (params: any) => request.get('/cycles', { params })
 export const updateCycle = (id: number, data: any) => request.put(`/cycles/${id}`, data)
 export const deleteCycle = (id: number) => request.delete(`/cycles/${id}`)
+export const remindCycle = (id: number) => request.post(`/cycles/${id}/remind`)
+export const urgeCycle = (id: number) => request.post(`/cycles/${id}/urge`)
+export const cancelCycle = (id: number) => request.post(`/cycles/${id}/cancel`)
 export const listReminders = (params: any) => request.get('/reminders', { params })
+
+// ---- 项目验收 / 绩效考核 / 报告中心 ----
+export const listDeliveries = (params: any) => request.get('/deliveries', { params })
+export const createDelivery = (data: any) => request.post('/deliveries', data)
+export const updateDelivery = (id: number, data: any) => request.put(`/deliveries/${id}`, data)
+export const deleteDelivery = (id: number) => request.delete(`/deliveries/${id}`)
+export const signDelivery = (id: number) => request.post(`/deliveries/${id}/sign`)
+export const listPerformance = (params: any) => request.get('/performance', { params })
+export const performanceSummary = (params: any) => request.get('/performance/summary', { params })
+export const generatePerformance = (wid: number) => request.post(`/work-orders/${wid}/performance/generate`)
+export const createPerformance = (data: any) => request.post('/performance', data)
+export const updatePerformance = (id: number, data: any) => request.put(`/performance/${id}`, data)
+export const deletePerformance = (id: number) => request.delete(`/performance/${id}`)
+export const listReportLedger = (params: any) => request.get('/reports', { params })
+export const createReportLedger = (data: any) => request.post('/reports', data)
+export const updateReportLedger = (id: number, data: any) => request.put(`/reports/${id}`, data)
+export const deleteReportLedger = (id: number) => request.delete(`/reports/${id}`)
+// 报告文件（服务报告附件）：上传/脱敏预览/解密下载
+export const uploadReport = (fd: FormData) => request.post('/reports/upload', fd, { timeout: 120000 })
+export const previewReport = (id: number) => request.get(`/reports/${id}/preview`)
+export const downloadReport = async (id: number): Promise<Blob> => {
+  const token = localStorage.getItem('token')
+  const res = await axios.get(`/api/v1/reports/${id}/download`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    responseType: 'blob',
+  })
+  return res.data as Blob
+}
 
 // ---- 知识库 / RAG ----
 export const listArticles = (params: any) => request.get('/kb-articles', { params })

@@ -57,7 +57,7 @@ class WorkOrder(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)  # 报障/需求描述
     task_type: Mapped[str | None] = mapped_column(String(32), nullable=True)  # 内部任务类型：内部研发/制度建设/报告编写/培训准备/其他
     deadline: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)  # 内部任务截止时间
-    status: Mapped[str] = mapped_column(String(16), default="待派单")  # 待派单/已派单/计划中/进行中/待验收/已完成/已关闭/已取消
+    status: Mapped[str] = mapped_column(String(16), default="待派单")  # 待派单/待执行/执行中/待验收/已验收/已结单/已取消/已关闭
     priority: Mapped[str] = mapped_column(String(8), default="中")  # 高/中/低
     sla_deadline: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     progress: Mapped[int] = mapped_column(Integer, default=0)  # 0-100
@@ -101,7 +101,7 @@ class WorkOrderItem(Base):
 
 
 class WorkOrderCycle(Base):
-    """聚合工单——频次（服务周期快照，多选）。"""
+    """聚合工单——频次（服务工期快照，多选）。"""
 
     __tablename__ = "work_order_cycle"
 

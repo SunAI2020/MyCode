@@ -11,7 +11,7 @@ from app.core.deps import (
     require_permission,
     scope_filter,
 )
-from app.models import CmdbCi, CmdbCiDependency, Contract, ContractArchive, ContractItem, Customer, ServiceCycle, SysUser
+from app.models import CmdbCi, CmdbCiDependency, Contract, ContractArchive, ContractItem, Customer, OrderReceive, ServiceCycle, SysUser, WorkOrder, WorkOrderItem
 from app.core.security import mask_sensitive, masked_page
 from app.schemas.cmdb import CmdbCiDependencyCreate, CmdbCiDependencyOut
 from app.schemas.contract import (
@@ -148,17 +148,30 @@ def list_items(
         if ids:
             q = q.filter(ContractItem.ci_id.in_(ids))
     data = paginate(q, page, size, ContractItemOut)
-    # 富化周期数量（供前端禁用「生成周期」按钮）
+    # 富化工期数/工单数（供前端禁用「生成工期」「生成工单」按钮）
     item_ids = [it["id"] for it in data["items"]]
     if item_ids:
-        counts = dict(
+        cyc_counts = dict(
             db.query(ServiceCycle.contract_item_id, func.count(ServiceCycle.id))
             .filter(ServiceCycle.contract_item_id.in_(item_ids))
             .group_by(ServiceCycle.contract_item_id)
             .all()
         )
+        wo_simple = dict(
+            db.query(WorkOrder.contract_item_id, func.count(WorkOrder.id))
+            .filter(WorkOrder.contract_item_id.in_(item_ids))
+            .group_by(WorkOrder.contract_item_id)
+            .all()
+        )
+        wo_agg = dict(
+            db.query(WorkOrderItem.contract_item_id, func.count(WorkOrderItem.work_order_id))
+            .filter(WorkOrderItem.contract_item_id.in_(item_ids))
+            .group_by(WorkOrderItem.contract_item_id)
+            .all()
+        )
         for it in data["items"]:
-            it["cycle_count"] = counts.get(it["id"], 0)
+            it["cycle_count"] = cyc_counts.get(it["id"], 0)
+            it["work_order_count"] = wo_simple.get(it["id"], 0) + wo_agg.get(it["id"], 0)
     return ok(masked_page(data, scope))
 
 
@@ -243,6 +256,14 @@ def update_item(
     for k, v in data.items():
         setattr(obj, k, v)
     db.flush()
+    # 服务类别改名后，同步工单/接单记录里的 project 快照，避免仪表盘/工单列表仍显示旧名
+    if "project" in data and before.get("project") != data["project"]:
+        db.query(WorkOrder).filter(WorkOrder.contract_item_id == iid).update(
+            {"project": data["project"]}, synchronize_session=False
+        )
+        db.query(OrderReceive).filter(OrderReceive.contract_item_id == iid).update(
+            {"project": data["project"]}, synchronize_session=False
+        )
     record(db, user_id=user.id, action="update", resource=f"contract_item:{iid}", before=str(before), after=str(data))
     db.commit()
     return ok(ContractItemOut.model_validate(obj).model_dump())
@@ -268,14 +289,14 @@ def generate_item_cycles(
     item = db.get(ContractItem, iid)
     if item is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "子项不存在")
-    # 重复检测：该子项已生成过周期 → 返回 duplicate 标志，由前端弹框提示，不重复生成
+    # 重复检测：该子项已生成过工期 → 返回 duplicate 标志，由前端弹框提示，不重复生成
     if db.query(ServiceCycle).filter(ServiceCycle.contract_item_id == iid).first() is not None:
         ci = db.get(CmdbCi, item.ci_id) if item.ci_id else None
         contract = db.get(Contract, item.contract_id)
         customer = db.get(Customer, contract.customer_id) if contract else None
         return ok({
             "duplicate": True,
-            "message": f"{customer.name if customer else ''}的{ci.name if ci else '//'}业务系统，已经存在{item.project}服务周期，请勿重复提交！",
+            "message": f"{customer.name if customer else ''}的{ci.name if ci else '//'}业务系统，已经存在{item.project}服务工期，请勿重复提交！",
         })
     try:
         result = generate_cycles(db, iid)

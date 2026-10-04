@@ -8,7 +8,7 @@ from app.db.base import Base
 
 
 class OnsiteService(Base):
-    """驻场配置：绑定客户/合同、人数、周期、工作项。"""
+    """驻场配置：绑定客户/合同、人数、工期、工作项。"""
 
     __tablename__ = "onsite_service"
 

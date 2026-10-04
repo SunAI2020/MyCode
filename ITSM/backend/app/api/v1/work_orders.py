@@ -21,6 +21,7 @@ from app.models import (
     Customer,
     OrderDispatch,
     OrderReceive,
+    ServiceCycle,
     SysUser,
     WorkOrder,
     WorkOrderAssignee,
@@ -40,8 +41,10 @@ from app.schemas.work_order import (
     OrderReceiveOut,
     TransferIn,
     WorkOrderCreate,
+    WorkOrderEditIn,
     WorkOrderOut,
     WorkOrderStatusUpdate,
+    WorkOrderUpdate,
 )
 from app.schemas.kb import KbArticleOut
 from app.services.audit_service import record
@@ -104,12 +107,22 @@ def get_receive(rid: int, user: SysUser = Depends(get_current_user), db: Session
 def list_work_orders(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
+    contract_item_id: int | None = Query(None),
     user: SysUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     q = db.query(WorkOrder)
     q = scope_filter(q, WorkOrder, customer_scope_of(user, db))
+    if contract_item_id is not None:
+        q = q.filter(WorkOrder.contract_item_id == contract_item_id)
     data = paginate(q, page, size, WorkOrderOut)
+    # 补齐客户：简单工单 customer_id 为空（历史/调度器生成）时从合同反推，保证列表客户列有值
+    _miss = [it["contract_id"] for it in data["items"] if not it.get("customer_id") and it.get("contract_id")]
+    if _miss:
+        _cmap = dict(db.query(Contract.id, Contract.customer_id).filter(Contract.id.in_(_miss)).all())
+        for it in data["items"]:
+            if not it.get("customer_id") and it.get("contract_id"):
+                it["customer_id"] = _cmap.get(it["contract_id"])
     # 富化执行人姓名（work_order_assignee → sys_user.name）+ 服务类别（聚合工单经 WorkOrderItem → ContractItem.project）
     ids = [it["id"] for it in data["items"]]
     if ids:
@@ -136,11 +149,11 @@ def list_work_orders(
             if proj and proj not in proj_map[wid]:
                 proj_map[wid].append(proj)
 
-        # 简单工单：project 为空但有 contract_item_id 时，从 ContractItem 补 project
+        # 简单工单：有 contract_item_id 时，服务类别以 ContractItem.project 实时为准（改名即时生效）
         simple_ids = [
             it["contract_item_id"]
             for it in data["items"]
-            if not it.get("project") and it.get("contract_item_id") and it["id"] not in proj_map
+            if it.get("contract_item_id") and it["id"] not in proj_map
         ]
         ci_proj: dict[int, str] = {}
         if simple_ids:
@@ -155,8 +168,8 @@ def list_work_orders(
             it["assignee_names"] = names.get(it["id"], [])
             if it["id"] in proj_map:
                 it["project"] = "、".join(proj_map[it["id"]])
-            elif not it.get("project") and it.get("contract_item_id"):
-                it["project"] = ci_proj.get(it["contract_item_id"], "")
+            elif it.get("contract_item_id"):
+                it["project"] = ci_proj.get(it["contract_item_id"], it.get("project") or "")
     return ok(data)
 
 
@@ -172,12 +185,57 @@ def create_work_order(
         if receive is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "接单记录不存在")
         assert_scoped(receive, customer_scope_of(user, db), db)
+    if body.generate_cycle:
+        if body.contract_item_id is None:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "「同时生成工期」需选择服务类别")
+        if body.service_start is None or body.service_end is None:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "勾选「同时生成工期」需填写服务开始/结束时间")
+    eff_contract_id = body.contract_id if body.contract_id is not None else (receive.contract_id if receive else None)
+    customer_id = None
+    if eff_contract_id is not None:
+        _c = db.get(Contract, eff_contract_id)
+        customer_id = _c.customer_id if _c else None
+    # 重复检测：同一子项 + 同一起止时间已有工单 → 返回 duplicate 标志（按日期判重，cycle_no 兜底）
+    if body.generate_cycle and body.service_start is not None and body.service_end is not None:
+        dup_id = (
+            db.query(WorkOrder.id)
+            .join(
+                ServiceCycle,
+                (ServiceCycle.contract_item_id == WorkOrder.contract_item_id)
+                & (ServiceCycle.cycle_no == WorkOrder.current_cycle_no),
+            )
+            .filter(
+                WorkOrder.contract_item_id == body.contract_item_id,
+                ServiceCycle.service_start == body.service_start,
+                ServiceCycle.service_end == body.service_end,
+            )
+            .first()
+        )
+        if dup_id is None and body.cycle_no is not None:
+            dup_id = db.query(WorkOrder.id).filter_by(
+                contract_item_id=body.contract_item_id, current_cycle_no=body.cycle_no
+            ).first()
+        if dup_id is not None:
+            item = db.get(ContractItem, body.contract_item_id)
+            contract = db.get(Contract, eff_contract_id) if eff_contract_id else (db.get(Contract, item.contract_id) if item else None)
+            customer = db.get(Customer, contract.customer_id) if contract else None
+            ci = db.get(CmdbCi, body.ci_id) if body.ci_id else (db.get(CmdbCi, item.ci_id) if item else None)
+            project = body.project or (item.project if item else None)
+            msg = (
+                f"{customer.name if customer else ''}客户"
+                f"{contract.name if contract else ''}项目"
+                f"{ci.name if ci else ''}业务系统，"
+                f"{body.service_start}-{body.service_end}时间的"
+                f"{project or ''}服务类别工单已经存在，请勿重复生成！"
+            )
+            return ok({"duplicate": True, "message": msg})
     with work_order_no_scope(db):
         wo = WorkOrder(
             no=next_work_order_no(db),
             type=body.type,
             receive_id=body.receive_id,
-            contract_id=body.contract_id if body.contract_id is not None else (receive.contract_id if receive else None),
+            customer_id=customer_id,
+            contract_id=eff_contract_id,
             contract_item_id=body.contract_item_id if body.contract_item_id is not None else (receive.contract_item_id if receive else None),
             ci_id=body.ci_id if body.ci_id is not None else (receive.ci_id if receive else None),
             project=body.project if body.project is not None else (receive.project if receive else None),
@@ -188,13 +246,58 @@ def create_work_order(
         )
         db.add(wo)
         db.flush()
+        # 同时生成工期：按 preview 选中的期次回填 current_cycle_no（复用已存在工期或新建）
+        if body.generate_cycle:
+            cycle_no = body.cycle_no
+            if cycle_no is not None:
+                cycle = db.query(ServiceCycle).filter_by(contract_item_id=body.contract_item_id, cycle_no=cycle_no).first()
+                if cycle is None:
+                    cycle = ServiceCycle(
+                        contract_item_id=body.contract_item_id, cycle_no=cycle_no,
+                        service_start=body.service_start, service_end=body.service_end,
+                        status="pending", auto_generated=False,
+                    )
+                    db.add(cycle)
+                else:
+                    cycle.service_start = body.service_start
+                    cycle.service_end = body.service_end
+            else:
+                max_no = (
+                    db.query(ServiceCycle.cycle_no)
+                    .filter(ServiceCycle.contract_item_id == body.contract_item_id)
+                    .order_by(ServiceCycle.cycle_no.desc())
+                    .first()
+                )
+                cycle = ServiceCycle(
+                    contract_item_id=body.contract_item_id,
+                    cycle_no=(max_no[0] + 1) if max_no else 1,
+                    service_start=body.service_start, service_end=body.service_end,
+                    status="pending", auto_generated=False,
+                )
+                db.add(cycle)
+            db.flush()
+            wo.current_cycle_no = cycle.cycle_no
+        # 同时派单：直接落派单 + 执行人，工单置为待执行
+        if body.dispatch and body.assignee_id is not None:
+            disp = OrderDispatch(
+                work_order_id=wo.id,
+                dispatch_type=body.dispatch_type,
+                service_start=body.service_start,
+                service_end=body.service_end,
+            )
+            db.add(disp)
+            db.flush()
+            db.add(WorkOrderAssignee(work_order_id=wo.id, user_id=body.assignee_id, workload_ratio=100))
+            wo.dispatch_id = disp.id
+            wo.status = "待执行"
+            log_transition(db, entity="work_order", entity_id=wo.id, from_status="待派单", to_status="待执行", operator_id=user.id)
         record(db, user_id=user.id, action="create", resource=f"work_order:{wo.id}", after=str(body.model_dump()))
         db.commit()
     return ok(WorkOrderOut.model_validate(wo).model_dump())
 
 
 def _item_cycles(db: Session, item: ContractItem) -> list[tuple[int, date, date]]:
-    """按合同起止日期 + 服务类别频率/单位即时拆分频次（周期），与 generate_cycles 同源。"""
+    """按合同起止日期 + 服务类别频率/单位即时拆分频次（工期），与 generate_cycles 同源。"""
     contract = db.get(Contract, item.contract_id)
     if contract is None or contract.start_date is None or contract.end_date is None:
         return []
@@ -207,7 +310,7 @@ def aggregate_cycles_preview(
     user: SysUser = Depends(require_permission("work_order:write")),
     db: Session = Depends(get_db),
 ):
-    """给定服务类别列表，返回各项目的频次（周期）列表，供前端渲染复选。"""
+    """给定服务类别列表，返回各项目的频次（工期）列表，供前端渲染复选。"""
     scope = customer_scope_of(user, db)
     cycles: dict[int, list[dict]] = {}
     for iid in body.contract_item_ids:
@@ -219,9 +322,20 @@ def aggregate_cycles_preview(
             ci = db.get(CmdbCi, item.ci_id)
             if ci is None or ci.customer_id != scope:
                 raise HTTPException(status.HTTP_403_FORBIDDEN, "无权访问该服务类别")
+        item_cycles = _item_cycles(db, item)
+        worked = {
+            no for (no,) in db.query(WorkOrder.current_cycle_no)
+            .filter(WorkOrder.contract_item_id == item.id, WorkOrder.current_cycle_no.isnot(None))
+            .all()
+        }
+        worked |= {
+            no for (no,) in db.query(WorkOrderCycle.cycle_no)
+            .filter(WorkOrderCycle.contract_item_id == item.id)
+            .all()
+        }
         cycles[iid] = [
-            {"cycle_no": no, "service_start": s.isoformat(), "service_end": e.isoformat()}
-            for no, s, e in _item_cycles(db, item)
+            {"cycle_no": no, "service_start": s.isoformat(), "service_end": e.isoformat(), "has_work_order": no in worked}
+            for no, s, e in item_cycles
         ]
     return ok({"cycles": cycles})
 
@@ -288,6 +402,16 @@ def create_aggregate_work_order(
             db.add(WorkOrderItem(work_order_id=wo.id, contract_item_id=iid))
         for iid, no, s, e in cycle_rows:
             db.add(WorkOrderCycle(work_order_id=wo.id, contract_item_id=iid, cycle_no=no, service_start=s, service_end=e))
+            if body.generate_cycle and not db.query(ServiceCycle.id).filter_by(contract_item_id=iid, cycle_no=no).first():
+                db.add(ServiceCycle(contract_item_id=iid, cycle_no=no, service_start=s, service_end=e, status="pending", auto_generated=False))
+        if body.dispatch and body.assignee_id is not None:
+            disp = OrderDispatch(work_order_id=wo.id, dispatch_type=body.dispatch_type, service_start=body.service_start, service_end=body.service_end)
+            db.add(disp)
+            db.flush()
+            db.add(WorkOrderAssignee(work_order_id=wo.id, user_id=body.assignee_id, workload_ratio=100))
+            wo.dispatch_id = disp.id
+            wo.status = "待执行"
+            log_transition(db, entity="work_order", entity_id=wo.id, from_status="待派单", to_status="待执行", operator_id=user.id)
         record(db, user_id=user.id, action="create_aggregate", resource=f"work_order:{wo.id}", after=str(body.model_dump()))
         db.commit()
     return ok(WorkOrderOut.model_validate(wo).model_dump())
@@ -335,6 +459,76 @@ def get_work_order(wid: int, user: SysUser = Depends(get_current_user), db: Sess
     if wo is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "工单不存在")
     assert_scoped(wo, customer_scope_of(user, db), db)
+    return ok(WorkOrderOut.model_validate(wo).model_dump())
+
+
+@router.put("/{wid}")
+def update_work_order(
+    wid: int,
+    body: WorkOrderUpdate,
+    user: SysUser = Depends(require_permission("work_order:write")),
+    db: Session = Depends(get_db),
+):
+    wo = db.get(WorkOrder, wid)
+    if wo is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "工单不存在")
+    assert_scoped(wo, customer_scope_of(user, db), db)
+    if wo.status == "已关闭":
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "已关闭工单仅保留记录，不可编辑")
+    data = body.model_dump(exclude_unset=True)
+    for k, v in data.items():
+        setattr(wo, k, v)
+    db.flush()
+    record(db, user_id=user.id, action="update", resource=f"work_order:{wid}", after=str(data))
+    db.commit()
+    return ok(WorkOrderOut.model_validate(wo).model_dump())
+
+
+@router.put("/{wid}/edit")
+def edit_work_order(
+    wid: int,
+    body: WorkOrderEditIn,
+    user: SysUser = Depends(require_permission("work_order:write")),
+    db: Session = Depends(get_db),
+):
+    wo = db.get(WorkOrder, wid)
+    if wo is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "工单不存在")
+    assert_scoped(wo, customer_scope_of(user, db), db)
+    if wo.status == "已关闭":
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "已关闭工单仅保留记录，不可编辑")
+    if body.type is not None:
+        wo.type = body.type
+    if body.priority is not None:
+        wo.priority = body.priority
+    if body.description is not None:
+        wo.description = body.description
+    # 更新工期日期
+    if body.service_start is not None and body.service_end is not None and wo.contract_item_id is not None and wo.current_cycle_no is not None:
+        cycle = db.query(ServiceCycle).filter_by(contract_item_id=wo.contract_item_id, cycle_no=wo.current_cycle_no).first()
+        if cycle is not None:
+            cycle.service_start = body.service_start
+            cycle.service_end = body.service_end
+    # 重新派单
+    if body.dispatch and body.assignee_id is not None:
+        for a in db.query(WorkOrderAssignee).filter_by(work_order_id=wid, is_active=True).all():
+            a.is_active = False
+        disp = OrderDispatch(
+            work_order_id=wid,
+            dispatch_type=body.dispatch_type or "内部",
+            service_start=body.service_start,
+            service_end=body.service_end,
+        )
+        db.add(disp)
+        db.flush()
+        db.add(WorkOrderAssignee(work_order_id=wid, user_id=body.assignee_id, workload_ratio=100))
+        wo.dispatch_id = disp.id
+        if wo.status == "待派单":
+            wo.status = "待执行"
+            log_transition(db, entity="work_order", entity_id=wid, from_status="待派单", to_status="待执行", operator_id=user.id)
+    db.flush()
+    record(db, user_id=user.id, action="edit", resource=f"work_order:{wid}", after=str(body.model_dump()))
+    db.commit()
     return ok(WorkOrderOut.model_validate(wo).model_dump())
 
 
@@ -392,7 +586,7 @@ def update_status(
             operator_id=user.id,
         )
     # 合规证据自动采集：工单完成 → 匹配服务类别对应合规要求生成证据（步骤 51）
-    if body.status == "已完成":
+    if body.status == "已结单":
         collect_for_work_order(db, wo, operator_id=user.id)
     db.flush()
     record(db, user_id=user.id, action="update_status", resource=f"work_order:{wid}", before=before, after=body.status)
@@ -435,13 +629,13 @@ def dispatch(
         assignees.append(WorkOrderAssignee(work_order_id=wid, user_id=a.user_id, workload_ratio=a.workload_ratio))
     db.add_all(assignees)
     wo.dispatch_id = disp.id
-    wo.status = "已派单"
+    wo.status = "待执行"
     log_transition(
         db,
         entity="work_order",
         entity_id=wid,
         from_status="待派单",
-        to_status="已派单",
+        to_status="待执行",
         operator_id=user.id,
     )
     db.flush()

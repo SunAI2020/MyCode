@@ -20,6 +20,7 @@ from app.models.kb import KbArticle
 from app.models.onsite import OnsiteAssignment, OnsiteDailyReport, OnsiteService
 from app.models.outsourcing import Outsourcing, OutsourcingReport, OutsourceUser
 from app.models.performance import Performance
+from app.models.report import Report
 from app.models.service import ServiceCycle, ServiceReminder, SlaPolicy
 from app.models.system import (
     SysAuditLog,
@@ -77,6 +78,7 @@ __all__ = [
     "Escalation",
     "EngineerSkill",
     "Performance",
+    "Report",
     "OnsiteService",
     "OnsiteDailyReport",
     "OnsiteAssignment",
