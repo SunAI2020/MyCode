@@ -1,40 +1,38 @@
 <template>
   <div>
-    <el-card>
+    <el-card v-loading="loading">
       <div class="toolbar">
-        <el-button v-if="canDispatch" type="primary" @click="openCreate">新增工单</el-button>
         <el-button v-if="canDispatch" type="primary" @click="openAggregate">新增聚合工单</el-button>
       </div>
-      <el-table :data="rows" v-loading="loading">
-        <el-table-column label="客户" width="130">
-          <template #default="{ row }">{{ customerMap.get(row.customer_id)?.name || '' }}</template>
-        </el-table-column>
-        <el-table-column prop="project" label="服务类别" width="130" />
-        <el-table-column prop="type" label="类型" width="100" />
-        <el-table-column prop="priority" label="优先级" width="80" />
-        <el-table-column prop="status" label="状态" width="90" />
-        <el-table-column prop="current_cycle_no" label="工期" width="70" />
-        <el-table-column prop="progress" label="进度" width="80" />
-        <el-table-column label="执行人" width="130">
-          <template #default="{ row }">{{ (row.assignee_names || []).join('、') || '—' }}</template>
-        </el-table-column>
-        <el-table-column label="操作" width="300" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="info" @click="openView(row)">查看</el-button>
-            <el-button link type="primary" :disabled="!canDispatch || !nextAction(row)" @click="onNextAction(row)">{{ nextAction(row) || '—' }}</el-button>
-            <el-button link type="warning" :disabled="!canDispatch || !targetList(row).length" @click="openTransition(row)">流转</el-button>
-            <el-button link type="danger" :disabled="!canDispatch" @click="onDeleteWorkOrder(row)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-      <el-pagination
-        class="pager"
-        layout="total, prev, pager, next"
-        :total="total"
-        :page-size="query.size"
-        :current-page="query.page"
-        @current-change="onPage"
-      />
+      <div v-for="sec in workOrderSections" :key="sec.title" class="wo-section">
+        <div class="wo-section-head">
+          <span class="wo-section-title">{{ sec.title }}</span>
+          <span class="wo-section-count">{{ sec.rows.length }}</span>
+        </div>
+        <el-table v-if="sec.rows.length" :data="sec.rows" size="small" border>
+          <el-table-column label="客户" width="190">
+            <template #default="{ row }">{{ customerMap.get(row.customer_id)?.name || '' }}</template>
+          </el-table-column>
+          <el-table-column prop="project" label="服务类别" width="130" />
+          <el-table-column prop="type" label="类型" width="100" />
+          <el-table-column prop="priority" label="优先级" width="80" />
+          <el-table-column label="期次" width="90">
+            <template #default="{ row }">{{ row.current_cycle_no != null ? `第${row.current_cycle_no}期` : '—' }}</template>
+          </el-table-column>
+          <el-table-column label="执行人" width="130">
+            <template #default="{ row }">{{ (row.assignee_names || []).join('、') || '—' }}</template>
+          </el-table-column>
+          <el-table-column label="操作" width="300" fixed="right">
+            <template #default="{ row }">
+              <el-button link type="success" @click="openEdit(row)">编辑</el-button>
+              <el-button link type="primary" :disabled="!canDispatch || !nextAction(row)" @click="onNextAction(row)">{{ nextAction(row) || '—' }}</el-button>
+              <el-button link type="warning" :disabled="!canDispatch || !targetList(row).length" @click="openTransition(row)">流转</el-button>
+              <el-button link type="danger" :disabled="!canDispatch" @click="onDeleteWorkOrder(row)">删除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+        <div v-else class="wo-section-empty">暂无</div>
+      </div>
     </el-card>
 
     <el-dialog v-model="createDlg" title="新增工单" width="560px">
@@ -116,9 +114,9 @@
             <el-option v-for="p in ['高', '中', '低']" :key="p" :label="p" :value="p" />
           </el-select>
         </el-form-item>
-        <el-form-item label="服务开始时间"><el-date-picker v-model="aggServiceStart" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item>
-        <el-form-item label="服务结束时间"><el-date-picker v-model="aggServiceEnd" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item>
-        <el-form-item label="同时生成工期"><el-checkbox v-model="aggGenerateCycle" /></el-form-item>
+        <el-form-item label="开始时间"><el-date-picker v-model="aggServiceStart" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item>
+        <el-form-item label="结束时间"><el-date-picker v-model="aggServiceEnd" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item>
+        <el-form-item label="生成工期"><el-checkbox v-model="aggGenerateCycle" /></el-form-item>
         <el-form-item label="派单类型">
           <el-select v-model="aggDispatchType" style="width: 100%">
             <el-option label="内部" value="内部" />
@@ -130,7 +128,7 @@
             <el-option v-for="u in users" :key="u.id" :label="u.name" :value="u.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="同时派单"><el-checkbox v-model="aggDispatch" /></el-form-item>
+        <el-form-item label="立即派单"><el-checkbox v-model="aggDispatch" /></el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="aggDlg = false">取消</el-button>
@@ -198,6 +196,46 @@
       <template #footer><el-button @click="detailDlg = false">关闭</el-button></template>
     </el-dialog>
 
+    <el-dialog v-model="editAggDlg" title="编辑聚合工单" width="640px">
+      <el-form label-width="90px">
+        <el-form-item label="客户">
+          <el-input :model-value="customerMap.get(editAggCustomerId)?.name || ''" disabled />
+        </el-form-item>
+        <el-form-item label="业务系统">
+          <el-checkbox-group v-model="editAggCiIds">
+            <el-checkbox v-for="ci in editAggCis" :key="ci.id" :value="ci.id">{{ ci.name }}</el-checkbox>
+          </el-checkbox-group>
+        </el-form-item>
+        <el-form-item label="服务类别">
+          <el-input :model-value="editAggProject" disabled />
+        </el-form-item>
+        <el-form-item label="优先级">
+          <el-select v-model="editAggPriority" style="width: 100%">
+            <el-option v-for="p in ['高', '中', '低']" :key="p" :label="p" :value="p" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="开始时间"><el-date-picker v-model="editAggServiceStart" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item>
+        <el-form-item label="结束时间"><el-date-picker v-model="editAggServiceEnd" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item>
+        <el-form-item label="重新生成工期"><el-checkbox v-model="editAggRegenerateCycle" /></el-form-item>
+        <el-form-item label="派单类型">
+          <el-select v-model="editAggDispatchType" style="width: 100%">
+            <el-option label="内部" value="内部" />
+            <el-option label="外包" value="外包" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="执行人">
+          <el-select v-model="editAggAssigneeId" filterable placeholder="选择执行人" style="width: 100%">
+            <el-option v-for="u in users" :key="u.id" :label="u.name" :value="u.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="重新派单"><el-checkbox v-model="editAggDispatch" /></el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="editAggDlg = false">取消</el-button>
+        <el-button type="primary" @click="saveEditAggregate">保存</el-button>
+      </template>
+    </el-dialog>
+
     <el-dialog v-model="transitionDlg" title="状态流转" width="440px">
       <template v-if="transitionRow">
         <p>工单号：{{ transitionRow.no }}　当前状态：<el-tag>{{ transitionRow.status }}</el-tag></p>
@@ -250,7 +288,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   listWorkOrders, createWorkOrder, updateStatus, dispatch, deleteWorkOrder,
   listCustomers, listCis, listItems, listContracts,
-  previewAggregateCycles, createAggregateWorkOrder, getWorkOrderScope,
+  previewAggregateCycles, createAggregateWorkOrder, editAggregateWorkOrder, getWorkOrderScope,
   listUsers, workflowTransitions, uploadReport,
 } from '@/api'
 import { useAuthStore } from '@/stores/auth'
@@ -260,7 +298,29 @@ const auth = useAuthStore()
 const rows = ref<any[]>([])
 const total = ref(0)
 const loading = ref(false)
-const query = reactive({ page: 1, size: 10 })
+const query = reactive({ page: 1, size: 100 })
+
+// 工单竖向分栏：按状态归入固定 7 栏（已验收→待结单；已取消→已关闭）
+const WO_SECTION_OF: Record<string, string> = {
+  '待派单': '待派单',
+  '待执行': '待执行',
+  '执行中': '执行中',
+  '待验收': '待验收',
+  '已验收': '待结单',
+  '已结单': '已结单',
+  '已取消': '已关闭',
+  '已关闭': '已关闭',
+}
+const WO_SECTION_ORDER = ['待派单', '待执行', '执行中', '待验收', '待结单', '已结单', '已关闭']
+const workOrderSections = computed(() => {
+  const buckets: Record<string, any[]> = {}
+  for (const t of WO_SECTION_ORDER) buckets[t] = []
+  for (const r of rows.value) {
+    const t = WO_SECTION_OF[r.status]
+    if (t) buckets[t].push(r)
+  }
+  return WO_SECTION_ORDER.map((t) => ({ title: t, rows: buckets[t] }))
+})
 
 const customers = ref<any[]>([])
 const cis = ref<any[]>([])
@@ -330,6 +390,21 @@ const scopeData = ref<any>({ work_order: null, cis: [], items: [], cycles: [] })
 
 const detailDlg = ref(false)
 const detailData = ref<any>(null)
+
+// 编辑聚合工单（业务系统可重选、服务类别固定、重新生成工期/重新派单）
+const editAggDlg = ref(false)
+const editAggWoId = ref<number | null>(null)
+const editAggCustomerId = ref<number | null>(null)
+const editAggCis = ref<any[]>([])
+const editAggCiIds = ref<number[]>([])
+const editAggProject = ref('')
+const editAggPriority = ref('中')
+const editAggServiceStart = ref('')
+const editAggServiceEnd = ref('')
+const editAggRegenerateCycle = ref(false)
+const editAggDispatch = ref(false)
+const editAggDispatchType = ref('内部')
+const editAggAssigneeId = ref<number | null>(null)
 
 const transitionDlg = ref(false)
 const transitionRow = ref<any>(null)
@@ -631,13 +706,51 @@ async function saveAggregate() {
   aggDlg.value = false
   load()
 }
-function openView(row: any) {
-  if (row.customer_id) {
-    openScope(row)
+function openEdit(row: any) {
+  if (row.contract_item_id == null && row.customer_id) {
+    openEditAggregate(row)
   } else {
     detailData.value = row
     detailDlg.value = true
   }
+}
+async function openEditAggregate(row: any) {
+  const scope = (await getWorkOrderScope(row.id)).data
+  editAggWoId.value = row.id
+  editAggCustomerId.value = row.customer_id ?? null
+  editAggCis.value = (await listCis({ page: 1, size: 100, customer_id: row.customer_id })).data.items
+  editAggCiIds.value = scope.cis.map((c: any) => c.ci_id)
+  editAggProject.value = scope.items.map((it: any) => it.project).join('、') || ''
+  editAggPriority.value = row.priority
+  const starts = scope.cycles.map((c: any) => c.service_start).filter(Boolean).sort()
+  const ends = scope.cycles.map((c: any) => c.service_end).filter(Boolean).sort()
+  editAggServiceStart.value = starts[0] ?? ''
+  editAggServiceEnd.value = ends[ends.length - 1] ?? ''
+  editAggRegenerateCycle.value = true
+  editAggDispatch.value = true
+  editAggDispatchType.value = scope.dispatch_type || '内部'
+  editAggAssigneeId.value = scope.assignee_id ?? null
+  editAggDlg.value = true
+  if (!users.value.length) {
+    try { users.value = (await listUsers()).data } catch {}
+  }
+}
+async function saveEditAggregate() {
+  if (!editAggCiIds.value.length) return ElMessage.warning('请选择业务系统')
+  if (editAggDispatch.value && !editAggAssigneeId.value) return ElMessage.warning('重新派单需选择执行人')
+  await editAggregateWorkOrder(editAggWoId.value!, {
+    ci_ids: editAggCiIds.value,
+    priority: editAggPriority.value,
+    service_start: editAggServiceStart.value || null,
+    service_end: editAggServiceEnd.value || null,
+    regenerate_cycle: editAggRegenerateCycle.value,
+    dispatch: editAggDispatch.value,
+    dispatch_type: editAggDispatchType.value,
+    assignee_id: editAggDispatch.value ? editAggAssigneeId.value : null,
+  })
+  ElMessage.success('已保存')
+  editAggDlg.value = false
+  load()
 }
 async function openScope(row: any) {
   scopeData.value = (await getWorkOrderScope(row.id)).data
@@ -647,23 +760,28 @@ async function openScope(row: any) {
 onMounted(async () => {
   load()
   customers.value = (await listCustomers({ page: 1, size: 100 })).data.items
-  if (canDispatch.value) {
-    try {
-      users.value = (await listUsers()).data
-    } catch {
-      // 无人员管理权限时静默降级：执行人下拉为空，派单入口已按角色隐藏
-    }
-    try {
-      transitions.value = (await workflowTransitions()).data
-    } catch {
-      // 无工作流查看权限时用内置默认流转表
-    }
+  // 执行人 / 流转规则：不依赖 canDispatch（初次挂载时 auth.user 可能尚未加载完成），
+  // 直接按 token 拉取；无权限时静默降级
+  try {
+    users.value = (await listUsers()).data
+  } catch {
+    // 无人员管理权限时执行人下拉为空
+  }
+  try {
+    transitions.value = (await workflowTransitions()).data
+  } catch {
+    // 无工作流查看权限时用内置默认流转表
   }
 })
 </script>
 
 <style scoped>
 .toolbar { display: flex; gap: 12px; margin-bottom: 14px; }
+.wo-section { margin-bottom: 16px; }
+.wo-section-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.wo-section-title { font-weight: 600; color: #303133; }
+.wo-section-count { color: #909399; font-size: 12px; }
+.wo-section-empty { color: #c0c4cc; font-size: 13px; padding: 4px 0; }
 .pager { margin-top: 14px; justify-content: flex-end; }
 .assignee-list { width: 100%; }
 .assignee-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }

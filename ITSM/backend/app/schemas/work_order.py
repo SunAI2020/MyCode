@@ -82,6 +82,17 @@ class WorkOrderEditIn(BaseModel):
     dispatch: bool = False
 
 
+class WorkOrderAggregateEditIn(BaseModel):
+    ci_ids: list[int] = []            # 重选业务系统
+    priority: str | None = None
+    service_start: date | None = None
+    service_end: date | None = None
+    regenerate_cycle: bool = False    # 重新生成工期
+    dispatch: bool = False            # 重新派单
+    dispatch_type: str = "内部"
+    assignee_id: int | None = None
+
+
 class WorkOrderOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

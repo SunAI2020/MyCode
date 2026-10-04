@@ -41,6 +41,7 @@ from app.schemas.work_order import (
     OrderReceiveCreate,
     OrderReceiveOut,
     TransferIn,
+    WorkOrderAggregateEditIn,
     WorkOrderCreate,
     WorkOrderEditIn,
     WorkOrderOut,
@@ -451,7 +452,19 @@ def get_work_order_scope(wid: int, user: SysUser = Depends(get_current_user), db
             "project": it["project"] if it else "",
             "ci_name": ci_map.get(it["ci_id"], "") if it and it.get("ci_id") else "",
         })
-    return ok({"work_order": WorkOrderOut.model_validate(wo).model_dump(), "cis": cis, "items": items, "cycles": cycles})
+    # 当前执行人 + 派单类型（编辑弹窗回填用）
+    _assignee = db.query(WorkOrderAssignee.user_id).filter_by(work_order_id=wid, is_active=True).first()
+    dispatch_type = None
+    if wo.dispatch_id is not None:
+        _disp = db.get(OrderDispatch, wo.dispatch_id)
+        if _disp is not None:
+            dispatch_type = _disp.dispatch_type
+    return ok({
+        "work_order": WorkOrderOut.model_validate(wo).model_dump(),
+        "cis": cis, "items": items, "cycles": cycles,
+        "assignee_id": _assignee[0] if _assignee else None,
+        "dispatch_type": dispatch_type,
+    })
 
 
 @router.get("/{wid}")
@@ -529,6 +542,80 @@ def edit_work_order(
             log_transition(db, entity="work_order", entity_id=wid, from_status="待派单", to_status="待执行", operator_id=user.id)
     db.flush()
     record(db, user_id=user.id, action="edit", resource=f"work_order:{wid}", after=str(body.model_dump()))
+    db.commit()
+    return ok(WorkOrderOut.model_validate(wo).model_dump())
+
+
+@router.put("/{wid}/aggregate")
+def edit_aggregate_work_order(
+    wid: int,
+    body: WorkOrderAggregateEditIn,
+    user: SysUser = Depends(require_permission("work_order:write")),
+    db: Session = Depends(get_db),
+):
+    """编辑聚合工单：重选业务系统、改优先级/起止时间、重新生成工期、重新派单。服务类别固定。"""
+    wo = db.get(WorkOrder, wid)
+    if wo is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "工单不存在")
+    scope = customer_scope_of(user, db)
+    assert_scoped(wo, scope, db)
+    if wo.status == "已关闭":
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "已关闭工单仅保留记录，不可编辑")
+
+    if body.priority is not None:
+        wo.priority = body.priority
+
+    # 重选业务系统（校验非空 + 业务系统归属，防跨客户越权）
+    if not body.ci_ids:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "请至少选择一个业务系统")
+    db.query(WorkOrderCi).filter_by(work_order_id=wid).delete()
+    for ci_id in body.ci_ids:
+        ci = db.get(CmdbCi, ci_id)
+        if ci is None or ci.customer_id != wo.customer_id:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "业务系统不存在或不属于该客户")
+        db.add(WorkOrderCi(work_order_id=wid, ci_id=ci_id))
+
+    # 重新生成工期：删除原工期（频次快照 + 服务工期），按新起止重新拆分
+    if body.regenerate_cycle and body.service_start is not None and body.service_end is not None:
+        old_cycles = db.query(WorkOrderCycle).filter_by(work_order_id=wid).all()
+        for c in old_cycles:
+            sc = db.query(ServiceCycle).filter_by(contract_item_id=c.contract_item_id, cycle_no=c.cycle_no).first()
+            # 仅删除本工单自建（auto_generated=False）的服务工期，避免误删调度生成/他单共享的工期
+            if sc is not None and sc.auto_generated is False:
+                db.query(ServiceReminder).filter_by(cycle_id=sc.id).delete()
+                db.delete(sc)
+        db.query(WorkOrderCycle).filter_by(work_order_id=wid).delete()
+        for (iid,) in db.query(WorkOrderItem.contract_item_id).filter_by(work_order_id=wid).all():
+            item = db.get(ContractItem, iid)
+            if item is None:
+                continue
+            for no, s, e in split_cycles(body.service_start, body.service_end, item.frequency, item.unit):
+                db.add(WorkOrderCycle(work_order_id=wid, contract_item_id=iid, cycle_no=no, service_start=s, service_end=e))
+                if not db.query(ServiceCycle.id).filter_by(contract_item_id=iid, cycle_no=no).first():
+                    db.add(ServiceCycle(contract_item_id=iid, cycle_no=no, service_start=s, service_end=e, status="pending", auto_generated=False))
+
+    # 重新派单：删除原派单记录 + 执行人，重新落派单
+    if body.dispatch:
+        if body.assignee_id is None:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "重新派单需选择执行人")
+        db.query(WorkOrderAssignee).filter_by(work_order_id=wid).delete()
+        db.query(OrderDispatch).filter_by(work_order_id=wid).delete()
+        disp = OrderDispatch(
+            work_order_id=wid,
+            dispatch_type=body.dispatch_type,
+            service_start=body.service_start,
+            service_end=body.service_end,
+        )
+        db.add(disp)
+        db.flush()
+        db.add(WorkOrderAssignee(work_order_id=wid, user_id=body.assignee_id, workload_ratio=100))
+        wo.dispatch_id = disp.id
+        if wo.status == "待派单":
+            wo.status = "待执行"
+            log_transition(db, entity="work_order", entity_id=wid, from_status="待派单", to_status="待执行", operator_id=user.id)
+
+    db.flush()
+    record(db, user_id=user.id, action="edit_aggregate", resource=f"work_order:{wid}", after=str(body.model_dump()))
     db.commit()
     return ok(WorkOrderOut.model_validate(wo).model_dump())
 

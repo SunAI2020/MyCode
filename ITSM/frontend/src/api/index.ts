@@ -78,6 +78,7 @@ export const listWorkOrders = (params: any) => request.get('/work-orders', { par
 export const createWorkOrder = (data: any) => request.post('/work-orders', data)
 export const updateWorkOrder = (id: number, data: any) => request.put(`/work-orders/${id}`, data)
 export const editWorkOrder = (id: number, data: any) => request.put(`/work-orders/${id}/edit`, data)
+export const editAggregateWorkOrder = (id: number, data: any) => request.put(`/work-orders/${id}/aggregate`, data)
 export const updateStatus = (id: number, data: any) => request.put(`/work-orders/${id}/status`, data)
 export const deleteWorkOrder = (id: number, params?: any) => request.delete(`/work-orders/${id}`, { params })
 export const dispatch = (id: number, data: any) => request.post(`/work-orders/${id}/dispatch`, data)
