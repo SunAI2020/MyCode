@@ -1,6 +1,7 @@
 """报告台账 CRUD + 服务报告文件（脱敏 + 加密入库）。"""
 import hashlib
 import html as html_mod
+import json
 import os
 import re
 from urllib.parse import quote
@@ -83,6 +84,7 @@ def _enrich(db: Session, items: list[dict]) -> None:
 def list_reports(
     report_type: str | None = Query(None),
     status: str | None = Query(None),
+    work_order_id: int | None = Query(None),
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
     user: SysUser = Depends(require_role(*READ_ROLE)),
@@ -94,6 +96,8 @@ def list_reports(
         q = q.filter(Report.report_type == report_type)
     if status:
         q = q.filter(Report.status == status)
+    if work_order_id is not None:
+        q = q.filter(Report.work_order_id == work_order_id)
     total = q.count()
     rows = q.order_by(Report.id.desc()).offset((page - 1) * size).limit(size).all()
     items = []
@@ -112,6 +116,7 @@ def upload_report(
     work_order_id: int | None = Form(None),
     report_type: str = Form("运维报告"),
     title: str | None = Form(None),
+    report_data: str | None = Form(None),
     user: SysUser = Depends(require_role(*ROLE)),
     db: Session = Depends(get_db),
 ):
@@ -143,6 +148,18 @@ def upload_report(
             _c = db.get(Contract, contract_id)
             customer_id = _c.customer_id if _c else None
 
+    # 结构化报告内容同样脱敏：工作内容/详细情况含敏感信息（漏洞 IP、联系方式等），不落明文
+    if report_data:
+        try:
+            rd = json.loads(report_data)
+            if isinstance(rd, dict):
+                for k in ("work_content", "details"):
+                    if isinstance(rd.get(k), str):
+                        rd[k] = mask_text(rd[k])
+                report_data = json.dumps(rd, ensure_ascii=False)
+        except (ValueError, TypeError):
+            pass
+
     obj = Report(
         title=(title or "").strip() or os.path.splitext(filename)[0],
         report_type=report_type,
@@ -157,6 +174,7 @@ def upload_report(
         file_hash=hashlib.sha256(data).hexdigest(),
         content_enc=encrypt_bytes(data),
         masked_text=masked,
+        report_data=report_data,
     )
     db.add(obj)
     db.flush()

@@ -9,7 +9,7 @@
               <span class="chart-title">{{ c.title }}</span>
               <span class="chart-num">{{ c.total }}</span>
             </div>
-            <div :ref="(el) => setRef(el, si * 4 + ci)" class="chart"></div>
+            <div :ref="(el) => setRef(el, c._idx)" class="chart"></div>
           </el-card>
         </el-col>
       </el-row>
@@ -27,59 +27,64 @@ import { getDashboard } from '@/api'
 
 echarts.use([PieChart, BarChart, LegendComponent, TooltipComponent, GridComponent, CanvasRenderer])
 
-type ChartCell = { title: string; total: number | string }
+type ChartCell = {
+  title: string
+  key: string
+  kind: 'pie' | 'stacked'
+  pct?: boolean
+  wrapLabel?: boolean
+  total: number | string
+  _idx?: number
+}
 
 const sections = ref<{ title: string; charts: ChartCell[] }[]>([
   {
     title: '基本情况',
     charts: [
-      { title: '客户（行业）', total: 0 },
-      { title: '项目（状态）', total: 0 },
-      { title: '工单（状态）', total: 0 },
-      { title: '人员接单（近一年）', total: 0 },
+      { title: '客户（行业）', key: 'customers_by_industry', kind: 'pie', total: 0 },
+      { title: '项目（状态）', key: 'contracts_by_status', kind: 'pie', total: 0 },
+      { title: '工单（状态）', key: 'work_orders_by_status', kind: 'pie', total: 0 },
+      { title: '人员接单（近一年）', key: 'engineer_workload', kind: 'stacked', total: 0 },
     ],
   },
   {
     title: '执行情况',
     charts: [
-      { title: '服务类别工单', total: 0 },
-      { title: '安全隐患（CVE 分级）', total: 0 },
-      { title: '整改情况', total: 0 },
-      { title: '人员绩效', total: 0 },
+      { title: '派单预警', key: 'dispatch_warning_by_customer', kind: 'stacked', wrapLabel: true, total: 0 },
+      { title: '验收预警', key: 'acceptance_warning_by_customer', kind: 'stacked', wrapLabel: true, total: 0 },
+      { title: '工期预警', key: 'schedule_warning_by_customer', kind: 'stacked', wrapLabel: true, total: 0 },
+      { title: '人员预警', key: 'personnel_forecast', kind: 'stacked', wrapLabel: true, total: 0 },
+    ],
+  },
+  {
+    title: '风险管控',
+    charts: [
+      { title: '安全隐患（CVE 分级）', key: 'issue_by_type_level', kind: 'stacked', total: 0 },
+      { title: '整改情况', key: 'issue_by_type_status', kind: 'stacked', total: 0 },
     ],
   },
   {
     title: '合规运营',
     charts: [
-      { title: '合规要求（出处×维度）', total: 0 },
-      { title: '核验情况（单位）', total: 0 },
-      { title: '合规覆盖率（单位）', total: 0 },
-      { title: '风险敞口（单位）', total: 0 },
+      { title: '合规要求（出处×维度）', key: 'compliance_by_reg_source', kind: 'stacked', total: 0 },
+      { title: '核验情况（单位）', key: 'check_by_customer', kind: 'stacked', wrapLabel: true, total: 0 },
+      { title: '合规覆盖率（单位）', key: 'coverage_by_customer', kind: 'stacked', pct: true, wrapLabel: true, total: 0 },
+      { title: '风险敞口（单位）', key: 'risk_by_customer', kind: 'stacked', wrapLabel: true, total: 0 },
     ],
   },
 ])
 
-// 12 个图表的定义：kind=pie/stacked，key=后端字段，pct=覆盖率（数字按平均%）
-const CHART_DEFS = [
-  { kind: 'pie', key: 'customers_by_industry' },
-  { kind: 'pie', key: 'contracts_by_status' },
-  { kind: 'pie', key: 'work_orders_by_status' },
-  { kind: 'stacked', key: 'engineer_workload' },
-  { kind: 'stacked', key: 'project_workload' },
-  { kind: 'stacked', key: 'issue_by_type_level' },
-  { kind: 'stacked', key: 'issue_by_type_status' },
-  { kind: 'stacked', key: 'performance_by_engineer' },
-  { kind: 'stacked', key: 'compliance_by_reg_source' },
-  { kind: 'stacked', key: 'check_by_customer' },
-  { kind: 'stacked', key: 'coverage_by_customer', pct: true },
-  { kind: 'stacked', key: 'risk_by_customer' },
-]
+// 给每个图表单元格分配跨行累计的全局序号，供 echarts 容器 ref 定位
+let _seq = 0
+for (const s of sections.value) {
+  for (const c of s.charts) c._idx = _seq++
+}
 
 const chartRefs = ref<HTMLDivElement[]>([])
 const charts: echarts.ECharts[] = []
 
-function setRef(el: unknown, i: number) {
-  if (el) chartRefs.value[i] = el as HTMLDivElement
+function setRef(el: unknown, i: number | undefined) {
+  if (el && typeof i === 'number') chartRefs.value[i] = el as HTMLDivElement
 }
 
 function renderPie(i: number, data: { name: string; value: number }[]) {
@@ -103,16 +108,27 @@ function renderPie(i: number, data: { name: string; value: number }[]) {
   })
 }
 
-function renderStacked(i: number, d: { categories: string[]; series: { name: string; data: number[] }[] }, pct = false) {
+function renderStacked(i: number, d: { categories: string[]; series: { name: string; data: number[] }[] }, pct = false, wrapLabel = false) {
   const el = chartRefs.value[i]
   if (!el) return
   if (!charts[i]) charts[i] = echarts.init(el)
+  const yAxis: Record<string, any> = { type: 'category', data: d.categories }
+  if (wrapLabel) {
+    yAxis.axisLabel = {
+      formatter: (val: string) => {
+        const s = String(val || '')
+        if (s.length <= 6) return s
+        const half = Math.ceil(s.length / 2)
+        return `${s.slice(0, half)}\n${s.slice(half)}`
+      },
+    }
+  }
   charts[i].setOption({
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
     legend: { bottom: 0, itemWidth: 10, itemHeight: 10, textStyle: { fontSize: 10 } },
     grid: { left: 8, right: 16, top: 8, bottom: 28, containLabel: true },
     xAxis: { type: 'value', axisLabel: { formatter: pct ? '{value}%' : '{value}' } },
-    yAxis: { type: 'category', data: d.categories },
+    yAxis,
     series: d.series.map((s) => ({ name: s.name, type: 'bar', stack: 'total', barMaxWidth: 18, data: s.data })),
   })
 }
@@ -133,19 +149,20 @@ function avgCoverage(d: { series: { data: number[] }[] }) {
 
 onMounted(async () => {
   const d = (await getDashboard()).data
-  CHART_DEFS.forEach((def, i) => {
-    const data = d[def.key] || (def.kind === 'pie' ? [] : { categories: [], series: [] })
-    const row = Math.floor(i / 4)
-    const col = i % 4
-    if (def.kind === 'pie') {
-      renderPie(i, data as { name: string; value: number }[])
-      sections.value[row].charts[col].total = totalOfPie(data as { value: number }[])
-    } else {
-      const stacked = data as { categories: string[]; series: { name: string; data: number[] }[] }
-      renderStacked(i, stacked, def.pct)
-      sections.value[row].charts[col].total = def.pct ? avgCoverage(stacked) : totalOfStacked(stacked)
+  for (const s of sections.value) {
+    for (const c of s.charts) {
+      const i = c._idx as number
+      const data = d[c.key] || (c.kind === 'pie' ? [] : { categories: [], series: [] })
+      if (c.kind === 'pie') {
+        renderPie(i, data as { name: string; value: number }[])
+        c.total = totalOfPie(data as { value: number }[])
+      } else {
+        const stacked = data as { categories: string[]; series: { name: string; data: number[] }[] }
+        renderStacked(i, stacked, c.pct, c.wrapLabel)
+        c.total = c.pct ? avgCoverage(stacked) : totalOfStacked(stacked)
+      }
     }
-  })
+  }
 })
 </script>
 

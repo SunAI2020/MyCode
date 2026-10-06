@@ -5,25 +5,32 @@
         <el-button v-if="canWrite" type="primary" @click="openCreate">新增人员</el-button>
         <el-button v-if="canEditPerm" @click="openPerm">权限设置</el-button>
       </div>
-      <el-table :data="rows" v-loading="loading">
-        <el-table-column prop="id" label="ID" width="60" />
-        <el-table-column prop="name" label="姓名" width="120" />
-        <el-table-column prop="username" label="登录名" width="130" />
-        <el-table-column prop="phone" label="电话" width="130" />
-        <el-table-column prop="dept" label="部门" width="130" />
-        <el-table-column label="角色" show-overflow-tooltip>
-          <template #default="{ row }">{{ (row.roles || []).map((r: any) => r.name).join('、') }}</template>
-        </el-table-column>
-        <el-table-column label="状态" width="80">
-          <template #default="{ row }"><el-tag :type="row.status === 'active' ? 'success' : 'info'" size="small">{{ row.status === 'active' ? '启用' : '停用' }}</el-tag></template>
-        </el-table-column>
-        <el-table-column label="操作" width="140">
-          <template #default="{ row }">
-            <el-button v-if="canWrite" link type="primary" @click="openEdit(row)">编辑</el-button>
-            <el-button v-if="canWrite" link type="danger" @click="onDelete(row)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+      <div v-for="sec in personnelSections" :key="sec.key" class="ps-section">
+        <div class="ps-section-head">
+          <span class="ps-section-title">{{ sec.title }}</span>
+          <span class="ps-section-count">{{ sec.rows.length }}</span>
+        </div>
+        <el-table v-if="sec.rows.length" :data="sec.rows" v-loading="loading" size="small" border>
+          <el-table-column prop="id" label="ID" width="60" />
+          <el-table-column prop="name" label="姓名" width="120" />
+          <el-table-column prop="username" label="登录名" width="130" />
+          <el-table-column prop="phone" label="电话" width="130" />
+          <el-table-column prop="dept" label="部门" width="130" />
+          <el-table-column label="角色" show-overflow-tooltip>
+            <template #default="{ row }">{{ (row.roles || []).map((r: any) => r.name).join('、') }}</template>
+          </el-table-column>
+          <el-table-column label="状态" width="80">
+            <template #default="{ row }"><el-tag :type="row.status === 'active' ? 'success' : 'info'" size="small">{{ row.status === 'active' ? '启用' : '停用' }}</el-tag></template>
+          </el-table-column>
+          <el-table-column label="操作" width="140">
+            <template #default="{ row }">
+              <el-button v-if="canWrite" link type="primary" @click="openEdit(row)">编辑</el-button>
+              <el-button v-if="canWrite" link type="danger" @click="onDelete(row)">删除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+        <div v-else class="ps-section-empty">暂无</div>
+      </div>
     </el-card>
 
     <el-dialog v-model="dlg" :title="editId ? '编辑人员' : '新增人员'" width="520px">
@@ -94,6 +101,9 @@ const ROLE_OPTIONS = [
   { code: 'cust_admin', name: '客户系统管理员' },
   { code: 'cust_service', name: '客户服务管理人员' },
   { code: 'outsource', name: '外包人员' },
+  { code: 'auditor', name: '审计' },
+  { code: 'bidder', name: '招标' },
+  { code: 'biz_supervisor', name: '业务主管' },
 ]
 
 const rows = ref<any[]>([])
@@ -103,6 +113,26 @@ const dlg = ref(false)
 const editId = ref<number | null>(null)
 const form = reactive<any>({ username: '', name: '', password: '', phone: '', dept: '', role_codes: [], customer_id: null })
 const needsCustomer = computed(() => (form.role_codes || []).some((c: string) => ['cust_admin', 'cust_service'].includes(c)))
+
+// ---- 竖向分栏：服务人员（我方）/ 客户人员 / 第三方人员 ----
+const PERSONNEL_SECTIONS = [
+  { key: 'service', title: '服务人员（我方人员）' },
+  { key: 'customer', title: '客户人员' },
+  { key: 'third_party', title: '第三方人员（审计、招标、业务主管）' },
+]
+const CUSTOMER_CODES = ['cust_admin', 'cust_service']
+const THIRD_PARTY_CODES = ['auditor', 'bidder', 'biz_supervisor']
+function categoryOf(row: any): string {
+  const codes = (row.roles || []).map((r: any) => r.code)
+  if (codes.some((c: string) => THIRD_PARTY_CODES.includes(c))) return 'third_party'
+  if (codes.some((c: string) => CUSTOMER_CODES.includes(c))) return 'customer'
+  return 'service'
+}
+const personnelSections = computed(() => {
+  const buckets: Record<string, any[]> = { service: [], customer: [], third_party: [] }
+  for (const r of rows.value) buckets[categoryOf(r)].push(r)
+  return PERSONNEL_SECTIONS.map((sec) => ({ ...sec, rows: buckets[sec.key] }))
+})
 
 // ---- 权限矩阵 ----
 const auth = useAuthStore()
@@ -208,6 +238,11 @@ onMounted(async () => {
 
 <style scoped>
 .toolbar { margin-bottom: 14px; }
+.ps-section { margin-bottom: 16px; }
+.ps-section-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.ps-section-title { font-weight: 600; color: #303133; }
+.ps-section-count { color: #909399; font-size: 12px; }
+.ps-section-empty { color: #c0c4cc; font-size: 13px; padding: 4px 0; }
 .perm-layout { display: flex; gap: 16px; min-height: 420px; }
 .perm-roles { width: 180px; flex-shrink: 0; border-right: 1px solid #e5e7eb; padding-right: 12px; }
 .perm-role { padding: 8px 12px; border-radius: 6px; cursor: pointer; margin-bottom: 4px; }

@@ -26,7 +26,7 @@ def _mk_overdue_wo(db):
     db.flush()
     wo = WorkOrder(
         no="WO-2026-9999", type="客户工单", contract_item_id=item.id,
-        status="进行中", sla_deadline=datetime.now() - timedelta(days=2),
+        status="执行中", sla_deadline=datetime.now() - timedelta(days=2),
     )
     db.add(wo)
     db.commit()

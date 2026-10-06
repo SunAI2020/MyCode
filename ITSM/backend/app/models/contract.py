@@ -18,7 +18,7 @@ class Contract(Base):
     start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     has_onsite: Mapped[bool] = mapped_column(Boolean, default=False)
-    status: Mapped[str] = mapped_column(String(16), default="洽谈中")  # 洽谈中/执行中/已到期/已续约
+    status: Mapped[str] = mapped_column(String(16), default="洽谈中")  # 洽谈中/已签约/执行中/已验收/已结单/已关闭/已取消
     # 合同原件导入抽取的补充字段（步骤 49）
     sign_date: Mapped[date | None] = mapped_column(Date, nullable=True)  # 合同签署日期
     staff_requirement: Mapped[str | None] = mapped_column(Text, nullable=True)  # 人员要求

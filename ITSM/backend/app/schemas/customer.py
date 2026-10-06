@@ -10,6 +10,7 @@ class CustomerCreate(BaseModel):
     industry: str | None = None
     level: str = "普通"  # 金牌/银牌/普通
     contact: str | None = None
+    status: str = "合作中"  # 合作中/已暂停/洽谈中
 
 
 class CustomerUpdate(BaseModel):
@@ -18,6 +19,7 @@ class CustomerUpdate(BaseModel):
     industry: str | None = None
     level: str | None = None
     contact: str | None = None
+    status: str | None = None
 
 
 class CustomerOut(BaseModel):
@@ -29,4 +31,5 @@ class CustomerOut(BaseModel):
     industry: str | None = None
     level: str
     contact: str | None = None
+    status: str
     created_at: datetime | None = None

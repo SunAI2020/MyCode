@@ -2,7 +2,7 @@
   <div>
     <el-card v-loading="loading">
       <div class="toolbar">
-        <el-button v-if="canDispatch" type="primary" @click="openAggregate">新增聚合工单</el-button>
+        <el-button v-if="canDispatch" type="primary" @click="openAggregate">新增工单</el-button>
       </div>
       <div v-for="sec in workOrderSections" :key="sec.title" class="wo-section">
         <div class="wo-section-head">
@@ -10,6 +10,7 @@
           <span class="wo-section-count">{{ sec.rows.length }}</span>
         </div>
         <el-table v-if="sec.rows.length" :data="sec.rows" size="small" border>
+          <el-table-column prop="no" label="工单号" width="130" fixed="left" />
           <el-table-column label="客户" width="190">
             <template #default="{ row }">{{ customerMap.get(row.customer_id)?.name || '' }}</template>
           </el-table-column>
@@ -25,7 +26,7 @@
           <el-table-column label="操作" width="300" fixed="right">
             <template #default="{ row }">
               <el-button link type="success" @click="openEdit(row)">编辑</el-button>
-              <el-button link type="primary" :disabled="!canDispatch || !nextAction(row)" @click="onNextAction(row)">{{ nextAction(row) || '—' }}</el-button>
+              <el-button link :class="{ 'btn-update-report': row.status === '执行中' && row.has_report }" type="primary" :disabled="!canDispatch || !nextAction(row)" @click="onNextAction(row)">{{ nextAction(row) || '—' }}</el-button>
               <el-button link type="warning" :disabled="!canDispatch || !targetList(row).length" @click="openTransition(row)">流转</el-button>
               <el-button link type="danger" :disabled="!canDispatch" @click="onDeleteWorkOrder(row)">删除</el-button>
             </template>
@@ -81,7 +82,7 @@
       <template #footer><el-button @click="createDlg = false">取消</el-button><el-button type="primary" @click="onCreate">创建</el-button></template>
     </el-dialog>
 
-    <el-dialog v-model="aggDlg" title="新增聚合工单" width="640px">
+    <el-dialog v-model="aggDlg" title="新增工单" width="640px">
       <el-form label-width="90px">
         <el-form-item label="客户">
           <el-select v-model="aggCustomerId" style="width: 100%" @change="onAggCustomerChange">
@@ -124,9 +125,17 @@
           </el-select>
         </el-form-item>
         <el-form-item label="执行人">
-          <el-select v-model="aggAssigneeId" filterable placeholder="选择执行人" style="width: 100%">
-            <el-option v-for="u in users" :key="u.id" :label="u.name" :value="u.id" />
-          </el-select>
+          <div class="assignee-list">
+            <div v-for="(a, i) in aggAssignees" :key="i" class="assignee-row">
+              <el-select v-model="a.user_id" placeholder="选择执行人" filterable style="width: 180px" @change="applyDefaultRatios(aggAssignees)">
+                <el-option v-for="u in users" :key="u.id" :label="u.name" :value="u.id" />
+              </el-select>
+              <el-input-number v-model="a.workload_ratio" :min="0" :max="100" controls-position="right" style="width: 110px" @change="rebalance(aggAssignees, i)" />
+              <span class="ratio-unit">%</span>
+              <el-button link type="danger" @click="removeAssignee(aggAssignees, i)">删除</el-button>
+            </div>
+            <el-button link type="primary" @click="addAssignee(aggAssignees)">+ 添加执行人</el-button>
+          </div>
         </el-form-item>
         <el-form-item label="立即派单"><el-checkbox v-model="aggDispatch" /></el-form-item>
       </el-form>
@@ -167,13 +176,14 @@
         <el-form-item label="执行人">
           <div class="assignee-list">
             <div v-for="(a, i) in dispatchForm.assignees" :key="i" class="assignee-row">
-              <el-select v-model="a.user_id" placeholder="选择执行人" filterable style="width: 180px">
+              <el-select v-model="a.user_id" placeholder="选择执行人" filterable style="width: 180px" @change="applyDefaultRatios(dispatchForm.assignees)">
                 <el-option v-for="u in users" :key="u.id" :label="u.name" :value="u.id" />
               </el-select>
-              <el-input v-model.number="a.workload_ratio" placeholder="比例%" style="width: 110px" />
-              <el-button link type="danger" @click="dispatchForm.assignees.splice(i, 1)">删除</el-button>
+              <el-input-number v-model="a.workload_ratio" :min="0" :max="100" controls-position="right" style="width: 110px" @change="rebalance(dispatchForm.assignees, i)" />
+              <span class="ratio-unit">%</span>
+              <el-button link type="danger" @click="removeAssignee(dispatchForm.assignees, i)">删除</el-button>
             </div>
-            <el-button link type="primary" @click="dispatchForm.assignees.push({ user_id: null, workload_ratio: 100 })">+ 添加执行人</el-button>
+            <el-button link type="primary" @click="addAssignee(dispatchForm.assignees)">+ 添加执行人</el-button>
           </div>
         </el-form-item>
       </el-form>
@@ -224,9 +234,17 @@
           </el-select>
         </el-form-item>
         <el-form-item label="执行人">
-          <el-select v-model="editAggAssigneeId" filterable placeholder="选择执行人" style="width: 100%">
-            <el-option v-for="u in users" :key="u.id" :label="u.name" :value="u.id" />
-          </el-select>
+          <div class="assignee-list">
+            <div v-for="(a, i) in editAggAssignees" :key="i" class="assignee-row">
+              <el-select v-model="a.user_id" placeholder="选择执行人" filterable style="width: 180px" @change="applyDefaultRatios(editAggAssignees)">
+                <el-option v-for="u in users" :key="u.id" :label="u.name" :value="u.id" />
+              </el-select>
+              <el-input-number v-model="a.workload_ratio" :min="0" :max="100" controls-position="right" style="width: 110px" @change="rebalance(editAggAssignees, i)" />
+              <span class="ratio-unit">%</span>
+              <el-button link type="danger" @click="removeAssignee(editAggAssignees, i)">删除</el-button>
+            </div>
+            <el-button link type="primary" @click="addAssignee(editAggAssignees)">+ 添加执行人</el-button>
+          </div>
         </el-form-item>
         <el-form-item label="重新派单"><el-checkbox v-model="editAggDispatch" /></el-form-item>
       </el-form>
@@ -253,10 +271,48 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="reportUploadDlg" title="上传报告" width="480px">
+    <el-dialog v-model="reportUploadDlg" title="提交报告" width="720px" top="4vh">
       <template v-if="reportUploadRow">
-        <p>工单号：{{ reportUploadRow.no }}　服务类别：{{ reportUploadRow.project || '—' }}</p>
-        <el-form label-width="90px" style="margin-top: 12px">
+        <div class="report-info">
+          <div class="report-info-row"><span class="ri-label">工单号</span><span class="ri-val">{{ reportUploadRow.no }}</span></div>
+          <div class="report-info-row"><span class="ri-label">客户名称</span><span class="ri-val">{{ customerMap.get(reportUploadRow.customer_id)?.name || '—' }}</span></div>
+          <div class="report-info-row"><span class="ri-label">服务类别</span><span class="ri-val">{{ reportUploadRow.project || '—' }}</span></div>
+          <div class="report-info-row"><span class="ri-label">执行人</span><span class="ri-val">{{ (reportUploadRow.assignee_names || []).join('、') || '—' }}</span></div>
+          <div class="report-info-row">
+            <span class="ri-label">期次</span><span class="ri-val">{{ reportUploadRow.current_cycle_no != null ? `第${reportUploadRow.current_cycle_no}期` : '—' }}</span>
+            <span class="ri-label ri-label-ml">开始时间</span><span class="ri-val">{{ reportStart || '—' }}</span>
+            <span class="ri-label ri-label-ml">结束时间</span><span class="ri-val">{{ reportEnd || '—' }}</span>
+          </div>
+          <div class="report-info-row report-info-cis">
+            <span class="ri-label">业务系统</span>
+            <div class="ri-val">
+              <div v-for="(name, i) in reportCiNames" :key="i" class="ri-ci">{{ name }}</div>
+              <div v-if="!reportCiNames.length" class="ri-ci">—</div>
+            </div>
+          </div>
+        </div>
+
+        <el-form label-width="120px" style="margin-top: 12px">
+          <el-form-item label="具体工作内容">
+            <el-input v-model="reportForm.work_content" type="textarea" :rows="3" placeholder="由执行人填写本次具体工作内容" />
+          </el-form-item>
+
+          <el-divider content-position="left">发现安全问题</el-divider>
+          <div v-for="cat in ISSUE_CATEGORIES" :key="cat" class="issue-cat">
+            <div class="issue-cat-title">发现{{ cat }}（{{ issueTotalOf(cat) }} 个）</div>
+            <div class="issue-counters">
+              <span v-for="lv in ISSUE_LEVELS" :key="lv" class="issue-counter">
+                <span>{{ lv }}</span>
+                <el-input-number v-model="reportForm.issues[cat][lv]" :min="0" size="small" controls-position="right" style="width: 88px" />
+              </span>
+            </div>
+          </div>
+          <div class="issue-grand-total">发现安全问题 {{ issueGrandTotal }} 个</div>
+
+          <el-form-item label="安全问题详细情况" style="margin-top: 12px">
+            <el-input v-model="reportForm.details" type="textarea" :rows="3" placeholder="由执行人填写安全问题详细情况" />
+          </el-form-item>
+
           <el-form-item label="报告文件">
             <el-upload
               :auto-upload="false"
@@ -268,7 +324,7 @@
             >
               <el-button type="primary">选择报告文件</el-button>
               <template #tip>
-                <div class="el-upload__tip">支持 PDF / Word / Markdown / HTML / 图片，上传后自动脱敏并加密存储</div>
+                <div class="el-upload__tip">支持 PDF / Word / Markdown / HTML / 图片格式文件上传，自动脱敏并加密存储</div>
               </template>
             </el-upload>
           </el-form-item>
@@ -289,7 +345,7 @@ import {
   listWorkOrders, createWorkOrder, updateStatus, dispatch, deleteWorkOrder,
   listCustomers, listCis, listItems, listContracts,
   previewAggregateCycles, createAggregateWorkOrder, editAggregateWorkOrder, getWorkOrderScope,
-  listUsers, workflowTransitions, uploadReport,
+  listUsers, workflowTransitions, uploadReport, listReportLedger,
 } from '@/api'
 import { useAuthStore } from '@/stores/auth'
 
@@ -300,18 +356,21 @@ const total = ref(0)
 const loading = ref(false)
 const query = reactive({ page: 1, size: 100 })
 
-// 工单竖向分栏：按状态归入固定 7 栏（已验收→待结单；已取消→已关闭）
+// 工单竖向分栏：按状态归入固定 8 栏（旧状态兼容：计划中→待派单、进行中→执行中、已验收→待结单）
 const WO_SECTION_OF: Record<string, string> = {
   '待派单': '待派单',
   '待执行': '待执行',
   '执行中': '执行中',
   '待验收': '待验收',
-  '已验收': '待结单',
+  '待结单': '待结单',
   '已结单': '已结单',
-  '已取消': '已关闭',
+  '已取消': '已取消',
   '已关闭': '已关闭',
+  '计划中': '待派单',
+  '进行中': '执行中',
+  '已验收': '待结单',
 }
-const WO_SECTION_ORDER = ['待派单', '待执行', '执行中', '待验收', '待结单', '已结单', '已关闭']
+const WO_SECTION_ORDER = ['待派单', '待执行', '执行中', '待验收', '待结单', '已结单', '已取消', '已关闭']
 const workOrderSections = computed(() => {
   const buckets: Record<string, any[]> = {}
   for (const t of WO_SECTION_ORDER) buckets[t] = []
@@ -347,6 +406,66 @@ const dispatchDlg = ref(false)
 const dispatchTarget = ref<number | null>(null)
 const dispatchForm = reactive({ dispatch_type: '内部', assignees: [{ user_id: null, workload_ratio: 100 }] as any[] })
 
+// ---- 执行人占比：默认分配 + 自动增减（总和恒为 100%）----
+function defaultRatios(n: number): number[] {
+  if (n <= 0) return []
+  if (n === 1) return [100]
+  if (n === 2) return [50, 50]
+  if (n === 3) return [34, 33, 33]
+  if (n === 4) return [25, 25, 25, 25]
+  const base = Math.floor(100 / n)
+  const arr = new Array(n).fill(base)
+  arr[n - 1] = 100 - base * (n - 1)
+  return arr
+}
+// 已选执行人的行索引
+function pickedIndexes(arr: any[]) {
+  return arr.map((a, i) => i).filter((i) => arr[i].user_id != null)
+}
+// 按已选执行人数重算默认占比；未选人的空行占比置空
+function applyDefaultRatios(arr: any[]) {
+  const idxs = pickedIndexes(arr)
+  const ratios = defaultRatios(idxs.length)
+  arr.forEach((a, i) => {
+    if (a.user_id == null) a.workload_ratio = null
+  })
+  idxs.forEach((rowIdx, k) => { arr[rowIdx].workload_ratio = ratios[k] })
+}
+// 调节某行占比后，其余已选执行人按权重自动增减，保持总和 100%
+function rebalance(arr: any[], changedIndex: number) {
+  if (arr[changedIndex].user_id == null) return
+  const idxs = pickedIndexes(arr)
+  if (!idxs.length) return
+  if (idxs.length === 1) { arr[idxs[0]].workload_ratio = 100; return }
+  let cur = Math.round(Number(arr[changedIndex].workload_ratio) || 0)
+  cur = Math.max(0, Math.min(100, cur))
+  arr[changedIndex].workload_ratio = cur
+  const others = idxs.filter((i) => i !== changedIndex)
+  const remaining = 100 - cur
+  const total = others.reduce((s, i) => s + (Number(arr[i].workload_ratio) || 0), 0)
+  let acc = 0
+  others.forEach((i, k) => {
+    let v: number
+    if (k === others.length - 1) {
+      v = remaining - acc
+    } else if (total <= 0) {
+      v = Math.floor(remaining / others.length)
+    } else {
+      v = Math.floor((Number(arr[i].workload_ratio) || 0) / total * remaining)
+    }
+    arr[i].workload_ratio = Math.max(0, v)
+    acc += arr[i].workload_ratio
+  })
+}
+function addAssignee(arr: any[]) {
+  arr.push({ user_id: null, workload_ratio: null })
+}
+function removeAssignee(arr: any[], i: number) {
+  arr.splice(i, 1)
+  if (!arr.length) arr.push({ user_id: null, workload_ratio: null })
+  applyDefaultRatios(arr)
+}
+
 // 聚合工单（按服务类别逐条打包：勾选几个服务类别就生成几个工单）
 const aggDlg = ref(false)
 const aggCustomerId = ref<number | null>(null)
@@ -358,7 +477,7 @@ const aggServiceEnd = ref('')
 const aggGenerateCycle = ref(true)
 const aggDispatch = ref(true)
 const aggDispatchType = ref('内部')
-const aggAssigneeId = ref<number | null>(null)
+const aggAssignees = ref<any[]>([])   // 多个执行人 + 占比
 
 const filteredCis = computed(() => cis.value.filter((c) => c.customer_id === aggCustomerId.value))
 const aggCiAll = computed(() => filteredCis.value.length > 0 && aggCiIds.value.length === filteredCis.value.length)
@@ -404,7 +523,7 @@ const editAggServiceEnd = ref('')
 const editAggRegenerateCycle = ref(false)
 const editAggDispatch = ref(false)
 const editAggDispatchType = ref('内部')
-const editAggAssigneeId = ref<number | null>(null)
+const editAggAssignees = ref<any[]>([])   // 多个执行人 + 占比
 
 const transitionDlg = ref(false)
 const transitionRow = ref<any>(null)
@@ -416,8 +535,8 @@ const DEFAULT_WO_TRANSITIONS: Record<string, string[]> = {
   '待派单': ['待执行', '已取消'],
   '待执行': ['执行中', '已取消'],
   '执行中': ['待验收', '已取消'],
-  '待验收': ['已验收', '已取消'],
-  '已验收': ['已结单'],
+  '待验收': ['待结单', '已取消'],
+  '待结单': ['已结单'],
   '已结单': ['已关闭'],
   '已取消': ['已关闭'],
   '已关闭': [],
@@ -428,6 +547,34 @@ const reportUploadDlg = ref(false)
 const reportUploadRow = ref<any>(null)
 const reportUploadFile = ref<File | null>(null)
 const reportUploading = ref(false)
+
+type IssueCategory = '漏洞' | '配置缺陷' | '风险隐患' | '基线不合规'
+type IssueLevel = '严重' | '高危' | '中危' | '低危' | '其他'
+
+const ISSUE_CATEGORIES: IssueCategory[] = ['漏洞', '配置缺陷', '风险隐患', '基线不合规']
+const ISSUE_LEVELS: IssueLevel[] = ['严重', '高危', '中危', '低危', '其他']
+const reportForm = reactive<{
+  work_content: string
+  issues: Record<IssueCategory, Record<IssueLevel, number>>
+  details: string
+}>({
+  work_content: '',
+  issues: {
+    漏洞: { 严重: 0, 高危: 0, 中危: 0, 低危: 0, 其他: 0 },
+    配置缺陷: { 严重: 0, 高危: 0, 中危: 0, 低危: 0, 其他: 0 },
+    风险隐患: { 严重: 0, 高危: 0, 中危: 0, 低危: 0, 其他: 0 },
+    基线不合规: { 严重: 0, 高危: 0, 中危: 0, 低危: 0, 其他: 0 },
+  },
+  details: '',
+})
+const reportCiNames = ref<string[]>([])
+const reportStart = ref('')
+const reportEnd = ref('')
+
+function issueTotalOf(cat: IssueCategory) {
+  return ISSUE_LEVELS.reduce((s, lv) => s + (reportForm.issues[cat]?.[lv] || 0), 0)
+}
+const issueGrandTotal = computed(() => ISSUE_CATEGORIES.reduce((s, cat) => s + issueTotalOf(cat), 0))
 
 async function load() {
   loading.value = true
@@ -545,8 +692,10 @@ async function onDispatch() {
   load()
 }
 function nextAction(row: any) {
-  const map: Record<string, string> = { '待派单': '派单', '待执行': '执行', '执行中': '提交报告', '待验收': '验收', '已验收': '结单', '已结单': '关闭' }
-  return map[row.status] || ''
+  const map: Record<string, string> = { '待派单': '派单', '待执行': '执行', '执行中': '提交报告', '待验收': '验收', '待结单': '结单', '已结单': '关闭' }
+  let label = map[row.status] || ''
+  if (row.status === '执行中' && row.has_report) label = '更新报告'
+  return label
 }
 function targetList(row: any) {
   return transitions.value['work_order']?.[row.status] || []
@@ -573,15 +722,52 @@ async function onNextAction(row: any) {
     openReportUpload(row)
     return
   }
-  const next: Record<string, string> = { '待执行': '执行中', '待验收': '已验收', '已验收': '已结单', '已结单': '已关闭' }
+  const next: Record<string, string> = { '待执行': '执行中', '待验收': '待结单', '待结单': '已结单', '已结单': '已关闭' }
   await updateStatus(row.id, { status: next[row.status] })
   ElMessage.success('状态已更新')
   load()
 }
-function openReportUpload(row: any) {
+let reportOpenSeq = 0
+async function openReportUpload(row: any) {
+  const seq = ++reportOpenSeq
   reportUploadRow.value = row
   reportUploadFile.value = null
+  reportForm.work_content = ''
+  reportForm.details = ''
+  for (const cat of ISSUE_CATEGORIES) {
+    for (const lv of ISSUE_LEVELS) reportForm.issues[cat][lv] = 0
+  }
+  reportCiNames.value = []
+  reportStart.value = ''
+  reportEnd.value = ''
   reportUploadDlg.value = true
+  try {
+    const scope = (await getWorkOrderScope(row.id)).data
+    if (seq !== reportOpenSeq) return  // 已被更新的打开请求取代，丢弃过期回填
+    reportCiNames.value = scope.cis.map((c: any) => c.name)
+    const starts = scope.cycles.map((c: any) => c.service_start).filter(Boolean).sort()
+    const ends = scope.cycles.map((c: any) => c.service_end).filter(Boolean).sort()
+    reportStart.value = starts[0] ?? ''
+    reportEnd.value = ends[ends.length - 1] ?? ''
+  } catch {}
+  // 已提交过报告 → 回填上次报告内容供修改
+  if (row.has_report) {
+    try {
+      const res = (await listReportLedger({ work_order_id: row.id, page: 1, size: 1 })).data
+      if (seq !== reportOpenSeq) return
+      const latest = res.items?.[0]
+      if (latest?.report_data) {
+        const rd = JSON.parse(latest.report_data)
+        reportForm.work_content = rd.work_content || ''
+        reportForm.details = rd.details || ''
+        for (const cat of ISSUE_CATEGORIES) {
+          for (const lv of ISSUE_LEVELS) {
+            reportForm.issues[cat][lv] = rd.issues?.[cat]?.[lv] || 0
+          }
+        }
+      }
+    } catch {}
+  }
 }
 function onReportFileChange(file: any) {
   reportUploadFile.value = file.raw || file
@@ -592,6 +778,11 @@ async function onSubmitReport() {
   fd.append('file', reportUploadFile.value)
   fd.append('work_order_id', String(reportUploadRow.value.id))
   fd.append('report_type', '运维报告')
+  fd.append('report_data', JSON.stringify({
+    work_content: reportForm.work_content,
+    issues: reportForm.issues,
+    details: reportForm.details,
+  }))
   reportUploading.value = true
   try {
     await uploadReport(fd)
@@ -634,7 +825,7 @@ async function openAggregate() {
   aggGenerateCycle.value = true
   aggDispatch.value = true
   aggDispatchType.value = '内部'
-  aggAssigneeId.value = null
+  aggAssignees.value = [{ user_id: null, workload_ratio: null }]
   cis.value = []
   items.value = []
   aggDlg.value = true
@@ -671,6 +862,10 @@ function ciCountOf(g: any) {
   return n > 0 ? `${n}个业务系统` : '未关联业务系统'
 }
 async function saveAggregate() {
+  const assignees = aggAssignees.value
+    .filter((a: any) => a.user_id != null)
+    .map((a: any) => ({ user_id: a.user_id, workload_ratio: Number(a.workload_ratio) || 0 }))
+  if (aggDispatch.value && !assignees.length) return ElMessage.warning('立即派单需至少选择一名执行人')
   let count = 0
   for (const key of aggGroupIds.value) {
     const g = aggGroups.value.find((x) => x.key === key)
@@ -698,7 +893,7 @@ async function saveAggregate() {
       generate_cycle: aggGenerateCycle.value,
       dispatch: aggDispatch.value,
       dispatch_type: aggDispatchType.value,
-      assignee_id: aggDispatch.value ? aggAssigneeId.value : null,
+      assignees: aggDispatch.value ? assignees : [],
     })
     count++
   }
@@ -720,7 +915,7 @@ async function openEditAggregate(row: any) {
   editAggCustomerId.value = row.customer_id ?? null
   editAggCis.value = (await listCis({ page: 1, size: 100, customer_id: row.customer_id })).data.items
   editAggCiIds.value = scope.cis.map((c: any) => c.ci_id)
-  editAggProject.value = scope.items.map((it: any) => it.project).join('、') || ''
+  editAggProject.value = [...new Set(scope.items.map((it: any) => it.project))].join('、') || ''
   editAggPriority.value = row.priority
   const starts = scope.cycles.map((c: any) => c.service_start).filter(Boolean).sort()
   const ends = scope.cycles.map((c: any) => c.service_end).filter(Boolean).sort()
@@ -729,7 +924,9 @@ async function openEditAggregate(row: any) {
   editAggRegenerateCycle.value = true
   editAggDispatch.value = true
   editAggDispatchType.value = scope.dispatch_type || '内部'
-  editAggAssigneeId.value = scope.assignee_id ?? null
+  editAggAssignees.value = (scope.assignees && scope.assignees.length)
+    ? scope.assignees.map((a: any) => ({ user_id: a.user_id, workload_ratio: Number(a.workload_ratio) || 0 }))
+    : [{ user_id: null, workload_ratio: null }]
   editAggDlg.value = true
   if (!users.value.length) {
     try { users.value = (await listUsers()).data } catch {}
@@ -737,7 +934,10 @@ async function openEditAggregate(row: any) {
 }
 async function saveEditAggregate() {
   if (!editAggCiIds.value.length) return ElMessage.warning('请选择业务系统')
-  if (editAggDispatch.value && !editAggAssigneeId.value) return ElMessage.warning('重新派单需选择执行人')
+  const assignees = editAggAssignees.value
+    .filter((a: any) => a.user_id != null)
+    .map((a: any) => ({ user_id: a.user_id, workload_ratio: Number(a.workload_ratio) || 0 }))
+  if (editAggDispatch.value && !assignees.length) return ElMessage.warning('重新派单需选择执行人')
   await editAggregateWorkOrder(editAggWoId.value!, {
     ci_ids: editAggCiIds.value,
     priority: editAggPriority.value,
@@ -746,7 +946,7 @@ async function saveEditAggregate() {
     regenerate_cycle: editAggRegenerateCycle.value,
     dispatch: editAggDispatch.value,
     dispatch_type: editAggDispatchType.value,
-    assignee_id: editAggDispatch.value ? editAggAssigneeId.value : null,
+    assignees: editAggDispatch.value ? assignees : [],
   })
   ElMessage.success('已保存')
   editAggDlg.value = false
@@ -785,6 +985,7 @@ onMounted(async () => {
 .pager { margin-top: 14px; justify-content: flex-end; }
 .assignee-list { width: 100%; }
 .assignee-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.ratio-unit { color: #909399; flex-shrink: 0; }
 .agg-box { width: 100%; }
 .agg-box .el-checkbox-group { display: block; margin-top: 8px; }
 .agg-cycle { margin-bottom: 12px; }
@@ -792,4 +993,18 @@ onMounted(async () => {
 .agg-empty { color: #909399; }
 .scope-tag { margin: 0 8px 8px 0; }
 .scope-cycle { padding: 3px 0; }
+.issue-cat { margin-bottom: 10px; }
+.issue-cat-title { font-weight: 600; color: #303133; margin-bottom: 6px; }
+.issue-counters { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
+.issue-counter { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: #606266; }
+.issue-grand-total { margin: 8px 0 4px; font-weight: 600; color: #f56c6c; }
+.report-info { border: 1px solid #ebeef5; border-radius: 4px; padding: 6px 12px; margin-bottom: 4px; }
+.report-info-row { display: flex; align-items: center; min-height: 30px; font-size: 13px; }
+.ri-label { width: 72px; color: #909399; flex-shrink: 0; }
+.ri-label-ml { width: auto; margin-left: 18px; }
+.ri-val { color: #303133; }
+.report-info-cis { align-items: flex-start; }
+.report-info-cis .ri-val { flex: 1; }
+.ri-ci { line-height: 22px; }
+.btn-update-report { color: #722ed1 !important; }
 </style>

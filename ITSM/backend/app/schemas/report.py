@@ -48,3 +48,4 @@ class ReportOut(BaseModel):
     mime_type: str | None = None
     file_size: int | None = None
     has_file: bool = False
+    report_data: str | None = None

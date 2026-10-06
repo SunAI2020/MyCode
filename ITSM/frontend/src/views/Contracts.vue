@@ -147,7 +147,7 @@
           <el-col :span="12">
             <el-form-item label="状态">
               <el-select v-model="contractForm.status" style="width: 100%">
-                <el-option v-for="s in ['洽谈中', '执行中', '已到期', '已续约']" :key="s" :label="s" :value="s" />
+                <el-option v-for="s in ['洽谈中', '已签约', '执行中', '已验收', '已结单', '已关闭', '已取消']" :key="s" :label="s" :value="s" />
               </el-select>
             </el-form-item>
           </el-col>
@@ -734,15 +734,19 @@ function ciSortOf(row: any) {
   return row._ciIds.length ? ciNameById(row._ciIds[0]) : ''
 }
 
-// 项目三栏看板：执行中 / 洽谈中 / 已过期（已续约归入执行中）
-const executingContracts = computed(() => contracts.value.filter((c: any) => c.status === '执行中' || c.status === '已续约'))
-const negotiatingContracts = computed(() => contracts.value.filter((c: any) => c.status === '洽谈中'))
-const expiredContracts = computed(() => contracts.value.filter((c: any) => c.status === '已到期'))
-const contractColumns = computed(() => [
-  { key: 'executing', title: '执行中', list: executingContracts.value },
-  { key: 'negotiating', title: '洽谈中', list: negotiatingContracts.value },
-  { key: 'expired', title: '已过期', list: expiredContracts.value },
-])
+// 项目七栏看板：按状态一栏一列
+const CONTRACT_STATUSES = ['洽谈中', '已签约', '执行中', '已验收', '已结单', '已关闭', '已取消']
+const contractColumns = computed(() => {
+  const cols = CONTRACT_STATUSES.map((s) => ({
+    key: s,
+    title: s,
+    list: contracts.value.filter((c: any) => c.status === s),
+  }))
+  const known = new Set(CONTRACT_STATUSES)
+  const others = contracts.value.filter((c: any) => !known.has(c.status))
+  if (others.length) cols.push({ key: '其他', title: '其他', list: others })
+  return cols
+})
 
 // 服务类别列表聚合：同项目 + 同服务类别 + 同配置（频率/单位/价格）的多业务系统合并为一条
 const groupedItems = computed(() => {

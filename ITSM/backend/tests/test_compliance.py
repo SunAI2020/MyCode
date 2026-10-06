@@ -194,7 +194,7 @@ def test_collect_for_approval(db):
     wo = WorkOrder(no="WO-5", customer_id=c.id, contract_id=ct.id)
     db.add(wo)
     db.flush()
-    appr = Approval(entity="work_order", entity_id=wo.id, from_status="待派单", to_status="进行中", applicant_id=1)
+    appr = Approval(entity="work_order", entity_id=wo.id, from_status="待派单", to_status="执行中", applicant_id=1)
     db.add(appr)
     db.commit()
 

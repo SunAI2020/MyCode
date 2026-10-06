@@ -1,5 +1,5 @@
 """数据看板：三行看板聚合（基本情况 / 执行情况 / 合规运营）。"""
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func
@@ -11,11 +11,11 @@ from app.models import (
     ComplianceEvidence,
     ComplianceRequirement,
     Contract,
-    ContractItem,
     Customer,
     Delivery,
     Issue,
     KbArticle,
+    OrderDispatch,
     Outsourcing,
     Performance,
     SysUser,
@@ -30,11 +30,16 @@ router = APIRouter(prefix="/dashboard", tags=["数据看板"])
 ROLE = ("sys_admin", "sys_ops", "ticket_mgr")
 
 # 叠加维度固定顺序，保证 series 稳定、无数据补 0
-WORK_STATUS = ["待派单", "待执行", "执行中", "待验收", "已验收", "已结单", "已取消", "已关闭"]
+WORK_STATUS = ["待派单", "待执行", "执行中", "待验收", "待结单", "已结单", "已取消", "已关闭"]
 ISSUE_STATUS = ["待整改", "整改中", "已关闭"]
 LEVELS = ["严重", "高危", "中危", "低危", "信息"]
 CATEGORIES = ["技术", "组织", "制度", "台账", "流程"]
 CHECK_RESULTS = ["通过", "部分", "不通过"]
+DISPATCH_WARN_STATUS = ["待派单", "待执行"]
+ACCEPT_WARN_STATUS = ["执行中", "待验收", "待结单"]
+FORECAST_STATUS = ["待执行", "执行中", "待验收", "待结单"]
+SCHEDULE_START_WARN = ["待派单", "待执行"]
+SCHEDULE_END_WARN = ["执行中", "待验收"]
 
 
 def _pie(rows) -> list[dict]:
@@ -84,7 +89,7 @@ def _compliance_by_customer(db: Session) -> dict:
             latest[rid] = st  # 升序遍历，最后写入即最新一次核验状态
 
     risk_status = {"未覆盖", "进行中", "有缺口"}
-    customers = {c.id: c.name for c in db.query(Customer).all()}
+    customers = {c.id: (c.short_name or c.name) for c in db.query(Customer).all()}
     agg: dict = {}
     for r in reqs:
         cname = customers.get(r.customer_id, "未分配")
@@ -127,19 +132,92 @@ def dashboard(user: SysUser = Depends(require_role(*ROLE)), db: Session = Depend
     engineer_workload = _stacked(eng_map, WORK_STATUS)
 
     # ---- 第二行：执行情况 ----
-    # 服务类别以 contract_item.project 实时为准（改名即时生效），无关联工单退回快照 project
-    proj_label = func.coalesce(ContractItem.project, WorkOrder.project)
-    proj_rows = (
-        db.query(proj_label, WorkOrder.status, func.count(WorkOrder.id))
-        .outerjoin(ContractItem, WorkOrder.contract_item_id == ContractItem.id)
-        .filter(proj_label.isnot(None))
-        .group_by(proj_label, WorkOrder.status)
+    customer_names = {c.id: (c.short_name or c.name) for c in db.query(Customer).all()}
+    eff_customer = func.coalesce(WorkOrder.customer_id, Contract.customer_id)
+
+    # 派单预警：客户 × (待派单/待执行) —— 已签约未派单 + 已派单未执行
+    dw_rows = (
+        db.query(eff_customer, WorkOrder.status, func.count(WorkOrder.id))
+        .select_from(WorkOrder)
+        .outerjoin(Contract, Contract.id == WorkOrder.contract_id)
+        .filter(WorkOrder.status.in_(DISPATCH_WARN_STATUS))
+        .group_by(eff_customer, WorkOrder.status)
         .all()
     )
-    proj_map: dict = {}
-    for proj, st, n in proj_rows:
-        proj_map.setdefault(proj, {})[st] = n
-    project_workload = _stacked(proj_map, WORK_STATUS)
+    dw_map: dict = {}
+    for cid, st, n in dw_rows:
+        dw_map.setdefault(customer_names.get(cid, "未分配"), {})[st] = n
+    dispatch_warning_by_customer = _stacked(dw_map, DISPATCH_WARN_STATUS)
+
+    # 验收预警：客户 × (执行中/待验收/待结单) —— 未提交报告 + 未验收 + 未结单
+    aw_rows = (
+        db.query(eff_customer, WorkOrder.status, func.count(WorkOrder.id))
+        .select_from(WorkOrder)
+        .outerjoin(Contract, Contract.id == WorkOrder.contract_id)
+        .filter(WorkOrder.status.in_(ACCEPT_WARN_STATUS))
+        .group_by(eff_customer, WorkOrder.status)
+        .all()
+    )
+    aw_map: dict = {}
+    for cid, st, n in aw_rows:
+        aw_map.setdefault(customer_names.get(cid, "未分配"), {})[st] = n
+    acceptance_warning_by_customer = _stacked(aw_map, ACCEPT_WARN_STATUS)
+
+    # 工期预警：客户 × (已过开始未执行/已过结束未验收/已延期)，工期日期取自当前派单 OrderDispatch
+    today = date.today()
+    sw_start_rows = (
+        db.query(eff_customer, func.count(WorkOrder.id))
+        .select_from(WorkOrder)
+        .outerjoin(Contract, Contract.id == WorkOrder.contract_id)
+        .join(OrderDispatch, OrderDispatch.id == WorkOrder.dispatch_id)
+        .filter(WorkOrder.status.in_(SCHEDULE_START_WARN))
+        .filter(OrderDispatch.service_start.isnot(None), OrderDispatch.service_start < today)
+        .group_by(eff_customer)
+        .all()
+    )
+    sw_end_rows = (
+        db.query(eff_customer, func.count(WorkOrder.id))
+        .select_from(WorkOrder)
+        .outerjoin(Contract, Contract.id == WorkOrder.contract_id)
+        .join(OrderDispatch, OrderDispatch.id == WorkOrder.dispatch_id)
+        .filter(WorkOrder.status.in_(SCHEDULE_END_WARN))
+        .filter(OrderDispatch.service_end.isnot(None), OrderDispatch.service_end < today)
+        .group_by(eff_customer)
+        .all()
+    )
+    sw_delay_rows = (
+        db.query(eff_customer, func.count(WorkOrder.id))
+        .select_from(WorkOrder)
+        .outerjoin(Contract, Contract.id == WorkOrder.contract_id)
+        .filter(WorkOrder.sla_deadline.isnot(None), func.date(WorkOrder.sla_deadline) < today)
+        .filter(WorkOrder.status.notin_(["已结单", "已关闭", "已取消"]))
+        .group_by(eff_customer)
+        .all()
+    )
+    sw_map: dict = {}
+    for cid, n in sw_start_rows:
+        sw_map.setdefault(customer_names.get(cid, "未分配"), {})["已过开始未执行"] = n
+    for cid, n in sw_end_rows:
+        sw_map.setdefault(customer_names.get(cid, "未分配"), {})["已过结束未验收"] = n
+    for cid, n in sw_delay_rows:
+        sw_map.setdefault(customer_names.get(cid, "未分配"), {})["已延期"] = n
+    schedule_warning_by_customer = _stacked(sw_map, ["已过开始未执行", "已过结束未验收", "已延期"])
+
+    # 人员预计：人员 × (待执行/执行中/待验收/待结单)
+    pf_rows = (
+        db.query(SysUser.name, WorkOrder.status, func.count(WorkOrder.id))
+        .select_from(WorkOrderAssignee)
+        .join(WorkOrder, WorkOrder.id == WorkOrderAssignee.work_order_id)
+        .join(SysUser, SysUser.id == WorkOrderAssignee.user_id)
+        .filter(WorkOrderAssignee.is_active.is_(True))
+        .filter(WorkOrder.status.in_(FORECAST_STATUS))
+        .group_by(SysUser.name, WorkOrder.status)
+        .all()
+    )
+    pf_map: dict = {}
+    for name, st, n in pf_rows:
+        pf_map.setdefault(name, {})[st] = n
+    personnel_forecast = _stacked(pf_map, FORECAST_STATUS)
 
     il_rows = db.query(Issue.type, Issue.level, func.count(Issue.id)).group_by(Issue.type, Issue.level).all()
     il_map: dict = {}
@@ -153,18 +231,6 @@ def dashboard(user: SysUser = Depends(require_role(*ROLE)), db: Session = Depend
         ist_map.setdefault(it, {})[st] = n
     issue_by_type_status = _stacked(ist_map, ISSUE_STATUS)
 
-    perf_rows = (
-        db.query(SysUser.name, func.sum(Performance.perf_score), func.avg(Performance.customer_score))
-        .select_from(Performance)
-        .join(SysUser, SysUser.id == Performance.user_id)
-        .group_by(SysUser.name)
-        .all()
-    )
-    perf_map: dict = {}
-    for name, total, cust in perf_rows:
-        perf_map[name] = {"绩效总分": float(total or 0), "客户评价": round(float(cust or 0), 2)}
-    performance_by_engineer = _stacked(perf_map, ["绩效总分", "客户评价"])
-
     # ---- 第三行：合规运营 ----
     reg_rows = (
         db.query(ComplianceRequirement.reg_source, ComplianceRequirement.category, func.count(ComplianceRequirement.id))
@@ -177,13 +243,14 @@ def dashboard(user: SysUser = Depends(require_role(*ROLE)), db: Session = Depend
         reg_map.setdefault(src, {})[cat] = n
     compliance_by_reg_source = _stacked(reg_map, CATEGORIES)
 
+    customer_display = func.coalesce(func.nullif(Customer.short_name, ''), Customer.name)
     chk_rows = (
-        db.query(Customer.name, ComplianceCheck.result, func.count(ComplianceCheck.id))
+        db.query(customer_display, ComplianceCheck.result, func.count(ComplianceCheck.id))
         .select_from(ComplianceCheck)
         .join(ComplianceRequirement, ComplianceRequirement.id == ComplianceCheck.requirement_id)
         .join(Customer, Customer.id == ComplianceRequirement.customer_id)
         .filter(ComplianceCheck.result.isnot(None))
-        .group_by(Customer.name, ComplianceCheck.result)
+        .group_by(customer_display, ComplianceCheck.result)
         .all()
     )
     chk_map: dict = {}
@@ -246,10 +313,12 @@ def dashboard(user: SysUser = Depends(require_role(*ROLE)), db: Session = Depend
             "contracts_by_status": contracts_by_status,
             "work_orders_by_status": work_orders_by_status,
             "engineer_workload": engineer_workload,
-            "project_workload": project_workload,
+            "dispatch_warning_by_customer": dispatch_warning_by_customer,
+            "acceptance_warning_by_customer": acceptance_warning_by_customer,
+            "schedule_warning_by_customer": schedule_warning_by_customer,
+            "personnel_forecast": personnel_forecast,
             "issue_by_type_level": issue_by_type_level,
             "issue_by_type_status": issue_by_type_status,
-            "performance_by_engineer": performance_by_engineer,
             "compliance_by_reg_source": compliance_by_reg_source,
             "check_by_customer": check_by_customer,
             "coverage_by_customer": coverage_by_customer,

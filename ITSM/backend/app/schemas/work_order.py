@@ -4,6 +4,12 @@ from datetime import date, datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class AssigneeIn(BaseModel):
+    """执行人 + 工作量占比。"""
+    user_id: int
+    workload_ratio: float = 100
+
+
 # ---- 接单 ----
 class OrderReceiveCreate(BaseModel):
     source: str = "客户报障"
@@ -91,6 +97,7 @@ class WorkOrderAggregateEditIn(BaseModel):
     dispatch: bool = False            # 重新派单
     dispatch_type: str = "内部"
     assignee_id: int | None = None
+    assignees: list[AssigneeIn] = []      # 多个执行人 + 占比（优先于 assignee_id）
 
 
 class WorkOrderOut(BaseModel):
@@ -142,14 +149,10 @@ class AggregateWorkOrderCreate(BaseModel):
     dispatch: bool = False
     dispatch_type: str = "内部"
     assignee_id: int | None = None
+    assignees: list[AssigneeIn] = []      # 多个执行人 + 占比（优先于 assignee_id）
 
 
 # ---- 派单 / 执行人 ----
-class AssigneeIn(BaseModel):
-    user_id: int
-    workload_ratio: float = 100
-
-
 class TransferIn(BaseModel):
     from_user_id: int
     to_user_id: int

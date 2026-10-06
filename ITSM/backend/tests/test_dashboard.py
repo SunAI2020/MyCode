@@ -41,10 +41,15 @@ def test_dashboard(db):
     assert data["contracts_by_status"] == [{"name": "执行中", "value": 1}]
     assert data["work_orders_by_status"] == [{"name": "待派单", "value": 1}]
     assert data["engineer_workload"]["categories"] == []
-    assert data["project_workload"]["categories"] == []
+    assert data["dispatch_warning_by_customer"] == {
+        "categories": ["未分配"],
+        "series": [{"name": "待派单", "data": [1]}],
+    }
+    assert data["acceptance_warning_by_customer"]["categories"] == []
+    assert data["schedule_warning_by_customer"]["categories"] == []
+    assert data["personnel_forecast"]["categories"] == []
     assert data["issue_by_type_level"]["categories"] == []
     assert data["issue_by_type_status"]["categories"] == []
-    assert data["performance_by_engineer"]["categories"] == []
     assert data["compliance_by_reg_source"]["categories"] == []
     assert data["check_by_customer"]["categories"] == []
     assert data["coverage_by_customer"]["categories"] == []

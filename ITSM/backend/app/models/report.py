@@ -26,6 +26,7 @@ class Report(Base):
     file_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)  # SHA-256
     content_enc: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)  # Fernet 加密后的文件内容
     masked_text: Mapped[str | None] = mapped_column(Text, nullable=True)  # 脱敏后的文本（预览/搜索）
+    report_data: Mapped[str | None] = mapped_column(Text, nullable=True)  # 结构化报告内容（工作内容/安全问题统计/详情）JSON 文本
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

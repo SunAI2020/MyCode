@@ -21,6 +21,7 @@ from app.models import (
     Customer,
     OrderDispatch,
     OrderReceive,
+    Report,
     ServiceCycle,
     ServiceReminder,
     SysUser,
@@ -35,6 +36,7 @@ from app.schemas.work_order import (
     AggregatePreviewIn,
     AggregateWorkOrderCreate,
     AssigneeHoursIn,
+    AssigneeIn,
     AssigneeOut,
     DispatchCreate,
     DispatchOut,
@@ -172,6 +174,14 @@ def list_work_orders(
                 it["project"] = "、".join(proj_map[it["id"]])
             elif it.get("contract_item_id"):
                 it["project"] = ci_proj.get(it["contract_item_id"], it.get("project") or "")
+
+        # 是否已提交过报告（「提交报告/更新报告」按钮切换）
+        reported_ids = {
+            wid
+            for wid, in db.query(Report.work_order_id).filter(Report.work_order_id.in_(ids)).all()
+        }
+        for it in data["items"]:
+            it["has_report"] = it["id"] in reported_ids
     return ok(data)
 
 
@@ -406,14 +416,19 @@ def create_aggregate_work_order(
             db.add(WorkOrderCycle(work_order_id=wo.id, contract_item_id=iid, cycle_no=no, service_start=s, service_end=e))
             if body.generate_cycle and not db.query(ServiceCycle.id).filter_by(contract_item_id=iid, cycle_no=no).first():
                 db.add(ServiceCycle(contract_item_id=iid, cycle_no=no, service_start=s, service_end=e, status="pending", auto_generated=False))
-        if body.dispatch and body.assignee_id is not None:
-            disp = OrderDispatch(work_order_id=wo.id, dispatch_type=body.dispatch_type, service_start=body.service_start, service_end=body.service_end)
-            db.add(disp)
-            db.flush()
-            db.add(WorkOrderAssignee(work_order_id=wo.id, user_id=body.assignee_id, workload_ratio=100))
-            wo.dispatch_id = disp.id
-            wo.status = "待执行"
-            log_transition(db, entity="work_order", entity_id=wo.id, from_status="待派单", to_status="待执行", operator_id=user.id)
+        if body.dispatch:
+            assignees = body.assignees
+            if not assignees and body.assignee_id is not None:
+                assignees = [AssigneeIn(user_id=body.assignee_id, workload_ratio=100)]
+            if assignees:
+                disp = OrderDispatch(work_order_id=wo.id, dispatch_type=body.dispatch_type, service_start=body.service_start, service_end=body.service_end)
+                db.add(disp)
+                db.flush()
+                for a in assignees:
+                    db.add(WorkOrderAssignee(work_order_id=wo.id, user_id=a.user_id, workload_ratio=a.workload_ratio))
+                wo.dispatch_id = disp.id
+                wo.status = "待执行"
+                log_transition(db, entity="work_order", entity_id=wo.id, from_status="待派单", to_status="待执行", operator_id=user.id)
         record(db, user_id=user.id, action="create_aggregate", resource=f"work_order:{wo.id}", after=str(body.model_dump()))
         db.commit()
     return ok(WorkOrderOut.model_validate(wo).model_dump())
@@ -429,6 +444,11 @@ def get_work_order_scope(wid: int, user: SysUser = Depends(get_current_user), db
     cis = []
     for r in db.query(WorkOrderCi).filter_by(work_order_id=wid).all():
         ci = db.get(CmdbCi, r.ci_id)
+        if ci:
+            cis.append({"ci_id": ci.id, "name": ci.name, "type": ci.type})
+    # 简单工单：无 WorkOrderCi，直接按 ci_id 补业务系统
+    if not cis and wo.ci_id is not None:
+        ci = db.get(CmdbCi, wo.ci_id)
         if ci:
             cis.append({"ci_id": ci.id, "name": ci.name, "type": ci.type})
     items = []
@@ -452,8 +472,23 @@ def get_work_order_scope(wid: int, user: SysUser = Depends(get_current_user), db
             "project": it["project"] if it else "",
             "ci_name": ci_map.get(it["ci_id"], "") if it and it.get("ci_id") else "",
         })
-    # 当前执行人 + 派单类型（编辑弹窗回填用）
-    _assignee = db.query(WorkOrderAssignee.user_id).filter_by(work_order_id=wid, is_active=True).first()
+    # 简单工单：无 WorkOrderCycle，按 current_cycle_no 补当前工期
+    if not cycles and wo.contract_item_id is not None and wo.current_cycle_no is not None:
+        cyc = db.query(ServiceCycle).filter_by(contract_item_id=wo.contract_item_id, cycle_no=wo.current_cycle_no).first()
+        if cyc:
+            item = db.get(ContractItem, wo.contract_item_id)
+            cycles.append({
+                "contract_item_id": wo.contract_item_id,
+                "cycle_no": cyc.cycle_no,
+                "service_start": cyc.service_start.isoformat(),
+                "service_end": cyc.service_end.isoformat(),
+                "project": item.project if item else "",
+                "ci_name": ci_map.get(wo.ci_id, "") if wo.ci_id else "",
+            })
+    # 当前执行人（多执行人 + 占比，编辑弹窗回填用）+ 派单类型
+    assignees = []
+    for a in db.query(WorkOrderAssignee).filter_by(work_order_id=wid, is_active=True).all():
+        assignees.append({"user_id": a.user_id, "workload_ratio": float(a.workload_ratio)})
     dispatch_type = None
     if wo.dispatch_id is not None:
         _disp = db.get(OrderDispatch, wo.dispatch_id)
@@ -462,7 +497,8 @@ def get_work_order_scope(wid: int, user: SysUser = Depends(get_current_user), db
     return ok({
         "work_order": WorkOrderOut.model_validate(wo).model_dump(),
         "cis": cis, "items": items, "cycles": cycles,
-        "assignee_id": _assignee[0] if _assignee else None,
+        "assignee_id": assignees[0]["user_id"] if assignees else None,
+        "assignees": assignees,
         "dispatch_type": dispatch_type,
     })
 
@@ -596,7 +632,10 @@ def edit_aggregate_work_order(
 
     # 重新派单：删除原派单记录 + 执行人，重新落派单
     if body.dispatch:
-        if body.assignee_id is None:
+        assignees = body.assignees
+        if not assignees and body.assignee_id is not None:
+            assignees = [AssigneeIn(user_id=body.assignee_id, workload_ratio=100)]
+        if not assignees:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "重新派单需选择执行人")
         db.query(WorkOrderAssignee).filter_by(work_order_id=wid).delete()
         db.query(OrderDispatch).filter_by(work_order_id=wid).delete()
@@ -608,7 +647,8 @@ def edit_aggregate_work_order(
         )
         db.add(disp)
         db.flush()
-        db.add(WorkOrderAssignee(work_order_id=wid, user_id=body.assignee_id, workload_ratio=100))
+        for a in assignees:
+            db.add(WorkOrderAssignee(work_order_id=wid, user_id=a.user_id, workload_ratio=a.workload_ratio))
         wo.dispatch_id = disp.id
         if wo.status == "待派单":
             wo.status = "待执行"

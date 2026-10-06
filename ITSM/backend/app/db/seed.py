@@ -23,6 +23,9 @@ ROLES = [
     ("cust_admin", "客户系统管理员", "customer"),
     ("cust_service", "客户服务管理人员", "customer"),
     ("outsource", "外包人员", "platform"),  # 外包账号（§9.3 隔离）
+    ("auditor", "审计", "third_party"),      # 第三方人员
+    ("bidder", "招标", "third_party"),
+    ("biz_supervisor", "业务主管", "third_party"),
 ]
 
 # (code, name, type)  权限点：type = menu(菜单/模块可见) / action(写操作)
@@ -78,6 +81,9 @@ ROLE_PERMISSIONS = {
     "cust_admin": ["dashboard", "work_orders", "portal", "knowledge", "reports"],
     "cust_service": ["dashboard", "work_orders", "portal", "knowledge", "reports"],
     "outsource": [],
+    "auditor": [],
+    "bidder": [],
+    "biz_supervisor": [],
 }
 
 # (category, code, name)
@@ -107,12 +113,12 @@ DICTS = [
     ("frequency_unit", "half_year", "半年"),
     ("frequency_unit", "year", "年"),
     ("frequency_unit", "irregular", "不定期"),
-    # 工单状态 10 项
+    # 工单状态 8 项
     ("work_order_status", "pending_dispatch", "待派单"),
     ("work_order_status", "pending_exec", "待执行"),
     ("work_order_status", "executing", "执行中"),
     ("work_order_status", "pending_accept", "待验收"),
-    ("work_order_status", "accepted", "已验收"),
+    ("work_order_status", "pending_settle", "待结单"),
     ("work_order_status", "closed", "已结单"),
     ("work_order_status", "cancelled", "已取消"),
     ("work_order_status", "archived", "已关闭"),
@@ -201,7 +207,7 @@ def seed() -> None:
 
         added_tpl = seed_templates(db)
         db.commit()
-        print("seed 完成：8 角色 / 31 权限点 / 37 字典项 / 3 SLA 模板 / 3 知识条目 / 1 管理员(admin)")
+        print("seed 完成：11 角色 / 31 权限点 / 37 字典项 / 3 SLA 模板 / 3 知识条目 / 1 管理员(admin)")
         if added_tpl:
             print(f"  监管要求模板库：新增 {added_tpl} 条（等保2.0/密码测评/数据安全/公安部176号令/关基保护）")
         if admin_pwd:

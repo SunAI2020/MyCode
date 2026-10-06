@@ -191,7 +191,7 @@ def confirm_archive(
     customer = _resolve_customer(db, body, scope)
 
     start, end = parse_period(body.service_period)
-    contract_status = "已到期" if (end is not None and end < date.today()) else "执行中"
+    contract_status = "已签约"
     contract = Contract(
         customer_id=customer.id,
         type="安全服务",

@@ -12,8 +12,8 @@ from app.services.workflow_service import (
 
 def test_default_work_order_targets(db):
     assert allowed_targets(db, "work_order", "待派单") == ["待执行", "已取消"]
-    assert allowed_targets(db, "work_order", "待验收") == ["已验收", "已取消"]
-    assert allowed_targets(db, "work_order", "已验收") == ["已结单"]
+    assert allowed_targets(db, "work_order", "待验收") == ["待结单", "已取消"]
+    assert allowed_targets(db, "work_order", "待结单") == ["已结单"]
     assert allowed_targets(db, "work_order", "已结单") == ["已关闭"]
     assert allowed_targets(db, "work_order", "已取消") == ["已关闭"]
     assert allowed_targets(db, "work_order", "已关闭") == []
