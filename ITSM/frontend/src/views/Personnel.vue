@@ -101,9 +101,10 @@ const ROLE_OPTIONS = [
   { code: 'cust_admin', name: '客户系统管理员' },
   { code: 'cust_service', name: '客户服务管理人员' },
   { code: 'outsource', name: '外包人员' },
-  { code: 'auditor', name: '审计' },
-  { code: 'bidder', name: '招标' },
-  { code: 'biz_supervisor', name: '业务主管' },
+  { code: 'auditor', name: '第三方审计' },
+  { code: 'bidder', name: '招标人' },
+  { code: 'biz_supervisor', name: '云时代业务主管' },
+  { code: 'cloud_customer_manager', name: '云时代客户经理' },
 ]
 
 const rows = ref<any[]>([])
@@ -118,10 +119,10 @@ const needsCustomer = computed(() => (form.role_codes || []).some((c: string) =>
 const PERSONNEL_SECTIONS = [
   { key: 'service', title: '服务人员（我方人员）' },
   { key: 'customer', title: '客户人员' },
-  { key: 'third_party', title: '第三方人员（审计、招标、业务主管）' },
+  { key: 'third_party', title: '第三方人员（第三方审计、招标人、云时代业务主管、云时代客户经理）' },
 ]
 const CUSTOMER_CODES = ['cust_admin', 'cust_service']
-const THIRD_PARTY_CODES = ['auditor', 'bidder', 'biz_supervisor']
+const THIRD_PARTY_CODES = ['auditor', 'bidder', 'biz_supervisor', 'cloud_customer_manager']
 function categoryOf(row: any): string {
   const codes = (row.roles || []).map((r: any) => r.code)
   if (codes.some((c: string) => THIRD_PARTY_CODES.includes(c))) return 'third_party'

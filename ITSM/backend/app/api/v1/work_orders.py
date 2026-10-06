@@ -24,7 +24,9 @@ from app.models import (
     Report,
     ServiceCycle,
     ServiceReminder,
+    SysRole,
     SysUser,
+    SysUserRole,
     WorkOrder,
     WorkOrderAssignee,
     WorkOrderCi,
@@ -64,6 +66,25 @@ from app.utils.wo_no import next_work_order_no, work_order_no_scope
 
 receives = APIRouter(prefix="/receives", tags=["接单"])
 router = APIRouter(prefix="/work-orders", tags=["工单"])
+
+
+def _assert_dispatchable(db: Session, user_ids: list[int]) -> None:
+    """执行人仅限我方服务人员 + 外包人员（platform 角色），排除客户方/第三方。"""
+    uids = {uid for uid in user_ids if uid is not None}
+    if not uids:
+        return
+    platform_ids = {
+        uid
+        for uid, scope in (
+            db.query(SysUserRole.user_id, SysRole.scope)
+            .join(SysRole, SysUserRole.role_id == SysRole.id)
+            .filter(SysUserRole.user_id.in_(uids), SysRole.scope == "platform")
+            .all()
+        )
+    }
+    bad = [uid for uid in uids if uid not in platform_ids]
+    if bad:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "执行人仅限我方服务人员或外包人员")
 
 
 # ---- 接单 ----
@@ -291,6 +312,7 @@ def create_work_order(
             wo.current_cycle_no = cycle.cycle_no
         # 同时派单：直接落派单 + 执行人，工单置为待执行
         if body.dispatch and body.assignee_id is not None:
+            _assert_dispatchable(db, [body.assignee_id])
             disp = OrderDispatch(
                 work_order_id=wo.id,
                 dispatch_type=body.dispatch_type,
@@ -421,6 +443,7 @@ def create_aggregate_work_order(
             if not assignees and body.assignee_id is not None:
                 assignees = [AssigneeIn(user_id=body.assignee_id, workload_ratio=100)]
             if assignees:
+                _assert_dispatchable(db, [a.user_id for a in assignees])
                 disp = OrderDispatch(work_order_id=wo.id, dispatch_type=body.dispatch_type, service_start=body.service_start, service_end=body.service_end)
                 db.add(disp)
                 db.flush()
@@ -561,6 +584,7 @@ def edit_work_order(
             cycle.service_end = body.service_end
     # 重新派单
     if body.dispatch and body.assignee_id is not None:
+        _assert_dispatchable(db, [body.assignee_id])
         for a in db.query(WorkOrderAssignee).filter_by(work_order_id=wid, is_active=True).all():
             a.is_active = False
         disp = OrderDispatch(
@@ -637,6 +661,7 @@ def edit_aggregate_work_order(
             assignees = [AssigneeIn(user_id=body.assignee_id, workload_ratio=100)]
         if not assignees:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "重新派单需选择执行人")
+        _assert_dispatchable(db, [a.user_id for a in assignees])
         db.query(WorkOrderAssignee).filter_by(work_order_id=wid).delete()
         db.query(OrderDispatch).filter_by(work_order_id=wid).delete()
         disp = OrderDispatch(
@@ -756,6 +781,7 @@ def dispatch(
     assert_scoped(wo, customer_scope_of(user, db), db)
     if wo.status != "待派单":
         raise HTTPException(status.HTTP_400_BAD_REQUEST, f"当前状态「{wo.status}」不可派单（仅待派单可派单）")
+    _assert_dispatchable(db, [a.user_id for a in body.assignees])
     for a in db.query(WorkOrderAssignee).filter_by(work_order_id=wid, is_active=True).all():
         a.is_active = False  # 停用旧活跃执行人，防重复派单累计
     total = sum(a.workload_ratio for a in body.assignees)
@@ -808,6 +834,7 @@ def transfer(
     if wo is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "工单不存在")
     assert_scoped(wo, customer_scope_of(user, db), db)
+    _assert_dispatchable(db, [body.to_user_id])
     try:
         new = transfer_assignee(db, wid, body.from_user_id, body.to_user_id, body.actual_hours)
     except ValueError as e:

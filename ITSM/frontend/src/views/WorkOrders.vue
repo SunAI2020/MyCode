@@ -74,7 +74,7 @@
         </el-form-item>
         <el-form-item label="执行人">
           <el-select v-model="createForm.assignee_id" filterable placeholder="选择执行人" style="width: 100%">
-            <el-option v-for="u in users" :key="u.id" :label="u.name" :value="u.id" />
+            <el-option v-for="u in dispatchableUsers" :key="u.id" :label="u.name" :value="u.id" />
           </el-select>
         </el-form-item>
         <el-form-item label="同时派单"><el-checkbox v-model="createForm.dispatch" /></el-form-item>
@@ -128,7 +128,7 @@
           <div class="assignee-list">
             <div v-for="(a, i) in aggAssignees" :key="i" class="assignee-row">
               <el-select v-model="a.user_id" placeholder="选择执行人" filterable style="width: 180px" @change="applyDefaultRatios(aggAssignees)">
-                <el-option v-for="u in users" :key="u.id" :label="u.name" :value="u.id" />
+                <el-option v-for="u in dispatchableUsers" :key="u.id" :label="u.name" :value="u.id" />
               </el-select>
               <el-input-number v-model="a.workload_ratio" :min="0" :max="100" controls-position="right" style="width: 110px" @change="rebalance(aggAssignees, i)" />
               <span class="ratio-unit">%</span>
@@ -177,7 +177,7 @@
           <div class="assignee-list">
             <div v-for="(a, i) in dispatchForm.assignees" :key="i" class="assignee-row">
               <el-select v-model="a.user_id" placeholder="选择执行人" filterable style="width: 180px" @change="applyDefaultRatios(dispatchForm.assignees)">
-                <el-option v-for="u in users" :key="u.id" :label="u.name" :value="u.id" />
+                <el-option v-for="u in dispatchableUsers" :key="u.id" :label="u.name" :value="u.id" />
               </el-select>
               <el-input-number v-model="a.workload_ratio" :min="0" :max="100" controls-position="right" style="width: 110px" @change="rebalance(dispatchForm.assignees, i)" />
               <span class="ratio-unit">%</span>
@@ -237,7 +237,7 @@
           <div class="assignee-list">
             <div v-for="(a, i) in editAggAssignees" :key="i" class="assignee-row">
               <el-select v-model="a.user_id" placeholder="选择执行人" filterable style="width: 180px" @change="applyDefaultRatios(editAggAssignees)">
-                <el-option v-for="u in users" :key="u.id" :label="u.name" :value="u.id" />
+                <el-option v-for="u in dispatchableUsers" :key="u.id" :label="u.name" :value="u.id" />
               </el-select>
               <el-input-number v-model="a.workload_ratio" :min="0" :max="100" controls-position="right" style="width: 110px" @change="rebalance(editAggAssignees, i)" />
               <span class="ratio-unit">%</span>
@@ -385,6 +385,8 @@ const customers = ref<any[]>([])
 const cis = ref<any[]>([])
 const items = ref<any[]>([])
 const users = ref<any[]>([])
+// 执行人可选：仅 platform 角色（我方服务人员 + 外包人员），排除客户方/第三方
+const dispatchableUsers = computed(() => users.value.filter((u: any) => (u.roles || []).some((r: any) => r.scope === 'platform')))
 // 写权限点（工单创建/派单/转派，与后端 work_order:write 对齐）
 const canDispatch = computed(() => auth.hasPermission('work_order:write'))
 const customerMap = computed(() => new Map(customers.value.map((c) => [c.id, c])))
@@ -680,7 +682,7 @@ async function onCreate() {
 function openDispatch(row: any) {
   dispatchTarget.value = row.id
   dispatchForm.dispatch_type = '内部'
-  dispatchForm.assignees = [{ user_id: users.value[0]?.id ?? null, workload_ratio: 100 }]
+  dispatchForm.assignees = [{ user_id: dispatchableUsers.value[0]?.id ?? null, workload_ratio: 100 }]
   dispatchDlg.value = true
 }
 async function onDispatch() {

@@ -410,7 +410,7 @@
         </el-form-item>
         <el-form-item label="执行人">
           <el-select v-model="aggAssigneeId" filterable placeholder="选择执行人" style="width: 100%">
-            <el-option v-for="u in users" :key="u.id" :label="u.name" :value="u.id" />
+            <el-option v-for="u in dispatchableUsers" :key="u.id" :label="u.name" :value="u.id" />
           </el-select>
         </el-form-item>
         <el-form-item label="立即派单"><el-checkbox v-model="aggDispatch" /></el-form-item>
@@ -444,7 +444,7 @@
         </el-form-item>
         <el-form-item label="执行人">
           <el-select v-model="editWoForm.assignee_id" clearable filterable placeholder="选择执行人（选择后重新派单）" style="width: 100%">
-            <el-option v-for="u in users" :key="u.id" :label="u.name" :value="u.id" />
+            <el-option v-for="u in dispatchableUsers" :key="u.id" :label="u.name" :value="u.id" />
           </el-select>
         </el-form-item>
         <el-form-item label="描述"><el-input v-model="editWoForm.description" type="textarea" :rows="3" /></el-form-item>
@@ -547,6 +547,8 @@ function queryCiTypes(_query: string, cb: (results: any[]) => void) {
 
 // ---- 修改工单（服务类别已有工单时）----
 const users = ref<any[]>([])
+// 执行人可选：仅 platform 角色（我方服务人员 + 外包人员），排除客户方/第三方
+const dispatchableUsers = computed(() => users.value.filter((u: any) => (u.roles || []).some((r: any) => r.scope === 'platform')))
 const editWoDlg = ref(false)
 const editWoId = ref<number | null>(null)
 const editWoForm = reactive({ type: '客户工单', priority: '中', description: '', service_start: '', service_end: '', dispatch_type: '内部', assignee_id: null as number | null })

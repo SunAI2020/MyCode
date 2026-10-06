@@ -23,9 +23,10 @@ ROLES = [
     ("cust_admin", "客户系统管理员", "customer"),
     ("cust_service", "客户服务管理人员", "customer"),
     ("outsource", "外包人员", "platform"),  # 外包账号（§9.3 隔离）
-    ("auditor", "审计", "third_party"),      # 第三方人员
-    ("bidder", "招标", "third_party"),
-    ("biz_supervisor", "业务主管", "third_party"),
+    ("auditor", "第三方审计", "third_party"),      # 第三方人员
+    ("bidder", "招标人", "third_party"),
+    ("biz_supervisor", "云时代业务主管", "third_party"),
+    ("cloud_customer_manager", "云时代客户经理", "third_party"),
 ]
 
 # (code, name, type)  权限点：type = menu(菜单/模块可见) / action(写操作)
@@ -84,6 +85,7 @@ ROLE_PERMISSIONS = {
     "auditor": [],
     "bidder": [],
     "biz_supervisor": [],
+    "cloud_customer_manager": [],
 }
 
 # (category, code, name)
@@ -207,7 +209,7 @@ def seed() -> None:
 
         added_tpl = seed_templates(db)
         db.commit()
-        print("seed 完成：11 角色 / 31 权限点 / 37 字典项 / 3 SLA 模板 / 3 知识条目 / 1 管理员(admin)")
+        print("seed 完成：12 角色 / 31 权限点 / 37 字典项 / 3 SLA 模板 / 3 知识条目 / 1 管理员(admin)")
         if added_tpl:
             print(f"  监管要求模板库：新增 {added_tpl} 条（等保2.0/密码测评/数据安全/公安部176号令/关基保护）")
         if admin_pwd:
