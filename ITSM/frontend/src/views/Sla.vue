@@ -243,7 +243,7 @@ onMounted(() => {
 .toolbar { display: flex; gap: 12px; margin-bottom: 14px; }
 .cycle-section { margin-bottom: 16px; }
 .cycle-section-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.cycle-section-title { font-weight: 600; color: #303133; }
-.cycle-section-count { color: #909399; font-size: 12px; }
-.cycle-section-empty { color: #c0c4cc; font-size: 13px; padding: 4px 0; }
+.cycle-section-title { font-weight: 600; color: var(--app-text); }
+.cycle-section-count { color: var(--app-text-3); font-size: 12px; }
+.cycle-section-empty { color: var(--app-text-4); font-size: 13px; padding: 4px 0; }
 </style>

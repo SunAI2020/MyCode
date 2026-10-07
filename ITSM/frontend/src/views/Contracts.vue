@@ -16,6 +16,9 @@
               </div>
               <el-table v-if="col.list.length" :data="col.list" size="small" border>
                 <el-table-column prop="id" label="ID" width="60" />
+                <el-table-column label="客户名称">
+                  <template #default="{ row }">{{ contractCustomerName(row) }}</template>
+                </el-table-column>
                 <el-table-column prop="name" label="项目名称" />
                 <el-table-column prop="no" label="合同编号" />
                 <el-table-column prop="type" label="类型" width="110" />
@@ -237,7 +240,7 @@
     <!-- 导入存档弹窗 -->
     <!-- 识别中提示 -->
     <el-dialog v-model="recognizing" width="320px" :show-close="false" :close-on-click-modal="false" :close-on-press-escape="false" append-to-body>
-      <div v-loading="true" element-loading-text="正在识别中...，请您耐心等待！" element-loading-background="rgba(255,255,255,0.9)" style="min-height: 100px;"></div>
+      <div v-loading="true" element-loading-text="正在识别中...，请您耐心等待！" element-loading-background="rgba(11,18,32,0.9)" style="min-height: 100px;"></div>
     </el-dialog>
 
     <el-dialog v-model="importDlg" title="合同原件导入 - 识别结果" width="840px" top="4vh">
@@ -365,16 +368,17 @@
       </el-table>
     </el-dialog>
 
-    <!-- 新增聚合工单弹窗 -->
-    <el-dialog v-model="aggDlg" title="新增聚合工单" width="640px">
+    <!-- 生成工单弹窗 -->
+    <el-dialog v-model="aggDlg" title="生成工单" width="640px">
       <el-form label-width="90px">
-        <el-form-item label="客户">
-          <el-select v-model="aggCustomerId" style="width: 100%" @change="onAggCustomerChange">
-            <el-option v-for="c in customers" :key="c.id" :label="c.name" :value="c.id" />
-          </el-select>
+        <el-form-item label="客户名称">
+          <div class="agg-readonly">{{ aggCustomerName || '—' }}</div>
+        </el-form-item>
+        <el-form-item label="项目名称">
+          <div class="agg-readonly">{{ aggContractName || '—' }}</div>
         </el-form-item>
         <el-form-item label="业务系统">
-          <div v-if="!aggCustomerId" class="agg-empty">请先选择客户</div>
+          <div v-if="!aggFilteredCis.length" class="agg-empty">该客户暂无业务系统</div>
           <div v-else class="agg-box">
             <el-checkbox :model-value="aggCiAll" :indeterminate="aggCiIndeterminate" @change="toggleAllCi">全选</el-checkbox>
             <el-checkbox-group v-model="aggCiIds">
@@ -383,16 +387,14 @@
           </div>
         </el-form-item>
         <el-form-item label="服务类别">
-          <div v-if="!aggCustomerId" class="agg-empty">请先选择客户</div>
-          <div v-else-if="!aggGroups.length" class="agg-empty">该客户暂无服务类别</div>
-          <div v-else class="agg-box">
-            <el-checkbox :model-value="aggAll" :indeterminate="aggIndeterminate" @change="toggleAll">全选</el-checkbox>
-            <el-checkbox-group v-model="aggGroupIds">
-              <el-checkbox v-for="g in aggGroups" :key="g.key" :value="g.key">
-                {{ g.project }}（{{ ciCountOf(g) }} · 每{{ g.frequency }}{{ g.unit }}）
-              </el-checkbox>
-            </el-checkbox-group>
-          </div>
+          <el-select v-model="aggCategory" filterable placeholder="选择服务类别" style="width: 100%">
+            <el-option v-for="p in aggCategoryOptions" :key="p" :label="p" :value="p" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="工单类型">
+          <el-select v-model="aggType" style="width: 100%">
+            <el-option v-for="t in ['客户工单', '驻场工单', '内部任务', '外包工单']" :key="t" :label="t" :value="t" />
+          </el-select>
         </el-form-item>
         <el-form-item label="优先级">
           <el-select v-model="aggPriority" style="width: 100%">
@@ -402,22 +404,23 @@
         <el-form-item label="开始时间"><el-date-picker v-model="aggServiceStart" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item>
         <el-form-item label="结束时间"><el-date-picker v-model="aggServiceEnd" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item>
         <el-form-item label="生成工期"><el-checkbox v-model="aggGenerateCycle" /></el-form-item>
-        <el-form-item label="派单类型">
-          <el-select v-model="aggDispatchType" style="width: 100%">
-            <el-option label="内部" value="内部" />
-            <el-option label="外包" value="外包" />
-          </el-select>
-        </el-form-item>
         <el-form-item label="执行人">
-          <el-select v-model="aggAssigneeId" filterable placeholder="选择执行人" style="width: 100%">
-            <el-option v-for="u in dispatchableUsers" :key="u.id" :label="u.name" :value="u.id" />
-          </el-select>
+          <div class="assignee-list">
+            <div v-for="(a, i) in aggAssignees" :key="i" class="assignee-row">
+              <el-select v-model="a.user_id" placeholder="选择执行人" filterable style="width: 180px" @change="applyDefaultRatios(aggAssignees)">
+                <el-option v-for="u in dispatchableUsers" :key="u.id" :label="u.name" :value="u.id" />
+              </el-select>
+              <el-input-number v-model="a.workload_ratio" :min="0" :max="100" controls-position="right" style="width: 110px" @change="rebalance(aggAssignees, i)" />
+              <span class="ratio-unit">%</span>
+              <el-button link type="danger" @click="removeAssignee(aggAssignees, i)">删除</el-button>
+            </div>
+            <el-button link type="primary" @click="addAssignee(aggAssignees)">+ 添加执行人</el-button>
+          </div>
         </el-form-item>
-        <el-form-item label="立即派单"><el-checkbox v-model="aggDispatch" /></el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="aggDlg = false">取消</el-button>
-        <el-button type="primary" :disabled="!aggGroupIds.length" @click="saveAggregate">创建（每个服务类别一个工单）</el-button>
+        <el-button type="primary" :disabled="!aggCategory" @click="saveAggregate">创建工单</el-button>
       </template>
     </el-dialog>
 
@@ -436,12 +439,6 @@
         </el-form-item>
         <el-form-item label="服务开始时间"><el-date-picker v-model="editWoForm.service_start" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item>
         <el-form-item label="服务结束时间"><el-date-picker v-model="editWoForm.service_end" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item>
-        <el-form-item label="派单类型">
-          <el-select v-model="editWoForm.dispatch_type" style="width: 100%">
-            <el-option label="内部" value="内部" />
-            <el-option label="外包" value="外包" />
-          </el-select>
-        </el-form-item>
         <el-form-item label="执行人">
           <el-select v-model="editWoForm.assignee_id" clearable filterable placeholder="选择执行人（选择后重新派单）" style="width: 100%">
             <el-option v-for="u in dispatchableUsers" :key="u.id" :label="u.name" :value="u.id" />
@@ -553,20 +550,22 @@ const editWoDlg = ref(false)
 const editWoId = ref<number | null>(null)
 const editWoForm = reactive({ type: '客户工单', priority: '中', description: '', service_start: '', service_end: '', dispatch_type: '内部', assignee_id: null as number | null })
 
-// ---- 新增聚合工单 ----
+// ---- 生成工单 ----
 const aggDlg = ref(false)
 const aggCustomerId = ref<number | null>(null)
+const aggCustomerName = ref('')
+const aggContractId = ref<number | null>(null)
+const aggContractName = ref('')
 const aggCis = ref<any[]>([])
 const aggItems = ref<any[]>([])
 const aggCiIds = ref<number[]>([])
-const aggGroupIds = ref<string[]>([])
+const aggCategory = ref('')
+const aggType = ref('客户工单')
 const aggPriority = ref('中')
 const aggServiceStart = ref('')
 const aggServiceEnd = ref('')
 const aggGenerateCycle = ref(true)
-const aggDispatch = ref(true)
-const aggDispatchType = ref('内部')
-const aggAssigneeId = ref<number | null>(null)
+const aggAssignees = ref<any[]>([{ user_id: null, workload_ratio: null }])
 
 // ---- 合同原件导入 ----
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -725,6 +724,9 @@ function contractNameOf(row: any) {
 function customerNameOf(row: any) {
   const c = contractMap.value.get(row.contract_id)
   return c ? (customerMap.value.get(c.customer_id)?.name ?? '') : ''
+}
+function contractCustomerName(row: any) {
+  return customerMap.value.get(row.customer_id)?.name ?? ''
 }
 function ciNameOf(row: any) {
   return row.ci_id ? (ciMap.value.get(row.ci_id)?.name ?? '') : '//'
@@ -912,105 +914,150 @@ async function saveItem() {
   itemEditGroup.value = []
   loadItems()
 }
-// ---- 新增聚合工单（每个服务类别一个工单）----
+// ---- 生成工单 ----
 const aggFilteredCis = computed(() => aggCis.value.filter((c) => c.customer_id === aggCustomerId.value))
 const aggCiAll = computed(() => aggFilteredCis.value.length > 0 && aggCiIds.value.length === aggFilteredCis.value.length)
 const aggCiIndeterminate = computed(() => aggCiIds.value.length > 0 && aggCiIds.value.length < aggFilteredCis.value.length)
-const aggGroups = computed(() => {
-  const map = new Map<string, any>()
+const aggCategoryOptions = computed(() => {
+  const set = new Set<string>()
   for (const it of aggItems.value) {
-    const key = `${it.contract_id}|${it.project}|${it.frequency}|${it.unit}|${it.price ?? ''}`
-    if (!map.has(key)) {
-      map.set(key, { key, contract_id: it.contract_id, project: it.project, frequency: it.frequency, unit: it.unit, price: it.price, _members: [], _ciIds: [] })
-    }
-    const g = map.get(key)
-    g._members.push(it)
-    if (it.ci_id) g._ciIds.push(it.ci_id)
+    if (it.contract_id === aggContractId.value && it.project) set.add(it.project)
   }
-  return [...map.values()].map((g) => {
-    g._ciIds = [...new Set(g._ciIds)]
-    g._ciCount = g._ciIds.length
-    return g
-  })
+  return [...set]
 })
-const aggAll = computed(() => aggGroups.value.length > 0 && aggGroupIds.value.length === aggGroups.value.length)
-const aggIndeterminate = computed(() => aggGroupIds.value.length > 0 && aggGroupIds.value.length < aggGroups.value.length)
 
-async function openAggregate(row?: any) {
-  aggCustomerId.value = row?.contract_id ? (contractMap.value.get(row.contract_id)?.customer_id ?? null) : null
+async function openAggregate(row: any) {
+  const contract = contractMap.value.get(row.contract_id)
+  aggContractId.value = row.contract_id
+  aggCustomerId.value = contract?.customer_id ?? null
+  aggContractName.value = contract?.name ?? ''
+  aggCustomerName.value = contract ? (customerMap.value.get(contract.customer_id)?.name ?? '') : ''
   aggCiIds.value = []
-  aggGroupIds.value = []
+  aggCategory.value = ''
+  aggType.value = '客户工单'
   aggPriority.value = '中'
   aggServiceStart.value = ''
   aggServiceEnd.value = ''
   aggGenerateCycle.value = true
-  aggDispatch.value = true
-  aggDispatchType.value = '内部'
-  aggAssigneeId.value = null
+  aggAssignees.value = [{ user_id: null, workload_ratio: null }]
   aggCis.value = []
   aggItems.value = []
   aggDlg.value = true
   if (!users.value.length) {
     try { users.value = (await listUsers()).data } catch { /* 无人员权限时执行人下拉为空 */ }
   }
-  if (aggCustomerId.value != null) await onAggCustomerChange()
-}
-async function onAggCustomerChange() {
-  aggCiIds.value = []
-  aggGroupIds.value = []
-  aggCis.value = (await listCis({ page: 1, size: 100, customer_id: aggCustomerId.value })).data.items
-  aggCiIds.value = aggCis.value.map((c) => c.id)
-  const ciIds = aggCiIds.value
-  aggItems.value = ciIds.length ? (await listItems({ page: 1, size: 100, ci_ids: ciIds.join(',') })).data.items : []
-  aggGroupIds.value = aggGroups.value.map((g) => g.key)
-  const cs = contracts.value.filter((c) => c.customer_id === aggCustomerId.value)
-  const starts = cs.map((c) => c.start_date).filter(Boolean).sort()
-  const ends = cs.map((c) => c.end_date).filter(Boolean).sort()
-  aggServiceStart.value = starts[0] ?? ''
-  aggServiceEnd.value = ends[ends.length - 1] ?? ''
+  if (aggCustomerId.value != null) {
+    aggCis.value = (await listCis({ page: 1, size: 100, customer_id: aggCustomerId.value })).data.items
+    // 按项目加载全部服务子项（含无业务系统的「//」子项），不再用 ci_ids 过滤以免漏掉 ci_id 为空的项
+    aggItems.value = aggContractId.value != null
+      ? (await listItems({ page: 1, size: 100, contract_id: aggContractId.value })).data.items
+      : []
+    // 业务系统：默认选中本行业务系统（「//」无业务系统时为空）
+    aggCiIds.value = (row._ciIds || []).filter((id: number) => aggCis.value.some((c) => c.id === id))
+    // 服务类别：默认本行类别
+    aggCategory.value = row.project || ''
+    // 服务起止时间默认取该客户合同的时间范围
+    const cs = contracts.value.filter((c) => c.customer_id === aggCustomerId.value)
+    const starts = cs.map((c) => c.start_date).filter(Boolean).sort()
+    const ends = cs.map((c) => c.end_date).filter(Boolean).sort()
+    aggServiceStart.value = starts[0] ?? ''
+    aggServiceEnd.value = ends[ends.length - 1] ?? ''
+  }
 }
 function toggleAllCi(v: boolean) {
   aggCiIds.value = v ? aggFilteredCis.value.map((c) => c.id) : []
 }
-function toggleAll(v: boolean) {
-  aggGroupIds.value = v ? aggGroups.value.map((g) => g.key) : []
+// ---- 执行人占比：默认分配 + 自动增减（总和恒为 100%）----
+function defaultRatios(n: number): number[] {
+  if (n <= 0) return []
+  if (n === 1) return [100]
+  if (n === 2) return [50, 50]
+  if (n === 3) return [34, 33, 33]
+  if (n === 4) return [25, 25, 25, 25]
+  const base = Math.floor(100 / n)
+  const arr = new Array(n).fill(base)
+  arr[n - 1] = 100 - base * (n - 1)
+  return arr
 }
-function ciCountOf(g: any) {
-  const n = g._ciIds.filter((id: number) => aggCiIds.value.includes(id)).length
-  return n > 0 ? `${n}个业务系统` : '未关联业务系统'
+function pickedIndexes(arr: any[]) {
+  return arr.map((a, i) => i).filter((i) => arr[i].user_id != null)
+}
+function applyDefaultRatios(arr: any[]) {
+  const idxs = pickedIndexes(arr)
+  const ratios = defaultRatios(idxs.length)
+  arr.forEach((a, i) => { if (a.user_id == null) a.workload_ratio = null })
+  idxs.forEach((rowIdx, k) => { arr[rowIdx].workload_ratio = ratios[k] })
+}
+function rebalance(arr: any[], changedIndex: number) {
+  if (arr[changedIndex].user_id == null) return
+  const idxs = pickedIndexes(arr)
+  if (!idxs.length) return
+  if (idxs.length === 1) { arr[idxs[0]].workload_ratio = 100; return }
+  let cur = Math.round(Number(arr[changedIndex].workload_ratio) || 0)
+  cur = Math.max(0, Math.min(100, cur))
+  arr[changedIndex].workload_ratio = cur
+  const others = idxs.filter((i) => i !== changedIndex)
+  const remaining = 100 - cur
+  const total = others.reduce((s, i) => s + (Number(arr[i].workload_ratio) || 0), 0)
+  let acc = 0
+  others.forEach((i, k) => {
+    let v: number
+    if (k === others.length - 1) {
+      v = remaining - acc
+    } else if (total <= 0) {
+      v = Math.floor(remaining / others.length)
+    } else {
+      v = Math.floor((Number(arr[i].workload_ratio) || 0) / total * remaining)
+    }
+    arr[i].workload_ratio = Math.max(0, v)
+    acc += arr[i].workload_ratio
+  })
+}
+function addAssignee(arr: any[]) {
+  arr.push({ user_id: null, workload_ratio: null })
+}
+function removeAssignee(arr: any[], i: number) {
+  arr.splice(i, 1)
+  if (!arr.length) arr.push({ user_id: null, workload_ratio: null })
+  applyDefaultRatios(arr)
 }
 async function saveAggregate() {
-  let count = 0
-  for (const key of aggGroupIds.value) {
-    const g = aggGroups.value.find((x) => x.key === key)
-    if (!g) continue
-    const members = g._members.filter((m: any) => m.ci_id == null || aggCiIds.value.includes(m.ci_id))
-    const ciIds = [...new Set(members.map((m: any) => m.ci_id).filter(Boolean))]
-    const contractItemIds = members.map((m: any) => m.id)
-    if (!contractItemIds.length) continue
-    const res = await previewAggregateCycles({ contract_item_ids: contractItemIds })
-    const cycles: any[] = []
-    for (const iid of contractItemIds) {
-      for (const no of (res.data.cycles[iid] || []).map((c: any) => c.cycle_no)) {
-        cycles.push({ contract_item_id: iid, cycle_no: no })
-      }
-    }
-    await createAggregateWorkOrder({
-      customer_id: aggCustomerId.value,
-      ci_ids: ciIds,
-      contract_item_ids: contractItemIds,
-      cycles,
-      priority: aggPriority.value,
-      service_start: aggServiceStart.value || null,
-      service_end: aggServiceEnd.value || null,
-      generate_cycle: aggGenerateCycle.value,
-      dispatch: aggDispatch.value,
-      dispatch_type: aggDispatchType.value,
-      assignee_id: aggDispatch.value ? aggAssigneeId.value : null,
-    })
-    count++
+  // 所选服务类别 + 所选业务系统下的服务子项
+  const members = aggItems.value.filter(
+    (m: any) =>
+      m.contract_id === aggContractId.value &&
+      m.project === aggCategory.value &&
+      (m.ci_id == null || aggCiIds.value.includes(m.ci_id)),
+  )
+  const ciIds = [...new Set(members.map((m: any) => m.ci_id).filter(Boolean))]
+  const contractItemIds = members.map((m: any) => m.id)
+  if (!contractItemIds.length) {
+    ElMessage.warning('所选服务类别下没有可生成工单的服务子项')
+    return
   }
-  ElMessage.success(`已按服务类别创建 ${count} 个工单`)
+  const pickedAssignees = aggAssignees.value.filter((a: any) => a.user_id != null)
+  const res = await previewAggregateCycles({ contract_item_ids: contractItemIds })
+  const cycles: any[] = []
+  for (const iid of contractItemIds) {
+    for (const no of (res.data.cycles[iid] || []).map((c: any) => c.cycle_no)) {
+      cycles.push({ contract_item_id: iid, cycle_no: no })
+    }
+  }
+  await createAggregateWorkOrder({
+    customer_id: aggCustomerId.value,
+    type: aggType.value,
+    ci_ids: ciIds,
+    contract_item_ids: contractItemIds,
+    cycles,
+    priority: aggPriority.value,
+    service_start: aggServiceStart.value || null,
+    service_end: aggServiceEnd.value || null,
+    generate_cycle: aggGenerateCycle.value,
+    dispatch: pickedAssignees.length > 0,
+    dispatch_type: '内部',
+    assignees: pickedAssignees.map((a: any) => ({ user_id: a.user_id, workload_ratio: a.workload_ratio })),
+  })
+  ElMessage.success('已生成工单')
   aggDlg.value = false
   loadItems()
 }
@@ -1096,18 +1143,22 @@ onMounted(() => {
 .toolbar { display: flex; gap: 12px; margin-bottom: 14px; }
 .lane { margin-bottom: 16px; }
 .lane-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.lane-title { font-weight: 600; color: #303133; }
-.lane-count { color: #909399; font-size: 12px; }
-.lane-empty { color: #c0c4cc; font-size: 13px; padding: 4px 0; }
+.lane-title { font-weight: 600; color: var(--app-text); }
+.lane-count { color: var(--app-text-3); font-size: 12px; }
+.lane-empty { color: var(--app-text-4); font-size: 13px; padding: 4px 0; }
 .agg-box { width: 100%; }
 .agg-box .el-checkbox-group { display: block; margin-top: 8px; }
-.agg-empty { color: #909399; }
-.gen-cycle-btn.is-disabled { color: #909399 !important; }
+.agg-empty { color: var(--app-text-3); }
+.agg-readonly { line-height: 32px; color: var(--app-text-2); }
+.assignee-list { width: 100%; }
+.assignee-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.ratio-unit { color: var(--app-text-3); flex-shrink: 0; }
+.gen-cycle-btn.is-disabled { color: var(--app-text-4) !important; }
 .obj-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .ci-checkbox-list { display: flex; flex-direction: column; gap: 4px; }
-.ci-empty { color: #999; font-size: 12px; margin-top: 4px; }
+.ci-empty { color: var(--app-text-3); font-size: 12px; margin-top: 4px; }
 /* 与「项目名称」label（右对齐、宽 110px、右内边距 12px）的「项」字左缘对齐：110 - 12 - 4 字宽 */
 .ci-form-item :deep(.el-form-item__label),
 .ci-form-item :deep(.el-form-item__content) { margin-left: calc(110px - 12px - 4em); }
-.text-preview { margin-top: 8px; max-height: 200px; overflow: auto; white-space: pre-wrap; background: #f5f7fa; padding: 8px; border-radius: 4px; font-size: 12px; color: #666; }
+.text-preview { margin-top: 8px; max-height: 200px; overflow: auto; white-space: pre-wrap; background: var(--app-panel); padding: 8px; border-radius: 4px; font-size: 12px; color: var(--app-text-2); }
 </style>

@@ -54,8 +54,8 @@ async function onLogin() {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #0a3d91, #0f6bff);
+  background: radial-gradient(900px 600px at 70% -10%, #16304d 0%, #0b1220 55%);
 }
 .login-card { width: 360px; }
-.sub { color: #999; font-size: 13px; margin: 4px 0 16px; }
+.sub { color: var(--app-text-3); font-size: 13px; margin: 4px 0 16px; }
 </style>

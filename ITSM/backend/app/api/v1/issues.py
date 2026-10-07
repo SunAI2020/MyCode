@@ -1,9 +1,10 @@
 """问题整改闭环：问题 / 整改 / 整改记录。"""
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
+from sqlalchemy import or_
+from sqlalchemy.orm import Session, aliased
 
-from app.core.deps import get_current_user, get_db, require_permission, require_role
-from app.models import Issue, Rectification, RectificationRecord, SysUser, WorkOrder
+from app.core.deps import customer_scope_of, get_current_user, get_db, require_permission, require_role
+from app.models import CmdbCi, Contract, ContractItem, Customer, Issue, OrderReceive, Rectification, RectificationRecord, SysUser, WorkOrder, WorkOrderCi
 from app.schemas.issue import (
     IssueCreate,
     IssueOut,
@@ -43,6 +44,35 @@ def create_issue(
     return ok(IssueOut.model_validate(obj).model_dump())
 
 
+def _enrich_issues(db: Session, items: list[dict]) -> None:
+    wids = {it["work_order_id"] for it in items if it.get("work_order_id")}
+    if not wids:
+        return
+    wos = {w.id: w for w in db.query(WorkOrder).filter(WorkOrder.id.in_(wids)).all()}
+    cids = {w.customer_id for w in wos.values() if w.customer_id}
+    cname = {c.id: c.name for c in db.query(Customer).filter(Customer.id.in_(cids)).all()} if cids else {}
+    ci_rows = (
+        db.query(WorkOrderCi.work_order_id, CmdbCi.name)
+        .join(CmdbCi, CmdbCi.id == WorkOrderCi.ci_id)
+        .filter(WorkOrderCi.work_order_id.in_(wids))
+        .all()
+    )
+    ci_map: dict[int, list[str]] = {}
+    for wid, name in ci_rows:
+        ci_map.setdefault(wid, []).append(name)
+    for it in items:
+        wo = wos.get(it["work_order_id"])
+        if wo:
+            it["work_order_no"] = wo.no
+            it["customer_name"] = cname.get(wo.customer_id)
+            names = ci_map.get(it["work_order_id"], [])
+            if not names and wo.ci_id is not None:
+                _ci = db.get(CmdbCi, wo.ci_id)
+                if _ci:
+                    names = [_ci.name]
+            it["ci_names"] = "、".join(names)
+
+
 @router.get("/issues")
 def list_issues(
     page: int = Query(1, ge=1),
@@ -57,7 +87,24 @@ def list_issues(
         q = q.filter(Issue.type == type)
     if status is not None:
         q = q.filter(Issue.status == status)
-    return ok(paginate(q.order_by(Issue.id.desc()), page, size, IssueOut))
+    # 客户侧账号行级隔离：仅可见本客户工单下的问题（经 WorkOrder 链路反推客户）
+    scope = customer_scope_of(user, db)
+    if scope is not None:
+        q = q.join(WorkOrder, Issue.work_order_id == WorkOrder.id)
+        q = q.outerjoin(Contract, WorkOrder.contract_id == Contract.id)
+        q = q.outerjoin(OrderReceive, WorkOrder.receive_id == OrderReceive.id)
+        item_contract = aliased(Contract)
+        q = q.outerjoin(ContractItem, WorkOrder.contract_item_id == ContractItem.id)
+        q = q.outerjoin(item_contract, ContractItem.contract_id == item_contract.id)
+        q = q.filter(or_(
+            WorkOrder.customer_id == scope,
+            Contract.customer_id == scope,
+            OrderReceive.customer_id == scope,
+            item_contract.customer_id == scope,
+        ))
+    data = paginate(q.order_by(Issue.id.desc()), page, size, IssueOut)
+    _enrich_issues(db, data["items"])
+    return ok(data)
 
 
 @router.get("/issues/{iid}")

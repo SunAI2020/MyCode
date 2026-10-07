@@ -28,6 +28,8 @@
           <template #default="{ row }">
             <el-button v-if="row.has_file" link type="info" @click="openPreview(row)">预览</el-button>
             <el-button v-if="row.has_file" link type="success" @click="onDownload(row)">下载</el-button>
+            <el-button v-if="row.html_filename" link type="warning" @click="onDownloadGenerated(row, 'html')">HTML</el-button>
+            <el-button v-if="row.docx_filename" link type="warning" @click="onDownloadGenerated(row, 'docx')">Word</el-button>
             <el-button v-if="canWrite" link type="primary" @click="openEdit(row)">编辑</el-button>
             <el-button v-if="canDelete" link type="danger" @click="onDelete(row)">删除</el-button>
           </template>
@@ -75,7 +77,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { listReportLedger, createReportLedger, updateReportLedger, deleteReportLedger, listCustomers, listContracts, previewReport, downloadReport } from '@/api'
+import { listReportLedger, createReportLedger, updateReportLedger, deleteReportLedger, listCustomers, listContracts, previewReport, downloadReport, downloadGeneratedReport } from '@/api'
 import { useAuthStore } from '@/stores/auth'
 
 const REPORT_TYPES = ['运维报告', '履职报告', '验收报告', '安全报告', '其他']
@@ -158,6 +160,15 @@ async function onDownload(row: any) {
   a.click()
   URL.revokeObjectURL(url)
 }
+async function onDownloadGenerated(row: any, kind: 'html' | 'docx') {
+  const blob = await downloadGeneratedReport(row.id, kind)
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = kind === 'html' ? `${row.title}.html` : `${row.title}.docx`
+  a.click()
+  URL.revokeObjectURL(url)
+}
 function onPage(p: number) {
   query.page = p
   load()
@@ -171,5 +182,5 @@ onMounted(() => {
 <style scoped>
 .toolbar { display: flex; gap: 12px; margin-bottom: 14px; }
 .pager { margin-top: 14px; justify-content: flex-end; }
-.preview-text { white-space: pre-wrap; word-break: break-all; max-height: 60vh; overflow: auto; background: #f5f7fa; padding: 12px; border-radius: 4px; }
+.preview-text { white-space: pre-wrap; word-break: break-all; max-height: 60vh; overflow: auto; background: var(--app-panel); padding: 12px; border-radius: 4px; }
 </style>

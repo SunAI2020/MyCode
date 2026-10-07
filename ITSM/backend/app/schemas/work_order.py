@@ -90,6 +90,7 @@ class WorkOrderEditIn(BaseModel):
 
 class WorkOrderAggregateEditIn(BaseModel):
     ci_ids: list[int] = []            # 重选业务系统
+    type: str | None = None            # 工单类型
     priority: str | None = None
     service_start: date | None = None
     service_end: date | None = None
@@ -165,6 +166,7 @@ class AssigneeHoursIn(BaseModel):
 
 
 class DispatchCreate(BaseModel):
+    type: str | None = None
     dispatch_type: str = "内部"
     dispatch_price: float | None = None
     service_start: date | None = None

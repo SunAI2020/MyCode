@@ -22,6 +22,8 @@ export const updateRolePermissions = (code: string, data: any) => request.put(`/
 
 // ---- 安全隐患（问题整改）----
 export const listIssues = (params: any) => request.get('/issues', { params })
+export const updateIssue = (id: number, data: any) => request.put(`/issues/${id}`, data)
+export const deleteIssue = (id: number) => request.delete(`/issues/${id}`)
 
 // ---- 字典枚举 ----
 export const listDicts = (category: string) => request.get(`/dicts/${category}`)
@@ -122,6 +124,14 @@ export const previewReport = (id: number) => request.get(`/reports/${id}/preview
 export const downloadReport = async (id: number): Promise<Blob> => {
   const token = localStorage.getItem('token')
   const res = await axios.get(`/api/v1/reports/${id}/download`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    responseType: 'blob',
+  })
+  return res.data as Blob
+}
+export const downloadGeneratedReport = async (id: number, kind: 'html' | 'docx'): Promise<Blob> => {
+  const token = localStorage.getItem('token')
+  const res = await axios.get(`/api/v1/reports/${id}/generated/${kind}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     responseType: 'blob',
   })

@@ -89,14 +89,14 @@ onMounted(load)
 
 <style scoped>
 .mt { margin-top: 16px; }
-.stat-title { color: #57606a; font-size: 13px; }
+.stat-title { color: var(--app-text-3); font-size: 13px; }
 .stat-name { font-size: 18px; font-weight: 600; margin: 4px 0; }
-.stat-sub { color: #57606a; font-size: 13px; }
+.stat-sub { color: var(--app-text-3); font-size: 13px; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip { margin: 0; }
-.muted { color: #8c959f; font-size: 13px; }
+.muted { color: var(--app-text-3); font-size: 13px; }
 .ask-actions { margin-top: 10px; }
-.answer-box { margin-top: 12px; background: #f6f8fa; padding: 12px; border-radius: 6px; }
+.answer-box { margin-top: 12px; background: var(--app-panel); padding: 12px; border-radius: 6px; }
 .answer { white-space: pre-wrap; }
-.src-item { color: #57606a; font-size: 13px; margin-top: 4px; }
+.src-item { color: var(--app-text-3); font-size: 13px; margin-top: 4px; }
 </style>

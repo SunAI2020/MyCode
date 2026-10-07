@@ -122,9 +122,9 @@ onMounted(load)
 .pager { margin-top: 14px; justify-content: flex-end; }
 .ask-card { margin-top: 16px; }
 .ask-actions { margin-top: 10px; }
-.answer-box { margin-top: 12px; background: #f6f8fa; padding: 12px; border-radius: 6px; }
+.answer-box { margin-top: 12px; background: var(--app-panel); padding: 12px; border-radius: 6px; }
 .answer { white-space: pre-wrap; }
 .sources { margin-top: 8px; }
 .src-title { font-weight: 600; margin-bottom: 4px; }
-.src-item { color: #57606a; font-size: 13px; }
+.src-item { color: var(--app-text-3); font-size: 13px; }
 </style>

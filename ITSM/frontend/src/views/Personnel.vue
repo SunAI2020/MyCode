@@ -241,20 +241,20 @@ onMounted(async () => {
 .toolbar { margin-bottom: 14px; }
 .ps-section { margin-bottom: 16px; }
 .ps-section-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.ps-section-title { font-weight: 600; color: #303133; }
-.ps-section-count { color: #909399; font-size: 12px; }
-.ps-section-empty { color: #c0c4cc; font-size: 13px; padding: 4px 0; }
+.ps-section-title { font-weight: 600; color: var(--app-text); }
+.ps-section-count { color: var(--app-text-3); font-size: 12px; }
+.ps-section-empty { color: var(--app-text-4); font-size: 13px; padding: 4px 0; }
 .perm-layout { display: flex; gap: 16px; min-height: 420px; }
-.perm-roles { width: 180px; flex-shrink: 0; border-right: 1px solid #e5e7eb; padding-right: 12px; }
+.perm-roles { width: 180px; flex-shrink: 0; border-right: 1px solid var(--app-line); padding-right: 12px; }
 .perm-role { padding: 8px 12px; border-radius: 6px; cursor: pointer; margin-bottom: 4px; }
-.perm-role:hover { background: #f1f5f9; }
-.perm-role.active { background: #0a3d91; color: #fff; }
+.perm-role:hover { background: var(--app-elevated); }
+.perm-role.active { background: var(--app-accent); color: #fff; }
 .perm-role-name { font-size: 14px; font-weight: 600; }
 .perm-role-code { font-size: 12px; opacity: 0.7; }
 .perm-panel { flex: 1; }
-.perm-panel-title { font-size: 15px; font-weight: 700; margin-bottom: 12px; color: #0a3d91; }
+.perm-panel-title { font-size: 15px; font-weight: 700; margin-bottom: 12px; color: var(--app-accent); }
 .perm-group { margin-bottom: 18px; }
-.perm-group-title { font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 8px; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; }
+.perm-group-title { font-size: 13px; font-weight: 600; color: var(--app-text-3); margin-bottom: 8px; border-bottom: 1px solid var(--app-line); padding-bottom: 4px; }
 .perm-checks { display: flex; flex-wrap: wrap; gap: 4px 8px; }
 .perm-checks :deep(.el-checkbox) { margin-right: 0; }
 </style>

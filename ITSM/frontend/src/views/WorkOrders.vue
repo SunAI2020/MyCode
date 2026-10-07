@@ -66,12 +66,6 @@
         <el-form-item label="服务开始时间"><el-date-picker v-model="createForm.service_start" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item>
         <el-form-item label="服务结束时间"><el-date-picker v-model="createForm.service_end" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item>
         <el-form-item label="同时生成工期"><el-checkbox v-model="createForm.generate_cycle" /></el-form-item>
-        <el-form-item label="派单类型">
-          <el-select v-model="createForm.dispatch_type" style="width: 100%">
-            <el-option label="内部" value="内部" />
-            <el-option label="外包" value="外包" />
-          </el-select>
-        </el-form-item>
         <el-form-item label="执行人">
           <el-select v-model="createForm.assignee_id" filterable placeholder="选择执行人" style="width: 100%">
             <el-option v-for="u in dispatchableUsers" :key="u.id" :label="u.name" :value="u.id" />
@@ -118,10 +112,9 @@
         <el-form-item label="开始时间"><el-date-picker v-model="aggServiceStart" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item>
         <el-form-item label="结束时间"><el-date-picker v-model="aggServiceEnd" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item>
         <el-form-item label="生成工期"><el-checkbox v-model="aggGenerateCycle" /></el-form-item>
-        <el-form-item label="派单类型">
-          <el-select v-model="aggDispatchType" style="width: 100%">
-            <el-option label="内部" value="内部" />
-            <el-option label="外包" value="外包" />
+        <el-form-item label="工单类型">
+          <el-select v-model="aggType" style="width: 100%">
+            <el-option v-for="t in ['客户工单', '驻场工单', '内部任务', '外包工单']" :key="t" :label="t" :value="t" />
           </el-select>
         </el-form-item>
         <el-form-item label="执行人">
@@ -165,12 +158,23 @@
       <template #footer><el-button @click="scopeDlg = false">关闭</el-button></template>
     </el-dialog>
 
-    <el-dialog v-model="dispatchDlg" title="派单" width="560px">
-      <el-form label-width="90px">
-        <el-form-item label="派单类型">
-          <el-select v-model="dispatchForm.dispatch_type" style="width: 100%">
-            <el-option label="内部" value="内部" />
-            <el-option label="外包" value="外包" />
+    <el-dialog v-model="dispatchDlg" title="派单" width="640px">
+      <div class="dispatch-info">
+        <div class="di-item"><span class="di-k">工单号</span><span class="di-v num">{{ dispatchRow?.no || '—' }}</span></div>
+        <div class="di-item"><span class="di-k">客户名称</span><span class="di-v">{{ customerMap.get(dispatchRow?.customer_id)?.name || '—' }}</span></div>
+        <div class="di-item"><span class="di-k">项目名称</span><span class="di-v">{{ dispatchScope?.contract_name || '—' }}</span></div>
+        <div class="di-item"><span class="di-k">业务系统</span><span class="di-v">{{ dispatchCiNames }}</span></div>
+        <div class="di-item"><span class="di-k">服务类别</span><span class="di-v">{{ dispatchItemNames }}</span></div>
+        <div class="di-item"><span class="di-k">是否驻场</span><span class="di-v">{{ dispatchIsOnsite ? '是' : '否' }}</span></div>
+        <div class="di-item"><span class="di-k">开始时间</span><span class="di-v num">{{ dispatchStart }}</span></div>
+        <div class="di-item"><span class="di-k">结束时间</span><span class="di-v num">{{ dispatchEnd }}</span></div>
+        <div class="di-item"><span class="di-k">期次</span><span class="di-v">{{ dispatchCycleLabel }}</span></div>
+        <div class="di-item"><span class="di-k">优先级</span><span class="di-v">{{ dispatchRow?.priority || '—' }}</span></div>
+      </div>
+      <el-form label-width="90px" style="margin-top: 14px">
+        <el-form-item label="工单类型">
+          <el-select v-model="dispatchForm.type" style="width: 100%">
+            <el-option v-for="t in ['客户工单', '驻场工单', '内部任务', '外包工单']" :key="t" :label="t" :value="t" />
           </el-select>
         </el-form-item>
         <el-form-item label="执行人">
@@ -190,6 +194,27 @@
       <template #footer><el-button @click="dispatchDlg = false">取消</el-button><el-button type="primary" @click="onDispatch">派单</el-button></template>
     </el-dialog>
 
+    <el-dialog v-model="executeDlg" title="确认执行工单" width="640px">
+      <div class="dispatch-info">
+        <div class="di-item"><span class="di-k">工单号</span><span class="di-v num">{{ executeRow?.no || '—' }}</span></div>
+        <div class="di-item"><span class="di-k">客户名称</span><span class="di-v">{{ customerMap.get(executeRow?.customer_id)?.name || '—' }}</span></div>
+        <div class="di-item"><span class="di-k">项目名称</span><span class="di-v">{{ executeScope?.contract_name || '—' }}</span></div>
+        <div class="di-item"><span class="di-k">业务系统</span><span class="di-v">{{ executeCiNames }}</span></div>
+        <div class="di-item"><span class="di-k">服务类别</span><span class="di-v">{{ executeItemNames }}</span></div>
+        <div class="di-item"><span class="di-k">开始时间</span><span class="di-v num">{{ executeScope?.cycles?.[0]?.service_start || '—' }}</span></div>
+        <div class="di-item"><span class="di-k">结束时间</span><span class="di-v num">{{ executeScope?.cycles?.[executeScope.cycles.length - 1]?.service_end || '—' }}</span></div>
+        <div class="di-item"><span class="di-k">期次</span><span class="di-v">{{ executeRow?.current_cycle_no != null ? `第${executeRow.current_cycle_no}期` : '—' }}</span></div>
+        <div class="di-item"><span class="di-k">工单类型</span><span class="di-v">{{ executeRow?.type || '—' }}</span></div>
+        <div class="di-item"><span class="di-k">是否驻场</span><span class="di-v">{{ executeRow?.type === '驻场工单' ? '是' : '否' }}</span></div>
+        <div class="di-item"><span class="di-k">优先级</span><span class="di-v">{{ executeRow?.priority || '—' }}</span></div>
+        <div class="di-item"><span class="di-k">执行人</span><span class="di-v">{{ (executeRow?.assignee_names || []).join('、') || '—' }}</span></div>
+      </div>
+      <template #footer>
+        <el-button @click="executeDlg = false">取消</el-button>
+        <el-button type="primary" @click="confirmExecute">确认</el-button>
+      </template>
+    </el-dialog>
+
     <el-dialog v-model="detailDlg" title="工单详情" width="520px">
       <template v-if="detailData">
         <el-descriptions :column="1" border>
@@ -206,10 +231,16 @@
       <template #footer><el-button @click="detailDlg = false">关闭</el-button></template>
     </el-dialog>
 
-    <el-dialog v-model="editAggDlg" title="编辑聚合工单" width="640px">
+    <el-dialog v-model="editAggDlg" title="编辑工单" width="640px">
       <el-form label-width="90px">
+        <el-form-item label="工单号">
+          <el-input :model-value="editAggRow?.no || ''" disabled />
+        </el-form-item>
         <el-form-item label="客户">
           <el-input :model-value="customerMap.get(editAggCustomerId)?.name || ''" disabled />
+        </el-form-item>
+        <el-form-item label="项目名称">
+          <el-input :model-value="editAggContractName" disabled />
         </el-form-item>
         <el-form-item label="业务系统">
           <el-checkbox-group v-model="editAggCiIds">
@@ -226,11 +257,19 @@
         </el-form-item>
         <el-form-item label="开始时间"><el-date-picker v-model="editAggServiceStart" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item>
         <el-form-item label="结束时间"><el-date-picker v-model="editAggServiceEnd" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item>
+        <el-form-item label="期次">
+          <el-input :model-value="editAggCycleLabel" disabled />
+        </el-form-item>
+        <el-form-item label="是否驻场">
+          <el-select v-model="editAggOnsite" style="width: 100%" @change="onOnsiteChange">
+            <el-option label="是" value="是" />
+            <el-option label="否" value="否" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="重新生成工期"><el-checkbox v-model="editAggRegenerateCycle" /></el-form-item>
-        <el-form-item label="派单类型">
-          <el-select v-model="editAggDispatchType" style="width: 100%">
-            <el-option label="内部" value="内部" />
-            <el-option label="外包" value="外包" />
+        <el-form-item label="工单类型">
+          <el-select v-model="editAggType" style="width: 100%" @change="onAggTypeChange">
+            <el-option v-for="t in ['客户工单', '驻场工单', '内部任务', '外包工单']" :key="t" :label="t" :value="t" />
           </el-select>
         </el-form-item>
         <el-form-item label="执行人">
@@ -406,7 +445,31 @@ const createCiName = ref<Map<number, string>>(new Map())  // 业务系统 id →
 
 const dispatchDlg = ref(false)
 const dispatchTarget = ref<number | null>(null)
-const dispatchForm = reactive({ dispatch_type: '内部', assignees: [{ user_id: null, workload_ratio: 100 }] as any[] })
+const dispatchRow = ref<any>(null)
+const dispatchScope = ref<any>(null)
+const dispatchForm = reactive({ type: '客户工单', assignees: [{ user_id: null, workload_ratio: 100 }] as any[] })
+
+const dispatchCiNames = computed(() => (dispatchScope.value?.cis || []).map((c: any) => c.name).join('、') || '—')
+const dispatchItemNames = computed(() => {
+  const names = [...new Set((dispatchScope.value?.items || []).map((i: any) => i.project).filter(Boolean))]
+  return names.join('、') || dispatchRow.value?.project || '—'
+})
+const dispatchIsOnsite = computed(() => dispatchRow.value?.type === '驻场工单')
+const dispatchStart = computed(() => dispatchScope.value?.cycles?.[0]?.service_start || '—')
+const dispatchEnd = computed(() => {
+  const c = dispatchScope.value?.cycles || []
+  return c.length ? c[c.length - 1].service_end : '—'
+})
+const dispatchCycleLabel = computed(() => (dispatchRow.value?.current_cycle_no != null ? `第${dispatchRow.value.current_cycle_no}期` : '—'))
+
+const executeDlg = ref(false)
+const executeRow = ref<any>(null)
+const executeScope = ref<any>(null)
+const executeCiNames = computed(() => (executeScope.value?.cis || []).map((c: any) => c.name).join('、') || '—')
+const executeItemNames = computed(() => {
+  const names = [...new Set((executeScope.value?.items || []).map((i: any) => i.project).filter(Boolean))]
+  return names.join('、') || executeRow.value?.project || '—'
+})
 
 // ---- 执行人占比：默认分配 + 自动增减（总和恒为 100%）----
 function defaultRatios(n: number): number[] {
@@ -478,7 +541,7 @@ const aggServiceStart = ref('')
 const aggServiceEnd = ref('')
 const aggGenerateCycle = ref(true)
 const aggDispatch = ref(true)
-const aggDispatchType = ref('内部')
+const aggType = ref('客户工单')
 const aggAssignees = ref<any[]>([])   // 多个执行人 + 占比
 
 const filteredCis = computed(() => cis.value.filter((c) => c.customer_id === aggCustomerId.value))
@@ -515,6 +578,8 @@ const detailData = ref<any>(null)
 // 编辑聚合工单（业务系统可重选、服务类别固定、重新生成工期/重新派单）
 const editAggDlg = ref(false)
 const editAggWoId = ref<number | null>(null)
+const editAggRow = ref<any>(null)
+const editAggContractName = ref('')
 const editAggCustomerId = ref<number | null>(null)
 const editAggCis = ref<any[]>([])
 const editAggCiIds = ref<number[]>([])
@@ -524,8 +589,20 @@ const editAggServiceStart = ref('')
 const editAggServiceEnd = ref('')
 const editAggRegenerateCycle = ref(false)
 const editAggDispatch = ref(false)
-const editAggDispatchType = ref('内部')
+const editAggType = ref('客户工单')
 const editAggAssignees = ref<any[]>([])   // 多个执行人 + 占比
+const editAggOnsite = ref('否')
+const editAggCycleLabel = computed(() => (editAggRow.value?.current_cycle_no != null ? `第${editAggRow.value.current_cycle_no}期` : '—'))
+function onOnsiteChange(v: string) {
+  if (v === '是') {
+    editAggType.value = '驻场工单'
+  } else if (editAggType.value === '驻场工单') {
+    editAggType.value = '客户工单'
+  }
+}
+function onAggTypeChange(v: string) {
+  editAggOnsite.value = v === '驻场工单' ? '是' : '否'
+}
 
 const transitionDlg = ref(false)
 const transitionRow = ref<any>(null)
@@ -679,16 +756,21 @@ async function onCreate() {
   createDlg.value = false
   load()
 }
-function openDispatch(row: any) {
+async function openDispatch(row: any) {
   dispatchTarget.value = row.id
-  dispatchForm.dispatch_type = '内部'
+  dispatchRow.value = row
+  dispatchScope.value = null
+  dispatchForm.type = row.type || '客户工单'
   dispatchForm.assignees = [{ user_id: dispatchableUsers.value[0]?.id ?? null, workload_ratio: 100 }]
   dispatchDlg.value = true
+  try {
+    dispatchScope.value = (await getWorkOrderScope(row.id)).data
+  } catch { /* 明细加载失败不影响派单 */ }
 }
 async function onDispatch() {
   const assignees = dispatchForm.assignees.filter((a: any) => a.user_id != null)
   if (!assignees.length) return ElMessage.warning('请至少选择一名执行人')
-  await dispatch(dispatchTarget.value!, { dispatch_type: dispatchForm.dispatch_type, assignees })
+  await dispatch(dispatchTarget.value!, { type: dispatchForm.type, assignees })
   ElMessage.success('派单完成')
   dispatchDlg.value = false
   load()
@@ -720,13 +802,33 @@ async function onNextAction(row: any) {
     openDispatch(row)
     return
   }
+  if (row.status === '待执行') {
+    openExecute(row)
+    return
+  }
   if (row.status === '执行中') {
     openReportUpload(row)
     return
   }
-  const next: Record<string, string> = { '待执行': '执行中', '待验收': '待结单', '待结单': '已结单', '已结单': '已关闭' }
+  const next: Record<string, string> = { '待验收': '待结单', '待结单': '已结单', '已结单': '已关闭' }
   await updateStatus(row.id, { status: next[row.status] })
   ElMessage.success('状态已更新')
+  load()
+}
+async function openExecute(row: any) {
+  executeRow.value = row
+  executeScope.value = null
+  executeDlg.value = true
+  try {
+    executeScope.value = (await getWorkOrderScope(row.id)).data
+  } catch { /* 明细加载失败不影响确认 */ }
+}
+async function confirmExecute() {
+  const id = executeRow.value?.id
+  if (!id) return
+  await updateStatus(id, { status: '执行中' })
+  ElMessage.success('已开始执行')
+  executeDlg.value = false
   load()
 }
 let reportOpenSeq = 0
@@ -826,7 +928,7 @@ async function openAggregate() {
   aggServiceEnd.value = ''
   aggGenerateCycle.value = true
   aggDispatch.value = true
-  aggDispatchType.value = '内部'
+  aggType.value = '客户工单'
   aggAssignees.value = [{ user_id: null, workload_ratio: null }]
   cis.value = []
   items.value = []
@@ -894,7 +996,7 @@ async function saveAggregate() {
       service_end: aggServiceEnd.value || null,
       generate_cycle: aggGenerateCycle.value,
       dispatch: aggDispatch.value,
-      dispatch_type: aggDispatchType.value,
+      type: aggType.value,
       assignees: aggDispatch.value ? assignees : [],
     })
     count++
@@ -914,6 +1016,8 @@ function openEdit(row: any) {
 async function openEditAggregate(row: any) {
   const scope = (await getWorkOrderScope(row.id)).data
   editAggWoId.value = row.id
+  editAggRow.value = row
+  editAggContractName.value = scope.contract_name || ''
   editAggCustomerId.value = row.customer_id ?? null
   editAggCis.value = (await listCis({ page: 1, size: 100, customer_id: row.customer_id })).data.items
   editAggCiIds.value = scope.cis.map((c: any) => c.ci_id)
@@ -925,7 +1029,8 @@ async function openEditAggregate(row: any) {
   editAggServiceEnd.value = ends[ends.length - 1] ?? ''
   editAggRegenerateCycle.value = true
   editAggDispatch.value = true
-  editAggDispatchType.value = scope.dispatch_type || '内部'
+  editAggType.value = row.type || '客户工单'
+  editAggOnsite.value = row.type === '驻场工单' ? '是' : '否'
   editAggAssignees.value = (scope.assignees && scope.assignees.length)
     ? scope.assignees.map((a: any) => ({ user_id: a.user_id, workload_ratio: Number(a.workload_ratio) || 0 }))
     : [{ user_id: null, workload_ratio: null }]
@@ -947,7 +1052,7 @@ async function saveEditAggregate() {
     service_end: editAggServiceEnd.value || null,
     regenerate_cycle: editAggRegenerateCycle.value,
     dispatch: editAggDispatch.value,
-    dispatch_type: editAggDispatchType.value,
+    type: editAggType.value,
     assignees: editAggDispatch.value ? assignees : [],
   })
   ElMessage.success('已保存')
@@ -981,32 +1086,36 @@ onMounted(async () => {
 .toolbar { display: flex; gap: 12px; margin-bottom: 14px; }
 .wo-section { margin-bottom: 16px; }
 .wo-section-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.wo-section-title { font-weight: 600; color: #303133; }
-.wo-section-count { color: #909399; font-size: 12px; }
-.wo-section-empty { color: #c0c4cc; font-size: 13px; padding: 4px 0; }
+.wo-section-title { font-weight: 600; color: var(--app-text); }
+.wo-section-count { color: var(--app-text-3); font-size: 12px; }
+.wo-section-empty { color: var(--app-text-4); font-size: 13px; padding: 4px 0; }
 .pager { margin-top: 14px; justify-content: flex-end; }
 .assignee-list { width: 100%; }
 .assignee-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
-.ratio-unit { color: #909399; flex-shrink: 0; }
+.ratio-unit { color: var(--app-text-3); flex-shrink: 0; }
+.dispatch-info { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 24px; padding: 4px 2px 2px; }
+.di-item { display: flex; gap: 8px; font-size: 12.5px; line-height: 1.7; }
+.di-k { color: var(--app-text-3); flex-shrink: 0; }
+.di-v { color: var(--app-text); word-break: break-all; }
 .agg-box { width: 100%; }
 .agg-box .el-checkbox-group { display: block; margin-top: 8px; }
 .agg-cycle { margin-bottom: 12px; }
 .agg-cycle-title { font-weight: 600; margin-bottom: 6px; }
-.agg-empty { color: #909399; }
+.agg-empty { color: var(--app-text-3); }
 .scope-tag { margin: 0 8px 8px 0; }
 .scope-cycle { padding: 3px 0; }
 .issue-cat { margin-bottom: 10px; }
-.issue-cat-title { font-weight: 600; color: #303133; margin-bottom: 6px; }
+.issue-cat-title { font-weight: 600; color: var(--app-text); margin-bottom: 6px; }
 .issue-counters { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
-.issue-counter { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: #606266; }
-.issue-grand-total { margin: 8px 0 4px; font-weight: 600; color: #f56c6c; }
-.report-info { border: 1px solid #ebeef5; border-radius: 4px; padding: 6px 12px; margin-bottom: 4px; }
+.issue-counter { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--app-text-2); }
+.issue-grand-total { margin: 8px 0 4px; font-weight: 600; color: var(--app-bad); }
+.report-info { border: 1px solid var(--app-line); border-radius: 4px; padding: 6px 12px; margin-bottom: 4px; }
 .report-info-row { display: flex; align-items: center; min-height: 30px; font-size: 13px; }
-.ri-label { width: 72px; color: #909399; flex-shrink: 0; }
+.ri-label { width: 72px; color: var(--app-text-3); flex-shrink: 0; }
 .ri-label-ml { width: auto; margin-left: 18px; }
-.ri-val { color: #303133; }
+.ri-val { color: var(--app-text); }
 .report-info-cis { align-items: flex-start; }
 .report-info-cis .ri-val { flex: 1; }
 .ri-ci { line-height: 22px; }
-.btn-update-report { color: #722ed1 !important; }
+.btn-update-report { color: #a06ee8 !important; }
 </style>

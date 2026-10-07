@@ -49,3 +49,5 @@ class ReportOut(BaseModel):
     file_size: int | None = None
     has_file: bool = False
     report_data: str | None = None
+    html_filename: str | None = None
+    docx_filename: str | None = None

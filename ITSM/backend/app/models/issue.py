@@ -20,7 +20,8 @@ class Issue(Base):
     description: Mapped[str] = mapped_column(Text)
     attachments: Mapped[str | None] = mapped_column(Text, nullable=True)
     similar_ids: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    status: Mapped[str] = mapped_column(String(16), default="待整改")  # 待整改/整改中/已关闭
+    status: Mapped[str] = mapped_column(String(16), default="待整改")  # 待整改/整改中/已关闭/忽略/误报
+    level_counts: Mapped[str | None] = mapped_column(Text, nullable=True)  # 级别数量 JSON（如 {"高危":5,"中危":3}）
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

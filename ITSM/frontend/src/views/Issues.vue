@@ -12,19 +12,27 @@
       <el-table :data="rows" v-loading="loading">
         <el-table-column prop="id" label="ID" width="60" />
         <el-table-column prop="type" label="隐患类型" width="110" />
-        <el-table-column prop="level" label="级别" width="80">
-          <template #default="{ row }">
-            <el-tag :type="levelTag(row.level)" size="small">{{ row.level }}</el-tag>
-          </template>
+        <el-table-column label="级别及数量" width="180">
+          <template #default="{ row }">{{ levelCountsLabel(row) }}</template>
         </el-table-column>
-        <el-table-column prop="description" label="隐患描述" show-overflow-tooltip />
-        <el-table-column prop="work_order_id" label="关联工单" width="90" />
-        <el-table-column label="整改状态" width="100">
+        <el-table-column prop="description" label="隐患详情" show-overflow-tooltip />
+        <el-table-column prop="customer_name" label="关联客户" width="140" show-overflow-tooltip />
+        <el-table-column prop="ci_names" label="关联业务系统" width="150" show-overflow-tooltip />
+        <el-table-column prop="work_order_no" label="关联工单" width="130" />
+        <el-table-column prop="created_at" label="提交时间" width="170" />
+        <el-table-column label="整改情况" width="90">
           <template #default="{ row }">
             <el-tag :type="statusTag(row.status)" size="small">{{ row.status }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="created_at" label="发现时间" width="170" />
+        <el-table-column label="操作" width="220" fixed="right">
+          <template #default="{ row }">
+            <el-button v-if="canWrite && row.status === '待整改'" link type="primary" @click="onAction(row, '整改中')">处置</el-button>
+            <el-button v-if="canWrite" link type="warning" @click="onAction(row, '忽略')">忽略</el-button>
+            <el-button v-if="canWrite" link type="info" @click="onAction(row, '误报')">标记误报</el-button>
+            <el-button v-if="canDelete" link type="danger" @click="onDelete(row)">删除</el-button>
+          </template>
+        </el-table-column>
       </el-table>
       <el-pagination
         class="pager"
@@ -39,11 +47,17 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
-import { listIssues } from '@/api'
+import { computed, onMounted, reactive, ref } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { listIssues, updateIssue, deleteIssue } from '@/api'
+import { useAuthStore } from '@/stores/auth'
+
+const auth = useAuthStore()
+const canWrite = computed(() => auth.hasPermission('issue:write'))
+const canDelete = computed(() => auth.hasPermission('issue:delete'))
 
 const ISSUE_TYPES = ['安全漏洞', '配置缺陷', '基线不合规', '风险隐患']
-const ISSUE_STATUS = ['待整改', '整改中', '已关闭']
+const ISSUE_STATUS = ['待整改', '整改中', '已关闭', '忽略', '误报']
 
 const rows = ref<any[]>([])
 const total = ref(0)
@@ -52,18 +66,22 @@ const query = reactive({ page: 1, size: 20 })
 const filterType = ref('')
 const filterStatus = ref('')
 
-const LEVEL_TAG: Record<string, string> = {
-  '严重': 'danger',
-  '高危': 'warning',
-  '中危': 'primary',
-  '低危': 'info',
-  '信息': 'success',
-}
-function levelTag(level: string) {
-  return LEVEL_TAG[level] || 'info'
-}
 function statusTag(status: string) {
-  return status === '已关闭' ? 'success' : status === '整改中' ? 'warning' : 'danger'
+  if (status === '已关闭') return 'success'
+  if (status === '整改中') return 'warning'
+  if (status === '忽略' || status === '误报') return 'info'
+  return 'danger'
+}
+function levelCountsLabel(row: any) {
+  if (row.level_counts) {
+    try {
+      const m = JSON.parse(row.level_counts)
+      const order = ['严重', '高危', '中危', '低危', '其他']
+      const parts = order.filter((l) => m[l]).map((l) => `${l}：${m[l]}`)
+      if (parts.length) return parts.join('，')
+    } catch { /* ignore */ }
+  }
+  return row.level ? `${row.level}：1` : '—'
 }
 
 async function load() {
@@ -83,8 +101,26 @@ function onPage(p: number) {
   query.page = p
   load()
 }
+async function onAction(row: any, status: string) {
+  await updateIssue(row.id, { status })
+  ElMessage.success('已更新')
+  load()
+}
+async function onDelete(row: any) {
+  try {
+    await ElMessageBox.confirm(`确认删除隐患「${row.type}」？`, '删除', { type: 'warning' })
+  } catch {
+    return
+  }
+  await deleteIssue(row.id)
+  ElMessage.success('已删除')
+  load()
+}
 
-onMounted(load)
+onMounted(() => {
+  if (!auth.user) auth.fetchMe().catch(() => {})
+  load()
+})
 </script>
 
 <style scoped>

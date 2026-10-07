@@ -130,7 +130,7 @@ onMounted(() => {
 .sec { margin: 8px 0 12px; }
 .transitions { display: flex; flex-direction: column; gap: 8px; }
 .from-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.arrow { color: #8c959f; }
+.arrow { color: var(--app-text-3); }
 .to-tag { margin: 0; }
 .mt { margin-top: 16px; }
 .pager { margin-top: 14px; justify-content: flex-end; }

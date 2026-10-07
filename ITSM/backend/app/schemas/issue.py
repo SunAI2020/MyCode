@@ -20,6 +20,8 @@ class IssueUpdate(BaseModel):
     attachments: str | None = None
     similar_ids: str | None = None
     requirement_id: int | None = None
+    status: str | None = None
+    level_counts: str | None = None
 
 
 class IssueOut(BaseModel):
@@ -35,6 +37,11 @@ class IssueOut(BaseModel):
     similar_ids: str | None = None
     status: str
     created_at: datetime | None = None
+    level_counts: str | None = None
+    # 富化字段（列表接口填充）
+    customer_name: str | None = None
+    ci_names: str | None = None
+    work_order_no: str | None = None
 
 
 class RectificationCreate(BaseModel):

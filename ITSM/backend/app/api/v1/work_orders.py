@@ -2,6 +2,7 @@
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -139,7 +140,10 @@ def list_work_orders(
     q = db.query(WorkOrder)
     q = scope_filter(q, WorkOrder, customer_scope_of(user, db))
     if contract_item_id is not None:
-        q = q.filter(WorkOrder.contract_item_id == contract_item_id)
+        # 同时匹配简单工单（contract_item_id 直挂）与聚合工单（经 WorkOrderItem 关联）
+        wo_ids = db.query(WorkOrderItem.work_order_id).filter(WorkOrderItem.contract_item_id == contract_item_id)
+        q = q.filter(or_(WorkOrder.contract_item_id == contract_item_id, WorkOrder.id.in_(wo_ids)))
+    q = q.order_by(WorkOrder.id.desc())
     data = paginate(q, page, size, WorkOrderOut)
     # 补齐客户：简单工单 customer_id 为空（历史/调度器生成）时从合同反推，保证列表客户列有值
     _miss = [it["contract_id"] for it in data["items"] if not it.get("customer_id") and it.get("contract_id")]
@@ -517,9 +521,21 @@ def get_work_order_scope(wid: int, user: SysUser = Depends(get_current_user), db
         _disp = db.get(OrderDispatch, wo.dispatch_id)
         if _disp is not None:
             dispatch_type = _disp.dispatch_type
+    # 项目名称：优先工单直挂合同，否则取首个服务子项的合同
+    contract_name = ""
+    _contract_id = wo.contract_id
+    if _contract_id is None and items:
+        _item = db.get(ContractItem, items[0]["contract_item_id"])
+        if _item is not None:
+            _contract_id = _item.contract_id
+    if _contract_id is not None:
+        _contract = db.get(Contract, _contract_id)
+        if _contract is not None:
+            contract_name = _contract.name
     return ok({
         "work_order": WorkOrderOut.model_validate(wo).model_dump(),
         "cis": cis, "items": items, "cycles": cycles,
+        "contract_name": contract_name,
         "assignee_id": assignees[0]["user_id"] if assignees else None,
         "assignees": assignees,
         "dispatch_type": dispatch_type,
@@ -624,6 +640,8 @@ def edit_aggregate_work_order(
 
     if body.priority is not None:
         wo.priority = body.priority
+    if body.type is not None:
+        wo.type = body.type
 
     # 重选业务系统（校验非空 + 业务系统归属，防跨客户越权）
     if not body.ci_ids:
@@ -781,6 +799,8 @@ def dispatch(
     assert_scoped(wo, customer_scope_of(user, db), db)
     if wo.status != "待派单":
         raise HTTPException(status.HTTP_400_BAD_REQUEST, f"当前状态「{wo.status}」不可派单（仅待派单可派单）")
+    if body.type is not None:
+        wo.type = body.type
     _assert_dispatchable(db, [a.user_id for a in body.assignees])
     for a in db.query(WorkOrderAssignee).filter_by(work_order_id=wid, is_active=True).all():
         a.is_active = False  # 停用旧活跃执行人，防重复派单累计

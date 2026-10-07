@@ -27,6 +27,8 @@ class Report(Base):
     content_enc: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)  # Fernet 加密后的文件内容
     masked_text: Mapped[str | None] = mapped_column(Text, nullable=True)  # 脱敏后的文本（预览/搜索）
     report_data: Mapped[str | None] = mapped_column(Text, nullable=True)  # 结构化报告内容（工作内容/安全问题统计/详情）JSON 文本
+    html_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)  # 生成的 HTML 报告文件名（/reports 目录，Fernet 加密）
+    docx_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)  # 生成的 Word 报告文件名（/reports 目录，Fernet 加密）
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

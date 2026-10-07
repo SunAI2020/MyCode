@@ -567,11 +567,11 @@ onMounted(() => {
 .toolbar { display: flex; gap: 12px; margin-bottom: 14px; align-items: center; }
 .pager { margin-top: 14px; display: flex; justify-content: flex-end; }
 .ev-form { margin-bottom: 8px; }
-.ev-note { color: #555; font-size: 13px; }
+.ev-note { color: var(--app-text-3); font-size: 13px; }
 .metric-row { margin-bottom: 16px; }
-.metric { text-align: center; padding: 16px 0; background: #f7f8fa; border-radius: 6px; }
-.metric-num { font-size: 24px; font-weight: 600; color: #303133; }
-.metric-label { margin-top: 6px; font-size: 13px; color: #909399; }
+.metric { text-align: center; padding: 16px 0; background: var(--app-panel); border-radius: 6px; }
+.metric-num { font-size: 24px; font-weight: 600; color: var(--app-text); }
+.metric-label { margin-top: 6px; font-size: 13px; color: var(--app-text-3); }
 .chart { height: 320px; margin-top: 8px; }
-.sec-title { margin: 16px 0 8px; font-size: 14px; color: #303133; }
+.sec-title { margin: 16px 0 8px; font-size: 14px; color: var(--app-text); }
 </style>
